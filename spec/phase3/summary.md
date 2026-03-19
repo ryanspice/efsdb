@@ -6,7 +6,7 @@
   - `web/apps/login`
   - `web/apps/explorer`
   - `web/apps/admin`
-- Rehomed the shipped login custom element from `efsdb-login/*` into `web/apps/login/*` while keeping the PHP-served asset path stable at `/js/efsdb-login.js`.
+- Rehomed the shipped login custom element into `web/apps/login/*` and retired the old standalone `efsdb-login/*` fallback source while keeping the PHP-served asset path stable at `/js/efsdb-login.js`.
 - Rehomed the shipped explorer custom element from `efsdb-explorer/*` into `web/apps/explorer/*` while keeping the PHP-served asset path stable at `/js/efsdb-explorer.js`.
 - Built a real admin custom element in `web/apps/admin/*` that consumes the existing auth, admin, products, search, and facets contracts.
 - Made the admin custom element the default `?action=admin` path.
@@ -100,24 +100,22 @@ Root build scripts currently resolve to:
 
 Fallback-only build sources still present:
 
-- `efsdb-login/*`
 - `efsdb-explorer/*`
 
 Current root fallback scripts:
 
-- `build:login:legacy`
 - `build:explorer:legacy`
 
 That means:
 
-- `/web` is the active shipped source of truth
-- `efsdb-login` and `efsdb-explorer` are rollback-only build sources, not active build truth
+- `/web` is the active shipped source of truth for login, explorer, and admin
+- `efsdb-explorer` is still a rollback-only build source
 
 ## CE-first host status
 
 | Surface | Active default path | Host status | Runtime rollback |
 | --- | --- | --- | --- |
-| Login | `?action=login` | CE-first thin host | legacy build source only |
+| Login | `?action=login` | CE-first thin host | git revert only |
 | Explorer | `?action=explorer` | CE-first thin host | legacy build source only |
 | Admin | `?action=admin` | CE-first thin host | `?action=admin&ui=legacy` |
 
@@ -161,9 +159,6 @@ Still present but intentionally non-authoritative:
 
 Current rollback paths are deliberate and explicit:
 
-- Login build rollback:
-  - `efsdb-login/*`
-  - root script `build:login:legacy`
 - Explorer build rollback:
   - `efsdb-explorer/*`
   - root script `build:explorer:legacy`
@@ -175,7 +170,6 @@ No public-site rollback path was introduced because `/` and `/staging` were inte
 
 ## Known remaining temporary pieces
 
-- `efsdb-login/*` still exists as fallback-only build source.
 - `efsdb-explorer/*` still exists as fallback-only build source.
 - `efsdb/php/core/public/views/_admin_legacy.php` still exists as a short-term runtime rollback path.
 - `efsdb/php/core/public/views/header.php`, `nav.php`, and `footer.php` still carry transitional shell responsibilities.
@@ -187,12 +181,12 @@ No public-site rollback path was introduced because `/` and `/staging` were inte
 
 - Compatibility routing still lives behind `efsdb/php/core/public/index.php`.
 - Public site delivery at `/` and `/staging` was not changed by the control-plane migration.
-- Fallback build sources for login and explorer are still retained until removal criteria are met.
+- Explorer fallback build source is still retained until its removal criteria are met.
 - Admin legacy rollback remains explicit instead of being removed immediately after the cutover.
 
 ## Recommended future cleanup order
 
-1. Remove fallback-only login and explorer package sources from active maintenance once rollback confidence is high and browser characterization remains green for multiple changesets.
+1. Remove the fallback-only explorer package source from active maintenance once rollback confidence is high and browser characterization remains green for multiple changesets.
 2. Remove `?action=admin&ui=legacy` and `_admin_legacy.php` after the admin CE path is considered stable enough that runtime rollback is no longer warranted.
 3. Narrow `header.php`, `nav.php`, and `footer.php` to shell-only responsibilities, removing any now-obsolete control-plane assumptions.
 4. Decide whether `auth-interceptor.js` and `theme-manager.js` can be further narrowed or retired after the CE bridges fully cover the required behavior.

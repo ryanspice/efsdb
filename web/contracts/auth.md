@@ -4,7 +4,7 @@ Current source inputs:
 - `efsdb/php/core/src/Auth.php`
 - `efsdb/php/core/src/IdentityManager.php`
 - `spec/auth-contract.md`
-- `efsdb-login/src/Login.ce.svelte`
+- `web/apps/login/src/Login.ce.svelte`
 
 Freeze in Phase 0:
 - login payload and error shape

@@ -16,7 +16,6 @@ It does **not** include:
 
 | Temporary item | Current role | Removal target |
 | --- | --- | --- |
-| `efsdb-login/*` | fallback-only build source | retire after login CE stability criteria are met |
 | `efsdb-explorer/*` | fallback-only build source | retire after explorer CE stability criteria are met |
 | `efsdb/php/core/public/views/_admin_legacy.php` | explicit runtime rollback for admin cutover | retire after admin CE stability criteria are met |
 | `efsdb/php/core/public/views/header.php` | shared shell framing | narrow to shell-only responsibilities |
@@ -27,21 +26,6 @@ It does **not** include:
 | `spec/characterization/ui/ExplorerBehaviorCharacterization.spec.ts` | pre-Playwright placeholder | replace or retire when real interaction parity work begins |
 
 ## Removal criteria
-
-### Remove `efsdb-login` fallback
-
-Criteria:
-
-- `web/apps/login` has remained the shipped source for a full cleanup window without rollback use.
-- `build:login` from `/web` remains green in normal development and CI usage.
-- `spec/characterization/ui/login.spec.ts` remains green across subsequent unrelated UI changes.
-- no one is relying on `build:login:legacy` operationally.
-
-When those are true:
-
-- remove `efsdb-login` from root workspaces
-- remove `build:login:legacy`
-- archive or delete `efsdb-login/*`
 
 ### Remove `efsdb-explorer` fallback
 
@@ -96,19 +80,17 @@ When those are true:
 
 1. Cleanup docs first
    - keep this plan and the Phase 3 summary up to date
-2. Retire fallback-only login source
-   - lowest runtime risk because login host is already thin and stable
-3. Retire fallback-only explorer source
+2. Retire fallback-only explorer source
    - after confirming the `/web` explorer source is stable enough that legacy rebuilds are unnecessary
-4. Remove `_admin_legacy.php`
+3. Remove `_admin_legacy.php`
    - only after the admin CE path has had enough soak time
-5. Narrow shared shell files
+4. Narrow shared shell files
    - `header.php`
    - `nav.php`
    - `footer.php`
-6. Reassess host-global auth/theme glue
+5. Reassess host-global auth/theme glue
    - narrow or retire only after the typed CE bridges fully cover the real behavior
-7. Replace the old explorer placeholder characterization
+6. Replace the old explorer placeholder characterization
    - when explorer interaction parity becomes a deliberate goal
 
 ## Suggested handoff rule
