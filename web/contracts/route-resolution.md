@@ -14,3 +14,7 @@ Current public route rules:
 - path traversal is rejected
 - duplicate slashes are normalized
 - exact path is tried before `/index.html` fallback
+
+Phase 2 API note:
+- `/api/products`, `/api/search`, and `/api/facets` remain on the live seam as compatibility route families
+- their payload contracts are now schema-driven and no longer authoritative from the old placeholder/demo behavior

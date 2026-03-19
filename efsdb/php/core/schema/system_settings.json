@@ -1,0 +1,30 @@
+{
+  "entity": "system_settings",
+  "kind": "document",
+  "storage": {
+    "mime": "application/json; charset=utf-8",
+    "logicalPathTemplate": "system/settings/{id}.json",
+    "chunkProfiles": {
+      "default": {
+        "target": 65536
+      }
+    }
+  },
+  "fields": {
+    "id": { "type": "string", "required": true, "trim": true },
+    "settings": { "type": "object", "default": {} },
+    "updatedAt": { "type": "datetime", "auto": "update" }
+  },
+  "indexes": {
+    "id": { "source": "id", "kind": "keyword", "lookupFastPath": true, "sortable": true },
+    "defaultDisplayMode": { "source": "settings.defaultDisplayMode", "kind": "keyword", "filterable": true, "facet": true },
+    "accent": { "source": "settings.accent", "kind": "keyword", "filterable": true },
+    "tenantKey": { "source": "settings.tenantKey", "kind": "keyword", "filterable": true },
+    "publishedDeliveryMode": { "source": "settings.publicWorkspace.published.deliveryMode", "kind": "keyword", "filterable": true, "facet": true },
+    "stagingDeliveryMode": { "source": "settings.publicWorkspace.staging.deliveryMode", "kind": "keyword", "filterable": true, "facet": true },
+    "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true }
+  },
+  "summary": {
+    "fields": ["id", "settings.defaultDisplayMode", "settings.accent", "settings.tenantKey", "updatedAt"]
+  }
+}

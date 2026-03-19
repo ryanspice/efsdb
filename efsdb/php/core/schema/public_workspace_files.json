@@ -1,0 +1,40 @@
+{
+  "entity": "public_workspace_files",
+  "kind": "file",
+  "storage": {
+    "mime": "application/octet-stream",
+    "chunkProfiles": {
+      "default": {
+        "target": 1048576
+      }
+    }
+  },
+  "fields": {
+    "id": { "type": "string", "required": true, "trim": true },
+    "tenantKey": { "type": "string", "trim": true, "lowercase": true },
+    "root": { "type": "string", "trim": true, "enum": ["published", "staging"] },
+    "publicPath": { "type": "string", "trim": true },
+    "visibility": { "type": "string", "enum": ["public", "restricted"] },
+    "logicalPath": { "type": "string", "trim": true },
+    "mime": { "type": "string", "trim": true },
+    "size": { "type": "integer" },
+    "updatedAt": { "type": "datetime" }
+  },
+  "indexes": {
+    "tenantKey": { "source": "tenantKey", "kind": "keyword", "filterable": true, "searchable": true },
+    "root": { "source": "root", "kind": "keyword", "filterable": true, "facet": true },
+    "publicPath": { "source": "publicPath", "kind": "keyword", "searchable": true, "sortable": true },
+    "visibility": { "source": "visibility", "kind": "keyword", "filterable": true, "facet": true },
+    "logicalPath": { "source": "logicalPath", "kind": "keyword", "searchable": true },
+    "mime": { "source": "mime", "kind": "keyword", "filterable": true, "facet": true },
+    "size": { "source": "size", "kind": "number", "filterable": true, "sortable": true },
+    "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true }
+  },
+  "search": {
+    "defaultFields": ["publicPath", "logicalPath", "mime"],
+    "mode": "contains_ci"
+  },
+  "summary": {
+    "fields": ["id", "tenantKey", "root", "publicPath", "visibility", "mime", "size", "updatedAt"]
+  }
+}

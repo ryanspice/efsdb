@@ -1,0 +1,40 @@
+{
+  "entity": "system_users",
+  "kind": "document",
+  "storage": {
+    "mime": "application/json; charset=utf-8",
+    "logicalPathTemplate": "system/users/{id}.json",
+    "chunkProfiles": {
+      "default": {
+        "target": 65536
+      }
+    }
+  },
+  "fields": {
+    "id": { "type": "string", "required": true, "trim": true },
+    "username": { "type": "string", "required": true, "trim": true, "slug": true },
+    "name": { "type": "string", "required": true, "trim": true },
+    "roleId": { "type": "string", "required": true, "trim": true },
+    "status": { "type": "string", "default": "active", "enum": ["active", "disabled"] },
+    "loginKeyId": { "type": "string", "required": true, "trim": true },
+    "loginKeyHash": { "type": "string", "required": true },
+    "createdAt": { "type": "datetime", "auto": "create" },
+    "updatedAt": { "type": "datetime", "auto": "update" }
+  },
+  "indexes": {
+    "username": { "source": "username", "kind": "keyword", "lookupFastPath": true, "searchable": true, "sortable": true },
+    "name": { "source": "name", "kind": "text", "searchable": true, "sortable": true },
+    "roleId": { "source": "roleId", "kind": "keyword", "filterable": true, "facet": true, "sortable": true },
+    "status": { "source": "status", "kind": "keyword", "filterable": true, "facet": true, "sortable": true },
+    "loginKeyId": { "source": "loginKeyId", "kind": "keyword", "lookupFastPath": true },
+    "createdAt": { "source": "createdAt", "kind": "datetime", "sortable": true },
+    "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true }
+  },
+  "search": {
+    "defaultFields": ["username", "name"],
+    "mode": "contains_ci"
+  },
+  "summary": {
+    "fields": ["id", "username", "name", "roleId", "status", "updatedAt"]
+  }
+}

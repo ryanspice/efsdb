@@ -1,0 +1,52 @@
+{
+  "entity": "products",
+  "kind": "document",
+  "storage": {
+    "mime": "application/json; charset=utf-8",
+    "logicalPathTemplate": "products/{id}.json",
+    "chunkProfiles": {
+      "default": {
+        "target": 65536
+      }
+    }
+  },
+  "fields": {
+    "id": { "type": "string", "required": true, "trim": true },
+    "type": { "type": "string", "default": "product", "const": "product" },
+    "sku": { "type": "string", "required": true, "trim": true, "lowercase": true },
+    "name": { "type": "string", "required": true, "trim": true },
+    "slug": { "type": "string", "trim": true, "slug": true },
+    "status": { "type": "string", "default": "draft", "enum": ["draft", "active", "archived"] },
+    "category": { "type": "string", "default": "", "trim": true, "lowercase": true },
+    "brand": { "type": "string", "default": "", "trim": true, "lowercase": true },
+    "tags": { "type": "array", "default": [], "items": { "type": "string", "trim": true, "lowercase": true } },
+    "price.amount": { "type": "number", "required": true },
+    "price.currency": { "type": "string", "required": true, "trim": true, "uppercase": true },
+    "createdAt": { "type": "datetime", "auto": "create" },
+    "updatedAt": { "type": "datetime", "auto": "update" }
+  },
+  "indexes": {
+    "sku": { "source": "sku", "kind": "keyword", "lookupFastPath": true, "searchable": true, "sortable": true, "weight": 10 },
+    "name": { "source": "name", "kind": "text", "searchable": true, "sortable": true, "weight": 5 },
+    "slug": { "source": "slug", "kind": "keyword", "lookupFastPath": true, "searchable": true, "sortable": true, "weight": 8 },
+    "status": { "source": "status", "kind": "keyword", "filterable": true, "facet": true, "sortable": true },
+    "category": { "source": "category", "kind": "keyword", "filterable": true, "facet": true, "searchable": true, "weight": 3 },
+    "brand": { "source": "brand", "kind": "keyword", "filterable": true, "facet": true, "searchable": true, "weight": 2 },
+    "tags": { "source": "tags[]", "kind": "keyword", "filterable": true, "facet": true, "searchable": true, "weight": 1 },
+    "price_amount": { "source": "price.amount", "kind": "number", "filterable": true, "sortable": true },
+    "price_currency": { "source": "price.currency", "kind": "keyword", "filterable": true, "facet": true },
+    "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true },
+    "createdAt": { "source": "createdAt", "kind": "datetime", "sortable": true }
+  },
+  "search": {
+    "defaultFields": ["sku", "name", "slug", "category", "brand", "tags"],
+    "defaultSort": [
+      { "field": "score", "direction": "desc" },
+      { "field": "id", "direction": "asc" }
+    ],
+    "mode": "contains_ci"
+  },
+  "summary": {
+    "fields": ["id", "type", "sku", "name", "slug", "status", "category", "brand", "price.amount", "price.currency", "updatedAt"]
+  }
+}

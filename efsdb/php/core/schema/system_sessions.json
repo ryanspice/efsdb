@@ -1,0 +1,39 @@
+{
+  "entity": "system_sessions",
+  "kind": "document",
+  "storage": {
+    "mime": "application/json; charset=utf-8",
+    "logicalPathTemplate": "system/sessions/{id}.json",
+    "chunkProfiles": {
+      "default": {
+        "target": 65536
+      }
+    }
+  },
+  "fields": {
+    "id": { "type": "string", "required": true, "trim": true },
+    "tokenHash": { "type": "string", "required": true, "trim": true },
+    "userId": { "type": "string", "required": true, "trim": true },
+    "actualRoleId": { "type": "string", "required": true, "trim": true },
+    "effectiveRoleId": { "type": "string", "required": true, "trim": true },
+    "status": { "type": "string", "required": true, "enum": ["active", "rotated", "revoked"] },
+    "createdAt": { "type": "datetime", "required": true },
+    "updatedAt": { "type": "datetime", "required": true },
+    "expiresAt": { "type": "datetime", "required": true },
+    "revokedAt": { "type": "datetime" },
+    "rotatedTo": { "type": "string", "trim": true }
+  },
+  "indexes": {
+    "tokenHash": { "source": "tokenHash", "kind": "keyword", "lookupFastPath": true },
+    "userId": { "source": "userId", "kind": "keyword", "filterable": true },
+    "actualRoleId": { "source": "actualRoleId", "kind": "keyword", "filterable": true, "facet": true },
+    "effectiveRoleId": { "source": "effectiveRoleId", "kind": "keyword", "filterable": true, "facet": true },
+    "status": { "source": "status", "kind": "keyword", "filterable": true, "facet": true },
+    "expiresAt": { "source": "expiresAt", "kind": "datetime", "sortable": true, "filterable": true },
+    "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true },
+    "revokedAt": { "source": "revokedAt", "kind": "datetime", "sortable": true }
+  },
+  "summary": {
+    "fields": ["id", "userId", "actualRoleId", "effectiveRoleId", "status", "expiresAt", "updatedAt", "revokedAt"]
+  }
+}

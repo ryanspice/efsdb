@@ -393,6 +393,31 @@ if (str_starts_with($uriPath, '/api/')) {
             return;
         }
 
+        if ($uriPath === '/api/admin/index/rebuild') {
+            if (!$perms->canManageSettings($user)) {
+                efsdb_json_response(efsdb_error('forbidden', 'Index rebuild requires tenant admin access'), 403);
+            } elseif ($method === 'POST') {
+                $payload = efsdb_json_body();
+                try {
+                    if (isset($payload['entity']) && is_string($payload['entity']) && $payload['entity'] !== '') {
+                        efsdb_json_response(['result' => $app->getIndexRebuilder()->rebuildEntity($payload['entity'])]);
+                    } elseif (isset($payload['entities']) && is_array($payload['entities'])) {
+                        efsdb_json_response(['result' => $app->getIndexRebuilder()->rebuildAll(array_values(array_map('strval', $payload['entities'])))]);
+                    } else {
+                        efsdb_json_response(['result' => $app->getIndexRebuilder()->rebuildAll()]);
+                    }
+                } catch (Throwable $e) {
+                    efsdb_json_response(efsdb_error('invalid_index_rebuild', $e->getMessage()), 400);
+                }
+            } else {
+                efsdb_json_response(efsdb_error('method_not_allowed', 'Method not allowed'), 405);
+            }
+            if (!defined('EFSDB_TEST_MODE')) {
+                exit;
+            }
+            return;
+        }
+
         efsdb_json_response(efsdb_error('not_found', 'Admin endpoint not found'), 404);
         if (!defined('EFSDB_TEST_MODE')) {
             exit;
@@ -497,11 +522,11 @@ if (str_starts_with($uriPath, '/api/')) {
 
         if (preg_match('#^/api/products/([^/?]+)#', $uriPath, $matches)) {
             $id = $matches[1];
-            try {
-                $doc = $app->getStore()->readDocument('products', $id);
-                efsdb_json_response(['result' => $doc]);
-            } catch (Throwable) {
+            $doc = $app->getProductService()->get($id);
+            if ($doc === null) {
                 efsdb_json_response(efsdb_error('not_found', 'Not Found'), 404);
+            } else {
+                efsdb_json_response(['result' => $doc]);
             }
             if (!defined('EFSDB_TEST_MODE')) {
                 exit;
@@ -509,8 +534,11 @@ if (str_starts_with($uriPath, '/api/')) {
             return;
         }
 
-        $scan = $app->getStore()->scanManifests('products', min(100, max(1, (int)($_GET['limit'] ?? 20))), $_GET['cursor'] ?? null);
-        efsdb_json_response($scan);
+        try {
+            efsdb_json_response($app->getProductService()->list($_GET));
+        } catch (InvalidArgumentException $e) {
+            efsdb_json_response(efsdb_error('invalid_products_request', $e->getMessage()), 400);
+        }
         if (!defined('EFSDB_TEST_MODE')) {
             exit;
         }
@@ -522,26 +550,13 @@ if (str_starts_with($uriPath, '/api/')) {
         if ($user->isGuest()) {
             efsdb_json_response(efsdb_error('unauthorized', 'Unauthorized'), 401);
         } else {
-            $q = strtolower(substr((string)($_GET['q'] ?? ''), 0, 256));
-            $results = [];
-            foreach ($app->getStore()->scanAllManifests('products', 1000) as $manifest) {
-                $indexes = $manifest['indexes'] ?? [];
-                foreach ($indexes as $value) {
-                    if (is_string($value) && str_contains(strtolower($value), $q)) {
-                        $results[] = $manifest;
-                        break;
-                    }
-                }
+            try {
+                efsdb_json_response($app->getSearchService()->search($user, $_GET));
+            } catch (InvalidArgumentException $e) {
+                efsdb_json_response(efsdb_error('invalid_search', $e->getMessage()), 400);
+            } catch (RuntimeException $e) {
+                efsdb_json_response(efsdb_error('forbidden', $e->getMessage()), 403);
             }
-            efsdb_json_response([
-                'results' => $results,
-                'meta' => [
-                    'total' => count($results),
-                    'limit' => count($results),
-                    'offset' => 0,
-                    'took' => 0,
-                ],
-            ]);
         }
         if (!defined('EFSDB_TEST_MODE')) {
             exit;
@@ -554,7 +569,13 @@ if (str_starts_with($uriPath, '/api/')) {
         if ($user->isGuest()) {
             efsdb_json_response(efsdb_error('unauthorized', 'Unauthorized'), 401);
         } else {
-            efsdb_json_response(['category' => [], 'ownerId' => []]);
+            try {
+                efsdb_json_response($app->getFacetService()->compute($user, $_GET));
+            } catch (InvalidArgumentException $e) {
+                efsdb_json_response(efsdb_error('invalid_facets', $e->getMessage()), 400);
+            } catch (RuntimeException $e) {
+                efsdb_json_response(efsdb_error('forbidden', $e->getMessage()), 403);
+            }
         }
         if (!defined('EFSDB_TEST_MODE')) {
             exit;

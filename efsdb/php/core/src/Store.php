@@ -140,10 +140,12 @@ final class Store
         $mime = (string)($meta['mime'] ?? 'application/octet-stream');
         $indexSource = $meta['indexesSource'] ?? $meta;
         $lookupSource = is_array($indexSource) ? $indexSource : [];
-        $lookupFields = is_array($meta['lookupFields'] ?? null) ? $meta['lookupFields'] : [];
+        $lookupFields = is_array($meta['lookupFields'] ?? null)
+            ? $meta['lookupFields']
+            : $this->schemaLoader->getLookupFields($entity);
         $lookupValues = $this->extractLookupValues($lookupSource, $lookupFields);
         $indexes = $this->normalizeIndexes(
-            $this->extractIndexValues($schema, is_array($indexSource) ? $indexSource : []),
+            $this->schemaLoader->extractIndexValues($entity, is_array($indexSource) ? $indexSource : []),
             [
                 'id' => $id,
                 'entity' => $entity,
@@ -182,6 +184,7 @@ final class Store
 
         $this->writeManifest($entity, $id, $manifest);
         $this->writeLookups($entity, $id, $lookupSource, $lookupFields);
+        $this->getIndexManager()->update($entity, $manifest, $schema['indexes'] ?? []);
         return $manifest;
     }
 
@@ -196,8 +199,12 @@ final class Store
             $doc = (array)$doc;
         }
 
+        $doc = $this->schemaLoader->normalizeDocument($entity, $doc);
         $id = (string)($doc['id'] ?? $meta['id'] ?? $this->newId());
         $doc['id'] = $id;
+        $logicalPath = $meta['logicalPath']
+            ?? ($doc['logicalPath'] ?? null)
+            ?? $this->schemaLoader->buildLogicalPath($entity, $doc);
         $payload = json_encode($doc, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
         $schema = $this->schemaLoader->load($entity);
@@ -207,9 +214,10 @@ final class Store
         return $this->storeFile($entity, $payload, array_merge($meta, [
             'id' => $id,
             'mime' => $meta['mime'] ?? 'application/json; charset=utf-8',
-            'name' => $meta['name'] ?? ($doc['logicalPath'] ?? ($id . '.json')),
-            'logicalPath' => $meta['logicalPath'] ?? ($doc['logicalPath'] ?? null),
+            'name' => $meta['name'] ?? ($logicalPath ?? ($id . '.json')),
+            'logicalPath' => $logicalPath,
             'indexesSource' => $doc,
+            'lookupFields' => $meta['lookupFields'] ?? $this->schemaLoader->getLookupFields($entity),
             'chunkSize' => $targetSize,
         ]));
     }
@@ -396,6 +404,7 @@ final class Store
         $manifest['mtime'] = gmdate('c');
 
         $this->writeManifest($entity, $id, $manifest);
+        $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
         return $manifest;
     }
 
@@ -422,13 +431,18 @@ final class Store
         $manifest['mtime'] = gmdate('c');
 
         $this->writeManifest($entity, $id, $manifest);
+        $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
         return $manifest;
     }
 
     public function deleteManifest(string $entity, string $id): bool
     {
         $path = $this->findManifestPath($entity, $id);
-        return is_file($path) ? unlink($path) : false;
+        $deleted = is_file($path) ? unlink($path) : false;
+        if ($deleted) {
+            $this->getIndexManager()->remove($entity, $id, $this->schemaLoader->getIndexDefinitions($entity));
+        }
+        return $deleted;
     }
 
     public function deleteChunk(string $entity, string $chunkId): bool
@@ -847,33 +861,4 @@ final class Store
         return $indexes;
     }
 
-    /**
-     * @param array<string,mixed> $schema
-     * @param array<string,mixed> $data
-     * @return array<string,mixed>
-     */
-    private function extractIndexValues(array $schema, array $data): array
-    {
-        $indexes = [];
-        $configured = $schema['indexes'] ?? [];
-
-        if (is_array($configured) && $configured !== []) {
-            foreach ($configured as $name => $indexSpec) {
-                $field = is_array($indexSpec) ? ($indexSpec['field'] ?? $name) : $name;
-                if (is_string($field) && array_key_exists($field, $data)) {
-                    $indexes[$name] = $data[$field];
-                }
-            }
-        }
-
-        if ($indexes === []) {
-            foreach ($data as $key => $value) {
-                if (is_scalar($value) || $value === null) {
-                    $indexes[(string)$key] = $value;
-                }
-            }
-        }
-
-        return $indexes;
-    }
 }

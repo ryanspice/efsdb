@@ -3,14 +3,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Audit.php';
 require_once __DIR__ . '/DeliveryModeResolver.php';
+require_once __DIR__ . '/EntityExposurePolicy.php';
 require_once __DIR__ . '/Explorer.php';
 require_once __DIR__ . '/GarbageCollector.php';
 require_once __DIR__ . '/IdentityManager.php';
 require_once __DIR__ . '/IndexManager.php';
+require_once __DIR__ . '/IndexRebuilder.php';
+require_once __DIR__ . '/FacetService.php';
 require_once __DIR__ . '/Permissions.php';
+require_once __DIR__ . '/ProductService.php';
 require_once __DIR__ . '/PublicSiteRouter.php';
 require_once __DIR__ . '/PublicWorkspace.php';
 require_once __DIR__ . '/Schema.php';
+require_once __DIR__ . '/SearchService.php';
 require_once __DIR__ . '/Store.php';
 
 final class App
@@ -18,6 +23,7 @@ final class App
     private Schema $schema;
     private Store $store;
     private IndexManager $idx;
+    private Permissions $permissions;
     private Audit $audit;
     private GarbageCollector $garbageCollector;
     private Explorer $explorer;
@@ -25,6 +31,10 @@ final class App
     private PublicWorkspace $publicWorkspace;
     private DeliveryModeResolver $deliveryModeResolver;
     private PublicSiteRouter $publicSiteRouter;
+    private IndexRebuilder $indexRebuilder;
+    private ProductService $productService;
+    private SearchService $searchService;
+    private FacetService $facetService;
 
     public function __construct(string $dataDir, string $schemaDir)
     {
@@ -36,8 +46,8 @@ final class App
         }
 
         $this->idx = new IndexManager($dataDir, $this->store->masterKeyB64(), $this->store);
-        $perms = new Permissions();
-        $this->identity = new IdentityManager($this->store, $perms);
+        $this->permissions = new Permissions();
+        $this->identity = new IdentityManager($this->store, $this->permissions);
         $this->identity->ensureInitialized();
 
         $this->audit = new Audit($this);
@@ -45,7 +55,11 @@ final class App
         $this->publicWorkspace = new PublicWorkspace($this->store, $this->identity, $this->audit);
         $this->deliveryModeResolver = new DeliveryModeResolver($this->identity, $this->publicWorkspace);
         $this->publicSiteRouter = new PublicSiteRouter($this->publicWorkspace, $this->deliveryModeResolver);
-        $this->explorer = new Explorer($this->store, $perms);
+        $this->explorer = new Explorer($this->store, $this->permissions);
+        $this->indexRebuilder = new IndexRebuilder($this->store, $this->schema, $this->idx);
+        $this->productService = new ProductService($this->store, $this->schema, $this->idx);
+        $this->searchService = new SearchService($this->store, $this->schema, $this->idx, $this->permissions);
+        $this->facetService = new FacetService($this->schema, $this->idx, $this->permissions);
     }
 
     public function getStore(): Store
@@ -56,6 +70,11 @@ final class App
     public function getIndexManager(): IndexManager
     {
         return $this->idx;
+    }
+
+    public function getPermissions(): Permissions
+    {
+        return $this->permissions;
     }
 
     public function getSchema(): Schema
@@ -98,16 +117,33 @@ final class App
         return $this->publicSiteRouter;
     }
 
+    public function getIndexRebuilder(): IndexRebuilder
+    {
+        return $this->indexRebuilder;
+    }
+
+    public function getProductService(): ProductService
+    {
+        return $this->productService;
+    }
+
+    public function getSearchService(): SearchService
+    {
+        return $this->searchService;
+    }
+
+    public function getFacetService(): FacetService
+    {
+        return $this->facetService;
+    }
+
     /**
      * @param array<string,mixed> $doc
      * @return array<string,mixed>
      */
     public function upsert(string $entity, array $doc): array
     {
-        $manifest = $this->store->upsert($entity, $doc);
-        $schema = $this->schema->load($entity);
-        $this->idx->update($entity, (string)$manifest['id'], $manifest['indexes'] ?? [], $schema['indexes'] ?? []);
-        return $manifest;
+        return $this->store->upsert($entity, $doc);
     }
 
     /**
@@ -117,9 +153,6 @@ final class App
      */
     public function uploadFile(string $entity, $stream, array $meta): array
     {
-        $manifest = $this->store->storeFile($entity, $stream, $meta);
-        $schema = $this->schema->load($entity);
-        $this->idx->update($entity, (string)$manifest['id'], $manifest['indexes'] ?? [], $schema['indexes'] ?? []);
-        return $manifest;
+        return $this->store->storeFile($entity, $stream, $meta);
     }
 }

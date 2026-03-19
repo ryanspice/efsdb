@@ -1,0 +1,34 @@
+{
+  "entity": "system_audit",
+  "kind": "document",
+  "storage": {
+    "mime": "application/json; charset=utf-8",
+    "logicalPathTemplate": "audit/{occurredAt}-{id}.json",
+    "chunkProfiles": {
+      "default": {
+        "target": 65536
+      }
+    }
+  },
+  "fields": {
+    "id": { "type": "string", "required": true, "trim": true },
+    "type": { "type": "string", "required": true, "trim": true },
+    "payload": { "type": "object", "default": {} },
+    "occurredAt": { "type": "datetime", "required": true }
+  },
+  "indexes": {
+    "type": { "source": "type", "kind": "keyword", "filterable": true, "facet": true, "searchable": true },
+    "payload_entity": { "source": "payload.entity", "kind": "keyword", "filterable": true, "facet": true, "searchable": true },
+    "payload_root": { "source": "payload.root", "kind": "keyword", "filterable": true, "facet": true, "searchable": true },
+    "payload_path": { "source": "payload.path", "kind": "keyword", "filterable": true, "searchable": true },
+    "payload_manifestId": { "source": "payload.manifestId", "kind": "keyword", "filterable": true },
+    "occurredAt": { "source": "occurredAt", "kind": "datetime", "sortable": true }
+  },
+  "search": {
+    "defaultFields": ["type", "payload.entity", "payload.root", "payload.path"],
+    "mode": "contains_ci"
+  },
+  "summary": {
+    "fields": ["id", "type", "payload.entity", "payload.root", "payload.path", "occurredAt"]
+  }
+}
