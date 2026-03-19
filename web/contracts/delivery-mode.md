@@ -16,4 +16,14 @@ Resolution order:
 
 Current execution behavior:
 - `php-html` is implemented
-- `sveltekit-php-adapter` is recognized but returns a controlled `503` instead of claiming parity
+- `sveltekit-php-adapter` is implemented as static-prerender adapter delivery only
+- current adapter-mode support is limited to:
+  - imported prerendered HTML
+  - imported `__data.json`
+  - imported static assets
+  - shared `GET`/`HEAD` route resolution semantics
+- current adapter-mode non-goals remain explicit:
+  - `__action` returns a stable `501 Not Implemented`
+  - no generic server handlers
+  - no server runtime execution
+  - no SSR or streaming parity

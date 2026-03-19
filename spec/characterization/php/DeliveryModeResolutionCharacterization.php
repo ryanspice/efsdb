@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
+require_once __DIR__ . '/AdapterHarness.php';
 
 $dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-delivery-mode';
 $bootstrapSecret = 'phase1-delivery-mode-secret';
@@ -17,6 +18,13 @@ $failures = [];
 phase0_assert(
     $resolver->resolve('published') === 'php-html' && $resolver->resolve('staging') === 'php-html',
     'Delivery mode defaults to php-html for both published and staging roots',
+    $failures
+);
+
+phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'published');
+phase0_assert(
+    $resolver->resolve('published') === 'sveltekit-php-adapter' && $resolver->resolve('staging') === 'php-html',
+    'Imported adapter roots opt in per root without changing the default php-html mode for other roots',
     $failures
 );
 

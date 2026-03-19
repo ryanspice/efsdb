@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
+require_once __DIR__ . '/AdapterHarness.php';
 
 /**
  * @return array{status:int,body:string,headers:list<string>,headerMap:array<string,list<string>>}
@@ -95,6 +96,30 @@ $stagingAuthorized = phase1_runtime_request($dataDir, '/staging/secret/index.htm
 phase0_assert(
     $stagingAuthorized['status'] === 200 && str_contains($stagingAuthorized['body'], 'Runtime staging'),
     'Detached runtime wrapper allows authorized staging access through the shared public router',
+    $failures
+);
+
+phase4_seed_adapter_root($dataDir, $bootstrapSecret);
+
+$adapterPublished = phase4_runtime_request($dataDir, '/', 'GET');
+phase0_assert(
+    $adapterPublished['status'] === 200 && str_contains($adapterPublished['body'], 'Adapter root'),
+    'Detached runtime wrapper serves adapter-mode published HTML through the shared public router',
+    $failures
+);
+
+$adapterData = phase4_runtime_request($dataDir, '/blog/__data.json', 'GET');
+phase0_assert(
+    $adapterData['status'] === 200
+        && $adapterData['body'] === '{"type":"data","slug":"blog"}',
+    'Detached runtime wrapper serves adapter-mode __data.json without falling back to HTML',
+    $failures
+);
+
+$adapterAction = phase4_runtime_request($dataDir, '/blog/__action', 'GET');
+phase0_assert(
+    $adapterAction['status'] === 501 && $adapterAction['body'] === '501 Not Implemented (EFSDB)',
+    'Detached runtime wrapper preserves stable 501 behavior for unsupported adapter __action paths',
     $failures
 );
 

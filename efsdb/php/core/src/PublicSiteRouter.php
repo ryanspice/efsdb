@@ -7,6 +7,32 @@ require_once __DIR__ . '/User.php';
 
 final class PublicSiteRouter
 {
+    /**
+     * @var list<string>
+     */
+    private const EXACT_FILE_EXTENSIONS = [
+        'css',
+        'gif',
+        'ico',
+        'jpeg',
+        'jpg',
+        'js',
+        'json',
+        'map',
+        'mjs',
+        'cjs',
+        'otf',
+        'png',
+        'svg',
+        'ttf',
+        'wasm',
+        'webp',
+        'woff',
+        'woff2',
+        'xml',
+        'txt',
+    ];
+
     public function __construct(
         private readonly PublicWorkspace $workspace,
         private readonly DeliveryModeResolver $deliveryModes
@@ -17,10 +43,6 @@ final class PublicSiteRouter
      */
     public function handle(string $uriPath, string $method, User $user): ?array
     {
-        if (!in_array($method, ['GET', 'HEAD'], true)) {
-            return null;
-        }
-
         [$root, $relativePath] = $this->selectRoot($uriPath);
         if ($root === 'published' && !$this->workspace->isRootEnabled('published')) {
             return null;
@@ -31,33 +53,47 @@ final class PublicSiteRouter
         }
 
         $mode = $this->deliveryModes->resolve($root);
+        $request = $this->normalizeRequest($relativePath);
+        if ($request === null) {
+            return $this->badRequest($method);
+        }
+
+        if ($mode === 'sveltekit-php-adapter' && $this->isUnsupportedActionPath($request['normalized'])) {
+            return $this->notImplemented($method);
+        }
+
+        if (!in_array($method, ['GET', 'HEAD'], true)) {
+            return null;
+        }
+
+        if ($mode === 'php-html') {
+            return $this->serveCandidates($root, $method, $this->phpHtmlCandidates($request));
+        }
+
+        if ($mode === 'sveltekit-php-adapter') {
+            return $this->serveCandidates($root, $method, $this->adapterCandidates($request));
+        }
+
         if ($mode !== 'php-html') {
             return $this->serviceUnavailable($method);
         }
 
-        $candidates = $this->candidatePaths($relativePath);
-        if ($candidates === null) {
-            return $this->badRequest($method);
-        }
+        return $this->serviceUnavailable($method);
+    }
 
+    /**
+     * @param list<string> $candidates
+     * @return array{status:int,headers:array<string,string>,body:string}
+     */
+    private function serveCandidates(string $root, string $method, array $candidates): array
+    {
         foreach ($candidates as $candidate) {
             $item = $this->workspace->readFile($root, $candidate);
             if ($item === null) {
                 continue;
             }
 
-            $manifest = $item['manifest'];
-            $bytes = (string)$item['bytes'];
-            return [
-                'status' => 200,
-                'headers' => [
-                    'Content-Type' => (string)($manifest['mime'] ?? 'application/octet-stream'),
-                    'Content-Length' => (string)strlen($bytes),
-                    'X-EFSDB-Manifest' => (string)($manifest['id'] ?? ''),
-                    'X-EFSDB-Logical-Path' => (string)($manifest['logicalPath'] ?? ''),
-                ],
-                'body' => $method === 'HEAD' ? '' : $bytes,
-            ];
+            return $this->success($method, $item['manifest'], (string)$item['bytes']);
         }
 
         return $this->notFound($method);
@@ -79,7 +115,7 @@ final class PublicSiteRouter
     /**
      * @return list<string>|null
      */
-    private function candidatePaths(string $relativePath): ?array
+    private function normalizeRequest(string $relativePath): ?array
     {
         $decoded = rawurldecode($relativePath);
         $decoded = str_replace('\\', '/', $decoded);
@@ -93,6 +129,21 @@ final class PublicSiteRouter
             }
         }
 
+        return [
+            'normalized' => $normalized,
+            'hadTrailingSlash' => $hadTrailingSlash,
+        ];
+    }
+
+    /**
+     * @param array{normalized:string,hadTrailingSlash:bool} $request
+     * @return list<string>
+     */
+    private function phpHtmlCandidates(array $request): array
+    {
+        $normalized = $request['normalized'];
+        $hadTrailingSlash = $request['hadTrailingSlash'];
+
         if ($normalized === '') {
             return ['index.html'];
         }
@@ -104,6 +155,60 @@ final class PublicSiteRouter
         }
 
         return [$base, $base . '/index.html'];
+    }
+
+    /**
+     * @param array{normalized:string,hadTrailingSlash:bool} $request
+     * @return list<string>
+     */
+    private function adapterCandidates(array $request): array
+    {
+        $normalized = $request['normalized'];
+        $hadTrailingSlash = $request['hadTrailingSlash'];
+
+        if ($normalized === '') {
+            return ['index.html'];
+        }
+
+        $base = ltrim($normalized, '/');
+        if ($this->isExactAdapterFilePath($base)) {
+            return [$base];
+        }
+
+        if ($hadTrailingSlash) {
+            return [rtrim($base, '/') . '/index.html'];
+        }
+
+        return [$base, $base . '.html', $base . '/index.html'];
+    }
+
+    private function isExactAdapterFilePath(string $path): bool
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        return $extension !== '' && in_array($extension, self::EXACT_FILE_EXTENSIONS, true);
+    }
+
+    private function isUnsupportedActionPath(string $path): bool
+    {
+        return (bool)preg_match('#(^|/)__action(?:/|$)#', $path);
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     * @return array{status:int,headers:array<string,string>,body:string}
+     */
+    private function success(string $method, array $manifest, string $bytes): array
+    {
+        return [
+            'status' => 200,
+            'headers' => [
+                'Content-Type' => (string)($manifest['mime'] ?? 'application/octet-stream'),
+                'Content-Length' => (string)strlen($bytes),
+                'X-EFSDB-Manifest' => (string)($manifest['id'] ?? ''),
+                'X-EFSDB-Logical-Path' => (string)($manifest['logicalPath'] ?? ''),
+            ],
+            'body' => $method === 'HEAD' ? '' : $bytes,
+        ];
     }
 
     /**
@@ -127,6 +232,18 @@ final class PublicSiteRouter
             'status' => 400,
             'headers' => [],
             'body' => $method === 'HEAD' ? '' : '400 Bad Request (EFSDB)',
+        ];
+    }
+
+    /**
+     * @return array{status:int,headers:array<string,string>,body:string}
+     */
+    private function notImplemented(string $method): array
+    {
+        return [
+            'status' => 501,
+            'headers' => ['Content-Type' => 'text/plain; charset=utf-8'],
+            'body' => $method === 'HEAD' ? '' : '501 Not Implemented (EFSDB)',
         ];
     }
 

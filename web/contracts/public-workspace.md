@@ -15,3 +15,7 @@ Current defaults:
 Current non-goals:
 - Phase 1 does not claim generic repo-wide `logicalPath` uniqueness
 - Phase 1 does not claim pointer-swap publish semantics are complete yet
+
+Phase 4 adapter import note:
+- static-prerender adapter imports now write through the same `public_workspace_roots` and `public_workspace_files` model
+- detached `site_pages` / `PageStore` import storage is no longer an active truth

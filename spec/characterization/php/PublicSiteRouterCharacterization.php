@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
+require_once __DIR__ . '/AdapterHarness.php';
 
 /**
  * @param array<string,string> $headers
@@ -87,6 +88,36 @@ phase0_assert(
         && ($stagingDenied['status'] ?? null) === 404
         && (($stagingDenied['body'] ?? null) === '404 Not Found (EFSDB)'),
     'Restricted staging paths deny unauthenticated access with a consistent auth-first non-leaking response',
+    $failures
+);
+
+phase4_seed_adapter_root($dataDir, $bootstrapSecret);
+
+$adapterData = $router->handle('/blog/__data.json', 'GET', User::guest());
+$adapterMissingAsset = $router->handle('/_app/immutable/missing.js', 'GET', User::guest());
+$adapterAction = $router->handle('/blog/__action', 'GET', User::guest());
+
+phase0_assert(
+    is_array($adapterData)
+        && ($adapterData['status'] ?? null) === 200
+        && (($adapterData['body'] ?? null) === '{"type":"data","slug":"blog"}'),
+    'Public router serves adapter-mode __data.json as an exact JSON file',
+    $failures
+);
+
+phase0_assert(
+    is_array($adapterMissingAsset)
+        && ($adapterMissingAsset['status'] ?? null) === 404
+        && (($adapterMissingAsset['body'] ?? null) === '404 Not Found (EFSDB)'),
+    'Public router does not fall back to HTML for missing adapter assets',
+    $failures
+);
+
+phase0_assert(
+    is_array($adapterAction)
+        && ($adapterAction['status'] ?? null) === 501
+        && (($adapterAction['body'] ?? null) === '501 Not Implemented (EFSDB)'),
+    'Public router returns a stable 501 for unsupported adapter __action paths',
     $failures
 );
 

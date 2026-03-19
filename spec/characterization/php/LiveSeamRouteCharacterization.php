@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
+require_once __DIR__ . '/AdapterHarness.php';
 
 $dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-live-seam';
 $bootstrapSecret = 'phase0-live-seam-secret';
@@ -158,6 +159,48 @@ phase0_assert(
         && (($stagingHead['headerMap']['content-type'][0] ?? null) === ($stagingAdmin['headerMap']['content-type'][0] ?? null))
         && (($stagingHead['headerMap']['x-efsdb-manifest'][0] ?? null) === ($stagingAdmin['headerMap']['x-efsdb-manifest'][0] ?? null)),
     'HEAD /staging uses the same routed item and meaningful headers as GET without returning a body',
+    $failures
+);
+
+phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'published');
+phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'staging');
+
+$adapterPublished = Phase0Harness::request($dataDir, $bootstrapSecret, '/', 'GET');
+phase0_assert(
+    $adapterPublished['status'] === 200 && str_contains($adapterPublished['body'], 'Adapter root'),
+    'Live seam serves adapter-mode published HTML through the shared public router once a root opts in',
+    $failures
+);
+
+$adapterData = Phase0Harness::request($dataDir, $bootstrapSecret, '/blog/__data.json', 'GET');
+phase0_assert(
+    $adapterData['status'] === 200
+        && $adapterData['body'] === '{"type":"data","slug":"blog"}',
+    'Live seam serves adapter-mode __data.json without HTML fallback',
+    $failures
+);
+
+$adapterMissingAsset = Phase0Harness::request($dataDir, $bootstrapSecret, '/_app/immutable/missing.js', 'GET');
+phase0_assert(
+    $adapterMissingAsset['status'] === 404 && $adapterMissingAsset['body'] === '404 Not Found (EFSDB)',
+    'Live seam returns a direct 404 for missing adapter assets rather than falling back to HTML',
+    $failures
+);
+
+$adapterAction = Phase0Harness::request($dataDir, $bootstrapSecret, '/blog/__action', 'GET');
+phase0_assert(
+    $adapterAction['status'] === 501 && $adapterAction['body'] === '501 Not Implemented (EFSDB)',
+    'Live seam returns a stable 501 for unsupported adapter __action paths',
+    $failures
+);
+
+$stagingAdapterExisting = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/blog/__data.json', 'GET');
+$stagingAdapterMissing = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/missing/__data.json', 'GET');
+phase0_assert(
+    $stagingAdapterExisting['status'] === 404
+        && $stagingAdapterMissing['status'] === 404
+        && $stagingAdapterExisting['body'] === $stagingAdapterMissing['body'],
+    'Staging keeps auth-first non-leaking denial behavior ahead of adapter path existence checks',
     $failures
 );
 

@@ -15,6 +15,11 @@ Current public route rules:
 - duplicate slashes are normalized
 - exact path is tried before `/index.html` fallback
 
+Phase 4 adapter note:
+- roots that opt into `sveltekit-php-adapter` now serve imported prerendered HTML, imported `__data.json`, and imported static assets through the same live seam
+- adapter-mode `__data.json` and static assets are exact-file routes and do not silently fall back to HTML
+- adapter-mode `__action` remains explicitly unsupported with a stable `501 Not Implemented`
+
 Phase 2 API note:
 - `/api/products`, `/api/search`, and `/api/facets` remain on the live seam as compatibility route families
 - their payload contracts are now schema-driven and no longer authoritative from the old placeholder/demo behavior
