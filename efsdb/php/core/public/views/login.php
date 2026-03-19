@@ -1,3 +1,18 @@
+<?php
+$bootstrap = [
+    'app' => 'login',
+    'tag' => 'efsdb-login',
+    'assetFile' => '/js/efsdb-login.js',
+    'apiBase' => '/api/auth',
+    'authBase' => '/api/auth',
+    'urls' => [
+        'redirect' => '?action=admin',
+        'home' => '?',
+    ],
+];
+$bootstrapJson = json_encode($bootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+?>
+
 <script type="module" src="/js/efsdb-login.js"></script>
 
 <section class="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(22rem,0.98fr)]">
@@ -13,7 +28,8 @@
         </p>
 
         <div class="surface-panel mt-8 rounded-[26px] p-3 sm:p-4 lg:p-5">
-            <efsdb-login api-base="/api/auth" redirect-url="?action=admin" home-url="?"></efsdb-login>
+            <script type="application/json" id="efsdb-bootstrap"><?php echo $bootstrapJson ?: '{}'; ?></script>
+            <efsdb-login></efsdb-login>
         </div>
     </article>
 

@@ -1,0 +1,30 @@
+{
+  "name": "phpfs-workspace",
+  "private": true,
+  "packageManager": "bun@1.2.23",
+  "workspaces": [
+    "efsdb/php/core",
+    "efsdb-login",
+    "efsdb-explorer",
+    "web"
+  ],
+  "scripts": {
+    "dev": "php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public",
+    "php:serve": "bun run dev",
+    "build:css": "bun run --cwd efsdb/php/core build:css",
+    "build:login": "bun run web:build:login",
+    "build:login:legacy": "bun run --cwd efsdb-login build",
+    "build:explorer": "bun run --cwd efsdb-explorer build",
+    "build:web": "bun run build:css && bun run build:login && bun run build:explorer",
+    "web:typecheck": "bun run --cwd web typecheck",
+    "web:build": "bun run --cwd web build",
+    "web:build:login": "bun run --cwd web build:login",
+    "web:test:ui": "bun run --cwd web test:ui",
+    "check:api": "php -c efsdb/php/core/php.ini efsdb/php/core/bin/apicheck.php",
+    "check:auth": "php -c efsdb/php/core/php.ini efsdb/php/core/bin/authcheck.php",
+    "check:conformance:generate": "php -c efsdb/php/core/php.ini efsdb/php/conformance/generate.php",
+    "check:conformance": "php -c efsdb/php/core/php.ini efsdb/php/conformance/run.php",
+    "check": "bun run check:api && bun run check:auth && bun run check:conformance:generate && bun run check:conformance",
+    "tenant-admin-key": "php -c efsdb/php/core/php.ini efsdb/php/core/bin/efsdb.php tenant-admin-key"
+  }
+}

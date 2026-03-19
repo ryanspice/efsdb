@@ -21,8 +21,10 @@ phase0_assert(
 
 $login = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=login');
 phase0_assert(
-    $login['status'] === 200 && str_contains($login['body'], '<efsdb-login'),
-    'Login compatibility route renders the shipped login custom element host',
+    $login['status'] === 200
+        && str_contains($login['body'], '<script type="application/json" id="efsdb-bootstrap">')
+        && str_contains($login['body'], '<efsdb-login></efsdb-login>'),
+    'Login compatibility route renders the shipped login custom element host with the shared bootstrap payload contract',
     $failures
 );
 
