@@ -1,6 +1,18 @@
 <?php
 $requestedMode = (string)($_GET['mode'] ?? 'natural');
 $defaultMode = $requestedMode === 'raw' && $perms->canUseRawView($user) ? 'raw' : 'natural';
+$bootstrap = [
+    'app' => 'explorer',
+    'tag' => 'efsdb-explorer',
+    'assetFile' => '/js/efsdb-explorer.js',
+    'apiBase' => '/api/explorer',
+    'authBase' => '/api/auth',
+    'initial' => [
+        'mode' => $defaultMode,
+        'path' => (string)($_GET['path'] ?? ''),
+    ],
+];
+$bootstrapJson = json_encode($bootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <script type="module" src="/js/efsdb-explorer.js"></script>
 
@@ -16,11 +28,8 @@ $defaultMode = $requestedMode === 'raw' && $perms->canUseRawView($user) ? 'raw' 
     </div>
 
     <section class="shell-panel overflow-hidden p-2 sm:p-3">
-        <efsdb-explorer
-            api-base="/api/explorer"
-            auth-base="/api/auth"
-            mode="<?php echo htmlspecialchars($defaultMode); ?>"
-        ></efsdb-explorer>
+        <script type="application/json" id="efsdb-bootstrap"><?php echo $bootstrapJson ?: '{}'; ?></script>
+        <efsdb-explorer></efsdb-explorer>
     </section>
 </section>
 

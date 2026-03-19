@@ -47,8 +47,10 @@ $explorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=explore
     'cookies' => $cookies,
 ]);
 phase0_assert(
-    $explorer['status'] === 200 && str_contains($explorer['body'], '<efsdb-explorer'),
-    'Authenticated explorer compatibility route renders the shipped explorer custom element host',
+    $explorer['status'] === 200
+        && str_contains($explorer['body'], '<script type="application/json" id="efsdb-bootstrap">')
+        && str_contains($explorer['body'], '<efsdb-explorer></efsdb-explorer>'),
+    'Authenticated explorer compatibility route renders the shipped explorer custom element host with the shared bootstrap payload contract',
     $failures
 );
 
