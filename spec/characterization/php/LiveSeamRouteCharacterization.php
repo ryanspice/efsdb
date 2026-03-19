@@ -7,6 +7,23 @@ $dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-live-seam';
 $bootstrapSecret = 'phase0-live-seam-secret';
 
 Phase0Harness::resetDir($dataDir);
+$app = Phase0Harness::bootApp($dataDir, $bootstrapSecret);
+$workspace = $app->getPublicWorkspace();
+$identity = $app->getIdentity();
+
+$workspace->writeFile('published', '/index.html', '<h1>Published root</h1>', [
+    'mime' => 'text/html; charset=utf-8',
+]);
+$workspace->writeFile('staging', '/secret/index.html', '<h1>Staging secret</h1>', [
+    'mime' => 'text/html; charset=utf-8',
+]);
+
+$member = $identity->createUser([
+    'username' => 'phase1-member',
+    'name' => 'Phase 1 Member',
+    'roleId' => 'member_standard',
+]);
+
 $failures = [];
 
 $health = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/health');
@@ -24,6 +41,7 @@ phase0_assert(
 );
 
 $adminToken = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, $bootstrapSecret);
+$memberToken = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, (string)$member['loginKey']);
 
 $wrongAdminMethod = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/admin/users', 'PUT', [
     'bearer' => $adminToken,
@@ -83,6 +101,63 @@ $logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/?logout=1');
 phase0_assert(
     $logout['status'] === 302,
     'Compatibility logout path issues a redirect',
+    $failures
+);
+
+$publishedRoot = Phase0Harness::request($dataDir, $bootstrapSecret, '/', 'GET');
+phase0_assert(
+    $publishedRoot['status'] === 200 && str_contains($publishedRoot['body'], 'Published root'),
+    'Live seam serves the published public root through the Phase 1 public router',
+    $failures
+);
+
+$publishedHead = Phase0Harness::request($dataDir, $bootstrapSecret, '/', 'HEAD');
+phase0_assert(
+    $publishedHead['status'] === 200
+        && $publishedHead['body'] === ''
+        && (($publishedHead['headerMap']['content-type'][0] ?? null) === ($publishedRoot['headerMap']['content-type'][0] ?? null))
+        && (($publishedHead['headerMap']['x-efsdb-manifest'][0] ?? null) === ($publishedRoot['headerMap']['x-efsdb-manifest'][0] ?? null)),
+    'HEAD / uses the same routed public item and meaningful headers as GET without returning a body',
+    $failures
+);
+
+$stagingGuestExisting = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'GET');
+$stagingGuestMissing = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/missing/index.html', 'GET');
+phase0_assert(
+    $stagingGuestExisting['status'] === 404
+        && $stagingGuestMissing['status'] === 404
+        && $stagingGuestExisting['body'] === $stagingGuestMissing['body'],
+    'Unauthenticated staging access is denied before path existence can leak',
+    $failures
+);
+
+$stagingMember = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'GET', [
+    'bearer' => $memberToken,
+]);
+phase0_assert(
+    $stagingMember['status'] === 404 && $stagingMember['body'] === $stagingGuestExisting['body'],
+    'Unauthorized staging access uses the same non-leaking denial behavior as unauthenticated access',
+    $failures
+);
+
+$stagingAdmin = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'GET', [
+    'bearer' => $adminToken,
+]);
+phase0_assert(
+    $stagingAdmin['status'] === 200 && str_contains($stagingAdmin['body'], 'Staging secret'),
+    'Authorized tenant admin access can read staging content through the live seam',
+    $failures
+);
+
+$stagingHead = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'HEAD', [
+    'bearer' => $adminToken,
+]);
+phase0_assert(
+    $stagingHead['status'] === 200
+        && $stagingHead['body'] === ''
+        && (($stagingHead['headerMap']['content-type'][0] ?? null) === ($stagingAdmin['headerMap']['content-type'][0] ?? null))
+        && (($stagingHead['headerMap']['x-efsdb-manifest'][0] ?? null) === ($stagingAdmin['headerMap']['x-efsdb-manifest'][0] ?? null)),
+    'HEAD /staging uses the same routed item and meaningful headers as GET without returning a body',
     $failures
 );
 

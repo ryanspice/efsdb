@@ -1,12 +1,14 @@
 # Delete And GC Contract
 
-Current source inputs:
-- `efsdb/php/core/src/Store.php`
-- `efsdb/php/core/src/Audit.php`
+Implemented in Phase 1:
+- delete is tombstone-first through manifest lifecycle metadata
+- restore clears tombstone state on the same manifest id
+- default tombstone retention is 30 days unless overridden
+- tombstoned items disappear from natural/public visibility immediately
+- manual GC purges expired tombstoned manifests
+- chunk purge happens only after reference checks across remaining manifests in the same entity
 
-Freeze in Phase 0:
-- delete becomes tombstone-first
-- restore clears tombstone before retention expiry
-- default retention target is 30 days
-- GC is manual or operator-triggered in 1.0
-- chunk purge happens only after reference checks
+Current limits preserved from Phase 0:
+- lifecycle updates are same-id manifest rewrites
+- there is still no cross-file transaction spanning chunks, manifests, and lookup files
+- lookup cleanup is best-effort and based on manifest-stored lookup metadata where available

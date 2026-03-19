@@ -84,4 +84,32 @@ phase0_assert(
     $failures
 );
 
+$app->getStore()->tombstone('phase0_assets', 'sample', [
+    'actorId' => 'phase1-admin',
+    'reason' => 'explorer visibility characterization',
+]);
+
+$naturalAfterDelete = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/explorer/list?mode=natural&path=' . rawurlencode('phase0_assets/fixtures'), 'GET', [
+    'bearer' => $adminToken,
+]);
+$rawAfterDelete = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/explorer/list?mode=raw&path=' . rawurlencode('phase0_assets/fixtures'), 'GET', [
+    'bearer' => $adminToken,
+]);
+
+phase0_assert(
+    $naturalAfterDelete['status'] === 200
+        && is_array($naturalAfterDelete['json'])
+        && !in_array('sample.json', array_map(static fn(array $item): string => (string)($item['name'] ?? ''), $naturalAfterDelete['json']['items'] ?? []), true),
+    'Natural explorer listings hide tombstoned records immediately',
+    $failures
+);
+
+phase0_assert(
+    $rawAfterDelete['status'] === 200
+        && is_array($rawAfterDelete['json'])
+        && in_array('sample.json', array_map(static fn(array $item): string => (string)($item['name'] ?? ''), $rawAfterDelete['json']['items'] ?? []), true),
+    'Raw explorer listings continue to expose tombstoned records for privileged inspection',
+    $failures
+);
+
 phase0_finish($failures);

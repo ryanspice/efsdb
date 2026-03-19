@@ -64,7 +64,7 @@ final class Phase0Harness
 
     /**
      * @param array<string,mixed> $options
-     * @return array{status:int,body:string,json:mixed}
+     * @return array{status:int,body:string,json:mixed,headers:list<string>,headerMap:array<string,list<string>>}
      */
     public static function request(string $dataDir, string $bootstrapSecret, string $uri, string $method = 'GET', array $options = []): array
     {
@@ -105,13 +105,40 @@ final class Phase0Harness
         ob_start();
         include self::LIVE_SEAM;
         $body = (string)ob_get_clean();
+        $headers = headers_list();
+        $headerMap = self::normalizeHeaders($headers);
+        @header_remove();
         unset($GLOBALS['EFSDB_TEST_JSON_BODY']);
 
         return [
             'status' => http_response_code(),
             'body' => $body,
             'json' => json_decode($body, true),
+            'headers' => $headers,
+            'headerMap' => $headerMap,
         ];
+    }
+
+    /**
+     * @param list<string> $headers
+     * @return array<string,list<string>>
+     */
+    private static function normalizeHeaders(array $headers): array
+    {
+        $normalized = [];
+        foreach ($headers as $header) {
+            $parts = explode(':', $header, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $name = strtolower(trim($parts[0]));
+            $value = trim($parts[1]);
+            $normalized[$name] ??= [];
+            $normalized[$name][] = $value;
+        }
+
+        return $normalized;
     }
 
     public static function loginAccessToken(string $dataDir, string $bootstrapSecret, string $loginKey): string

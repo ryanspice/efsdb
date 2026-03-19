@@ -1,14 +1,19 @@
 # Delivery Mode Contract
 
-Current source inputs:
-- `efsdb/php/runtime/index.php`
-- `efsdb/adapters/php/src/index.ts`
-
-Freeze in Phase 0:
-- scoped delivery mode, not one global toggle
-- minimum planned modes:
+Implemented in Phase 1:
+- delivery mode is scoped per root, not globally
+- current supported root scopes:
+  - `published`
+  - `staging`
+- current recognized modes:
   - `php-html`
   - `sveltekit-php-adapter`
-- minimum planned scope:
-  - published root
-  - staging root
+
+Resolution order:
+1. explicit root record `deliveryMode`
+2. tenant setting `publicWorkspace.<root>.deliveryMode`
+3. default `php-html`
+
+Current execution behavior:
+- `php-html` is implemented
+- `sveltekit-php-adapter` is recognized but returns a controlled `503` instead of claiming parity
