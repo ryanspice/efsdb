@@ -1,0 +1,39 @@
+{
+    "test_master_key_b64": "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=",
+    "blob": {
+        "file": "blob_manifest.m",
+        "id": "blob_001",
+        "plaintext_content": "Hello EFSDB Conformance",
+        "mime": "text\/plain",
+        "chunk_file": "blob_chunk.c",
+        "chunk_hash": "a7145f6d374e89709a18eac295a52e475404202b65b2003d37b2b3879de8fc68"
+    },
+    "doc": {
+        "file": "doc_manifest.m",
+        "id": "doc_001",
+        "data": {
+            "id": "doc_001",
+            "foo": "bar",
+            "num": 42
+        },
+        "chunk_file": "doc_chunk.c",
+        "chunk_hash": "84f549f24a24c3e90a3de7f8c400562731c7c4d446a84edc33e1a9b26620c6c5"
+    },
+    "index": {
+        "file": "index_segment.seg",
+        "aad": "index:index_segment.seg",
+        "content": {
+            "ver": 1,
+            "entries": [
+                {
+                    "k": "blob_001",
+                    "v": "blob_test"
+                },
+                {
+                    "k": "doc_001",
+                    "v": "doc_test"
+                }
+            ]
+        }
+    }
+}
