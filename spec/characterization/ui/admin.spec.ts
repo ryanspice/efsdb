@@ -1,17 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { loginViaUi, openAdminCe } from './helpers/auth';
+import { openAdminCe, openLegacyAdmin } from './helpers/auth';
 import { adminBundlePath, adminHost, expectModuleScript, readBootstrapPayload } from './helpers/selectors';
 
-test('default admin route still serves the legacy fallback path', async ({ page }) => {
-  await loginViaUi(page);
-
-  const response = await page.goto('/?action=admin');
-  expect(response?.ok()).toBeTruthy();
-  await expect(page.locator('body')).toContainText('Users, roles, and display modes');
-  await expect(page.locator('efsdb-admin')).toHaveCount(0);
-});
-
-test('admin ce branch boots with shared bootstrap contract', async ({ page }) => {
+test('default admin route boots the admin ce host', async ({ page }) => {
   await openAdminCe(page);
   await expectModuleScript(page, adminBundlePath);
 
@@ -23,6 +14,12 @@ test('admin ce branch boots with shared bootstrap contract', async ({ page }) =>
     apiBase: '/api/admin',
     authBase: '/api/auth'
   });
+});
+
+test('legacy admin rollback path remains explicit and non-default', async ({ page }) => {
+  await openLegacyAdmin(page);
+  await expect(page.locator('body')).toContainText('Users, roles, and display modes');
+  await expect(page.locator('efsdb-admin')).toHaveCount(0);
 });
 
 test('admin ce consumes users roles settings products search and facets contracts', async ({ page }) => {

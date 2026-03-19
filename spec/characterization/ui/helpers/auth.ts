@@ -18,6 +18,7 @@ export async function loginViaUi(page: Page, key: string = playwrightBootstrapSe
   await input.fill(key);
   await loginSubmit(page).click();
   await page.waitForURL(/action=admin/);
+  await page.waitForLoadState('networkidle');
 }
 
 export async function openExplorer(page: Page, mode: 'natural' | 'raw' = 'natural'): Promise<void> {
@@ -30,8 +31,12 @@ export async function openExplorer(page: Page, mode: 'natural' | 'raw' = 'natura
 
 export async function openAdminCe(page: Page): Promise<void> {
   await loginViaUi(page);
-  const response = await page.goto('/?action=admin&ui=ce');
-  expect(response?.ok()).toBeTruthy();
   await waitForCustomElement(page, 'efsdb-admin');
   await expect(adminHost(page)).toBeVisible();
+}
+
+export async function openLegacyAdmin(page: Page): Promise<void> {
+  await loginViaUi(page);
+  const response = await page.goto('/?action=admin&ui=legacy');
+  expect(response?.ok()).toBeTruthy();
 }

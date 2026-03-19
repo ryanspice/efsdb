@@ -58,19 +58,21 @@ $admin = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin', 'G
     'cookies' => $cookies,
 ]);
 phase0_assert(
-    $admin['status'] === 200 && str_contains($admin['body'], 'Users, roles, and display modes'),
-    'Authenticated admin compatibility route renders the current legacy admin page',
+    $admin['status'] === 200
+        && str_contains($admin['body'], '<script type="application/json" id="efsdb-bootstrap">')
+        && str_contains($admin['body'], '<efsdb-admin></efsdb-admin>'),
+    'Authenticated admin compatibility route now renders the shipped admin custom element host by default',
     $failures
 );
 
-$adminCe = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin&ui=ce', 'GET', [
+$adminLegacy = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin&ui=legacy', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
-    $adminCe['status'] === 200
-        && str_contains($adminCe['body'], '<script type="application/json" id="efsdb-bootstrap">')
-        && str_contains($adminCe['body'], '<efsdb-admin></efsdb-admin>'),
-    'Authenticated admin CE branch renders the shipped admin custom element host with the shared bootstrap payload contract',
+    $adminLegacy['status'] === 200
+        && str_contains($adminLegacy['body'], 'Users, roles, and display modes')
+        && !str_contains($adminLegacy['body'], '<efsdb-admin></efsdb-admin>'),
+    'Authenticated admin legacy rollback route remains available only behind the explicit legacy toggle',
     $failures
 );
 
