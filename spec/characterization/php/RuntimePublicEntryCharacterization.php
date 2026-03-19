@@ -123,4 +123,30 @@ phase0_assert(
     $failures
 );
 
+$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-runtime-entry-scoped';
+$scopedBootstrapSecret = 'phase1-runtime-entry-scoped-secret';
+
+Phase0Harness::resetDir($scopedDataDir);
+phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'published', [
+    'basePath' => '/docs',
+    'trailingSlash' => 'never',
+    'appDir' => 'app',
+]);
+
+$scopedHtml = phase4_runtime_request($scopedDataDir, '/docs/blog', 'GET');
+$scopedData = phase4_runtime_request($scopedDataDir, '/docs/blog/__data.json', 'GET');
+$scopedAsset = phase4_runtime_request($scopedDataDir, '/docs/app/immutable/app.js', 'GET');
+$scopedOutsideBase = phase4_runtime_request($scopedDataDir, '/blog', 'GET');
+
+phase0_assert(
+    $scopedHtml['status'] === 200
+        && str_contains($scopedHtml['body'], 'Adapter blog')
+        && $scopedData['status'] === 200
+        && $scopedData['body'] === '{"type":"data","slug":"blog"}'
+        && $scopedAsset['status'] === 200
+        && $scopedOutsideBase['status'] === 404,
+    'Detached runtime wrapper preserves adapter basePath, trailingSlash, and asset-prefix routing through the shared public router',
+    $failures
+);
+
 phase0_finish($failures);

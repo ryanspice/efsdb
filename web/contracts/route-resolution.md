@@ -17,7 +17,9 @@ Current public route rules:
 
 Phase 4 adapter note:
 - roots that opt into `sveltekit-php-adapter` now serve imported prerendered HTML, imported `__data.json`, and imported static assets through the same live seam
+- adapter-mode route resolution now consumes root-scoped `basePath`, `trailingSlash`, and app-dir / asset-prefix metadata from the shared public-workspace model
 - adapter-mode `__data.json` and static assets are exact-file routes and do not silently fall back to HTML
+- adapter-mode paths outside the configured base path return the normal missing-route response instead of silently serving scoped content
 - adapter-mode `__action` remains explicitly unsupported with a stable `501 Not Implemented`
 
 Phase 2 API note:

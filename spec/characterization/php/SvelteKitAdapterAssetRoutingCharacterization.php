@@ -76,4 +76,50 @@ phase0_assert(
     $failures
 );
 
+$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase4-adapter-assets-scoped';
+$scopedBootstrapSecret = 'phase4-adapter-assets-scoped-secret';
+
+Phase0Harness::resetDir($scopedDataDir);
+phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'published', [
+    'basePath' => '/docs',
+    'appDir' => 'app',
+]);
+$scopedRouter = Phase0Harness::bootApp($scopedDataDir, $scopedBootstrapSecret)->getPublicSiteRouter();
+
+$scopedJs = $scopedRouter->handle('/docs/app/immutable/app.js', 'GET', User::guest());
+$scopedJson = $scopedRouter->handle('/docs/app/assets/site.json', 'GET', User::guest());
+$unscopedJs = $scopedRouter->handle('/app/immutable/app.js', 'GET', User::guest());
+$scopedMissingAsset = $scopedRouter->handle('/docs/app/immutable/missing.js', 'GET', User::guest());
+$scopedMissingData = $scopedRouter->handle('/docs/blog/missing/__data.json', 'GET', User::guest());
+
+phase0_assert(
+    is_array($scopedJs)
+        && ($scopedJs['status'] ?? null) === 200
+        && phase4_asset_header($scopedJs['headers'] ?? [], 'Content-Type') === 'application/javascript; charset=utf-8'
+        && is_array($scopedJson)
+        && ($scopedJson['status'] ?? null) === 200
+        && phase4_asset_header($scopedJson['headers'] ?? [], 'Content-Type') === 'application/json; charset=utf-8',
+    'Adapter-mode router serves app-dir assets under the configured base path and custom appDir prefix',
+    $failures
+);
+
+phase0_assert(
+    is_array($unscopedJs)
+        && ($unscopedJs['status'] ?? null) === 404
+        && (($unscopedJs['body'] ?? null) === '404 Not Found (EFSDB)'),
+    'Adapter-mode router does not expose app-dir assets outside the configured base path',
+    $failures
+);
+
+phase0_assert(
+    is_array($scopedMissingAsset)
+        && ($scopedMissingAsset['status'] ?? null) === 404
+        && (($scopedMissingAsset['body'] ?? null) === '404 Not Found (EFSDB)')
+        && is_array($scopedMissingData)
+        && ($scopedMissingData['status'] ?? null) === 404
+        && (($scopedMissingData['body'] ?? null) === '404 Not Found (EFSDB)'),
+    'Adapter-mode router keeps direct 404 behavior for scoped missing assets and missing __data.json paths',
+    $failures
+);
+
 phase0_finish($failures);

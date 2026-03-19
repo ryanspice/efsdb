@@ -19,3 +19,9 @@ Current non-goals:
 Phase 4 adapter import note:
 - static-prerender adapter imports now write through the same `public_workspace_roots` and `public_workspace_files` model
 - detached `site_pages` / `PageStore` import storage is no longer an active truth
+- adapter root metadata now carries the imported static-prerender routing inputs needed at delivery time:
+  - `basePath`
+  - `trailingSlash`
+  - `appDir`
+  - asset prefixes
+  - import timestamps / per-import path counts

@@ -13,6 +13,8 @@ final class PublicSiteRouter
     private const EXACT_FILE_EXTENSIONS = [
         'css',
         'gif',
+        'htm',
+        'html',
         'ico',
         'jpeg',
         'jpg',
@@ -32,6 +34,10 @@ final class PublicSiteRouter
         'xml',
         'txt',
     ];
+
+    private const TRAILING_ALWAYS = 'always';
+    private const TRAILING_NEVER = 'never';
+    private const TRAILING_IGNORE = 'ignore';
 
     public function __construct(
         private readonly PublicWorkspace $workspace,
@@ -58,10 +64,6 @@ final class PublicSiteRouter
             return $this->badRequest($method);
         }
 
-        if ($mode === 'sveltekit-php-adapter' && $this->isUnsupportedActionPath($request['normalized'])) {
-            return $this->notImplemented($method);
-        }
-
         if (!in_array($method, ['GET', 'HEAD'], true)) {
             return null;
         }
@@ -71,7 +73,17 @@ final class PublicSiteRouter
         }
 
         if ($mode === 'sveltekit-php-adapter') {
-            return $this->serveCandidates($root, $method, $this->adapterCandidates($request));
+            $adapter = $this->adapterConfig($root);
+            $adapterRequest = $this->applyAdapterBasePath($request, $adapter['basePath']);
+            if ($adapterRequest === null) {
+                return $this->notFound($method);
+            }
+
+            if ($this->isUnsupportedActionPath($adapterRequest['normalized'])) {
+                return $this->notImplemented($method);
+            }
+
+            return $this->serveCandidates($root, $method, $this->adapterCandidates($adapterRequest, $adapter));
         }
 
         if ($mode !== 'php-html') {
@@ -161,25 +173,39 @@ final class PublicSiteRouter
      * @param array{normalized:string,hadTrailingSlash:bool} $request
      * @return list<string>
      */
-    private function adapterCandidates(array $request): array
+    private function adapterCandidates(array $request, array $adapter): array
     {
         $normalized = $request['normalized'];
         $hadTrailingSlash = $request['hadTrailingSlash'];
+        $trailingSlash = $adapter['trailingSlash'] ?? self::TRAILING_IGNORE;
 
         if ($normalized === '') {
             return ['index.html'];
         }
 
         $base = ltrim($normalized, '/');
-        if ($this->isExactAdapterFilePath($base)) {
-            return [$base];
+        $routeBase = rtrim($base, '/');
+        if ($routeBase === '') {
+            return ['index.html'];
+        }
+
+        if ($this->isExactAdapterFilePath($routeBase)) {
+            return [$routeBase];
+        }
+
+        if ($trailingSlash === self::TRAILING_ALWAYS) {
+            return [$routeBase . '/index.html'];
+        }
+
+        if ($trailingSlash === self::TRAILING_NEVER) {
+            return [$routeBase . '.html'];
         }
 
         if ($hadTrailingSlash) {
-            return [rtrim($base, '/') . '/index.html'];
+            return [$routeBase . '/index.html', $routeBase . '.html', $routeBase];
         }
 
-        return [$base, $base . '.html', $base . '/index.html'];
+        return [$routeBase, $routeBase . '.html', $routeBase . '/index.html'];
     }
 
     private function isExactAdapterFilePath(string $path): bool
@@ -191,6 +217,91 @@ final class PublicSiteRouter
     private function isUnsupportedActionPath(string $path): bool
     {
         return (bool)preg_match('#(^|/)__action(?:/|$)#', $path);
+    }
+
+    /**
+     * @return array{basePath:string,trailingSlash:string,appDir:string,assetPrefixes:list<string>}
+     */
+    private function adapterConfig(string $root): array
+    {
+        $rootDoc = $this->workspace->getRoot($root, false);
+        $adapter = is_array($rootDoc['adapter'] ?? null) ? $rootDoc['adapter'] : [];
+        $appDir = trim((string)($adapter['appDir'] ?? '_app'), '/');
+        $assetPrefixes = is_array($adapter['assetPrefixes'] ?? null)
+            ? array_values(array_unique(array_filter(array_map(
+                static fn(mixed $value): string => trim((string)$value, '/'),
+                $adapter['assetPrefixes']
+            ), static fn(string $value): bool => $value !== '')))
+            : [];
+        if ($appDir !== '' && !in_array($appDir, $assetPrefixes, true)) {
+            array_unshift($assetPrefixes, $appDir);
+        }
+
+        return [
+            'basePath' => $this->normalizeBasePath($adapter['basePath'] ?? '/'),
+            'trailingSlash' => $this->normalizeTrailingSlash($adapter['trailingSlash'] ?? self::TRAILING_IGNORE),
+            'appDir' => $appDir === '' ? '_app' : $appDir,
+            'assetPrefixes' => $assetPrefixes,
+        ];
+    }
+
+    /**
+     * @param array{normalized:string,hadTrailingSlash:bool} $request
+     * @return array{normalized:string,hadTrailingSlash:bool}|null
+     */
+    private function applyAdapterBasePath(array $request, string $basePath): ?array
+    {
+        if ($basePath === '/') {
+            return $request;
+        }
+
+        $prefix = trim($basePath, '/');
+        $normalized = $request['normalized'];
+        if ($normalized === $prefix) {
+            return [
+                'normalized' => '',
+                'hadTrailingSlash' => $request['hadTrailingSlash'],
+            ];
+        }
+
+        if (!str_starts_with($normalized . '/', $prefix . '/')) {
+            return null;
+        }
+
+        $stripped = ltrim(substr($normalized, strlen($prefix)), '/');
+        return [
+            'normalized' => $stripped,
+            'hadTrailingSlash' => $request['hadTrailingSlash'],
+        ];
+    }
+
+    private function normalizeBasePath(mixed $value): string
+    {
+        if (!is_scalar($value)) {
+            return '/';
+        }
+
+        $value = trim((string)$value);
+        if ($value === '' || $value === '/') {
+            return '/';
+        }
+
+        $value = '/' . trim(str_replace('\\', '/', $value), '/');
+        return $value === '/' ? '/' : rtrim($value, '/');
+    }
+
+    private function normalizeTrailingSlash(mixed $value): string
+    {
+        if (!is_scalar($value)) {
+            return self::TRAILING_IGNORE;
+        }
+
+        $value = strtolower(trim((string)$value));
+        return match ($value) {
+            self::TRAILING_ALWAYS => self::TRAILING_ALWAYS,
+            self::TRAILING_NEVER => self::TRAILING_NEVER,
+            default => self::TRAILING_IGNORE,
+        };
     }
 
     /**

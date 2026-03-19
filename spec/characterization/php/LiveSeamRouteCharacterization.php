@@ -204,4 +204,32 @@ phase0_assert(
     $failures
 );
 
+$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-live-seam-adapter-scoped';
+$scopedBootstrapSecret = 'phase0-live-seam-adapter-scoped-secret';
+
+Phase0Harness::resetDir($scopedDataDir);
+phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'published', [
+    'basePath' => '/docs',
+    'trailingSlash' => 'never',
+    'appDir' => 'app',
+]);
+
+$scopedPublished = Phase0Harness::request($scopedDataDir, $scopedBootstrapSecret, '/docs/blog', 'GET');
+$scopedData = Phase0Harness::request($scopedDataDir, $scopedBootstrapSecret, '/docs/blog/__data.json', 'GET');
+$scopedAsset = Phase0Harness::request($scopedDataDir, $scopedBootstrapSecret, '/docs/app/immutable/app.js', 'GET');
+$scopedOutsideBase = Phase0Harness::request($scopedDataDir, $scopedBootstrapSecret, '/blog', 'GET');
+$scopedAction = Phase0Harness::request($scopedDataDir, $scopedBootstrapSecret, '/docs/blog/__action', 'GET');
+
+phase0_assert(
+    $scopedPublished['status'] === 200
+        && str_contains($scopedPublished['body'], 'Adapter blog')
+        && $scopedData['status'] === 200
+        && $scopedData['body'] === '{"type":"data","slug":"blog"}'
+        && $scopedAsset['status'] === 200
+        && $scopedOutsideBase['status'] === 404
+        && $scopedAction['status'] === 501,
+    'Live seam preserves adapter basePath, trailingSlash, asset-prefix routing, and stable __action behavior once a root opts in',
+    $failures
+);
+
 phase0_finish($failures);

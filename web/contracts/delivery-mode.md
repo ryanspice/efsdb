@@ -21,6 +21,9 @@ Current execution behavior:
   - imported prerendered HTML
   - imported `__data.json`
   - imported static assets
+  - root-scoped `basePath` handling
+  - root-scoped `trailingSlash` handling
+  - root-scoped app-dir / asset-prefix routing
   - shared `GET`/`HEAD` route resolution semantics
 - current adapter-mode non-goals remain explicit:
   - `__action` returns a stable `501 Not Implemented`

@@ -121,4 +121,31 @@ phase0_assert(
     $failures
 );
 
+$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-public-router-scoped';
+$scopedBootstrapSecret = 'phase1-public-router-scoped-secret';
+
+Phase0Harness::resetDir($scopedDataDir);
+$scopedApp = phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'published', [
+    'basePath' => '/docs',
+    'trailingSlash' => 'never',
+    'appDir' => 'app',
+]);
+$scopedRouter = $scopedApp->getPublicSiteRouter();
+
+$scopedHtml = $scopedRouter->handle('/docs/blog', 'GET', User::guest());
+$scopedAsset = $scopedRouter->handle('/docs/app/immutable/app.js', 'GET', User::guest());
+$scopedMissing = $scopedRouter->handle('/app/immutable/app.js', 'GET', User::guest());
+
+phase0_assert(
+    is_array($scopedHtml)
+        && ($scopedHtml['status'] ?? null) === 200
+        && str_contains((string)($scopedHtml['body'] ?? ''), 'Adapter blog')
+        && is_array($scopedAsset)
+        && ($scopedAsset['status'] ?? null) === 200
+        && is_array($scopedMissing)
+        && ($scopedMissing['status'] ?? null) === 404,
+    'Public router consumes adapter basePath, trailingSlash, and appDir metadata when resolving scoped adapter content',
+    $failures
+);
+
 phase0_finish($failures);

@@ -13,6 +13,8 @@ function phase4_seed_adapter_root(string $dataDir, string $bootstrapSecret, stri
     $fixtureRoot = dirname($dataDir) . '/adapter-fixtures-' . md5($dataDir . "\0" . $root);
     $clientDir = $fixtureRoot . '/client';
     $prerenderDir = $fixtureRoot . '/prerendered';
+    $appDir = (string)($options['appDir'] ?? '_app');
+    $trailingSlash = (string)($options['trailingSlash'] ?? 'ignore');
 
     Phase0Harness::resetDir($fixtureRoot);
     mkdir($clientDir . '/immutable', 0777, true);
@@ -25,19 +27,23 @@ function phase4_seed_adapter_root(string $dataDir, string $bootstrapSecret, stri
     file_put_contents($clientDir . '/assets/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
 
     file_put_contents($prerenderDir . '/index.html', '<h1>Adapter root</h1>');
-    file_put_contents($prerenderDir . '/blog/index.html', '<h1>Adapter blog</h1>');
+    if ($trailingSlash === 'never') {
+        file_put_contents($prerenderDir . '/blog.html', '<h1>Adapter blog</h1>');
+    } else {
+        file_put_contents($prerenderDir . '/blog/index.html', '<h1>Adapter blog</h1>');
+    }
     file_put_contents($prerenderDir . '/blog/__data.json', '{"type":"data","slug":"blog"}');
 
     $deliveryOptions = [
         'root' => $root,
         'deliveryMode' => 'sveltekit-php-adapter',
-        'appDir' => (string)($options['appDir'] ?? '_app'),
+        'appDir' => $appDir,
         'basePath' => $options['basePath'] ?? null,
         'trailingSlash' => $options['trailingSlash'] ?? null,
     ];
 
     $importer->importDirectory($clientDir, array_merge($deliveryOptions, [
-        'prefix' => (string)($options['appDir'] ?? '_app'),
+        'prefix' => $appDir,
     ]));
     $importer->importDirectory($prerenderDir, $deliveryOptions);
 
