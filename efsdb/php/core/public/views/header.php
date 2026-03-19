@@ -1,9 +1,16 @@
+<?php
+$pageTitle = isset($pageTitle) && is_string($pageTitle) && $pageTitle !== ''
+    ? $pageTitle
+    : 'EFSDB Control Plane';
+$tenantSettings = $app->getIdentity()->getTenantSettings();
+$accent = $tenantSettings['settings']['accent'] ?? '#c6ff00';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EFSDB Control Plane</title>
+    <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
     <script>
         (function () {
             var theme = 'dark';
@@ -18,6 +25,7 @@
             document.documentElement.style.colorScheme = theme;
         })();
     </script>
+    <style>:root{--accent: <?php echo htmlspecialchars((string)$accent, ENT_QUOTES, 'UTF-8'); ?>;}</style>
     <link rel="stylesheet" href="/css/style.css">
     <script defer src="/js/theme-manager.js"></script>
     <script type="module" src="/js/auth-interceptor.js"></script>

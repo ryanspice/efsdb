@@ -1,12 +1,15 @@
 <?php
 $canAdmin = !$isGuest && $perms->canManageUsers($user);
 $roleLabel = $user->role === $user->actualRole ? $user->role : $user->actualRole . ' -> ' . $user->role;
-$settings = $app->getIdentity()->getTenantSettings();
-$accent = $settings['settings']['accent'] ?? '#c6ff00';
 $navIdle = 'nav-link';
 $navActive = 'nav-link nav-link-active';
+$navLinks = [
+    ['action' => 'home', 'label' => 'Home', 'href' => '?action=home', 'visible' => true],
+    ['action' => 'explorer', 'label' => 'Explorer', 'href' => '?action=explorer', 'visible' => !$isGuest],
+    ['action' => 'system', 'label' => 'System', 'href' => '?action=system', 'visible' => !$isGuest],
+    ['action' => 'admin', 'label' => 'Admin', 'href' => '?action=admin', 'visible' => !$isGuest && $canAdmin],
+];
 ?>
-<style>:root{--accent: <?php echo htmlspecialchars((string)$accent); ?>;}</style>
 
 <nav class="nav-shell sticky top-0 z-40 backdrop-blur-xl">
     <div class="page-shell flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -23,14 +26,14 @@ $navActive = 'nav-link nav-link-active';
         </div>
 
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <a class="<?php echo $action === 'home' ? $navActive : $navIdle; ?>" href="?action=home">Home</a>
-            <?php if (!$isGuest): ?>
-                <a class="<?php echo $action === 'explorer' ? $navActive : $navIdle; ?>" href="?action=explorer">Explorer</a>
-                <a class="<?php echo $action === 'system' ? $navActive : $navIdle; ?>" href="?action=system">System</a>
-                <?php if ($canAdmin): ?>
-                    <a class="<?php echo $action === 'admin' ? $navActive : $navIdle; ?>" href="?action=admin">Admin</a>
-                <?php endif; ?>
-            <?php endif; ?>
+            <?php foreach ($navLinks as $link): ?>
+                <?php if (!$link['visible']) {
+                    continue;
+                } ?>
+                <a class="<?php echo $action === $link['action'] ? $navActive : $navIdle; ?>" href="<?php echo $link['href']; ?>">
+                    <?php echo $link['label']; ?>
+                </a>
+            <?php endforeach; ?>
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:justify-end">
