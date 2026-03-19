@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { explorerHost, loginHost, loginInput, loginSubmit, waitForCustomElement } from './selectors';
+import { adminHost, explorerHost, loginHost, loginInput, loginSubmit, waitForCustomElement } from './selectors';
 
 export const playwrightBootstrapSecret =
   process.env.EFSDB_PLAYWRIGHT_BOOTSTRAP_SECRET ?? 'phase3-playwright-bootstrap-secret';
@@ -26,4 +26,12 @@ export async function openExplorer(page: Page, mode: 'natural' | 'raw' = 'natura
   expect(response?.ok()).toBeTruthy();
   await waitForCustomElement(page, 'efsdb-explorer');
   await expect(explorerHost(page)).toBeVisible();
+}
+
+export async function openAdminCe(page: Page): Promise<void> {
+  await loginViaUi(page);
+  const response = await page.goto('/?action=admin&ui=ce');
+  expect(response?.ok()).toBeTruthy();
+  await waitForCustomElement(page, 'efsdb-admin');
+  await expect(adminHost(page)).toBeVisible();
 }

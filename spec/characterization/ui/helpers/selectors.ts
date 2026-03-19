@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 export const loginBundlePath = '/js/efsdb-login.js';
 export const explorerBundlePath = '/js/efsdb-explorer.js';
+export const adminBundlePath = '/js/efsdb-admin.js';
 export const bootstrapSelector = '#efsdb-bootstrap';
 
 export function loginHost(page: Page): Locator {
@@ -10,6 +11,10 @@ export function loginHost(page: Page): Locator {
 
 export function explorerHost(page: Page): Locator {
   return page.locator('efsdb-explorer');
+}
+
+export function adminHost(page: Page): Locator {
+  return page.locator('efsdb-admin');
 }
 
 export function loginInput(page: Page): Locator {

@@ -7,6 +7,7 @@
     "build": "bun run typecheck",
     "build:login": "vite build --config apps/login/vite.config.ts",
     "build:explorer": "vite build --config apps/explorer/vite.config.ts",
+    "build:admin": "vite build --config apps/admin/vite.config.ts",
     "test:ui": "playwright test --config playwright.config.ts"
   },
   "devDependencies": {

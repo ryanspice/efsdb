@@ -63,6 +63,17 @@ phase0_assert(
     $failures
 );
 
+$adminCe = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin&ui=ce', 'GET', [
+    'cookies' => $cookies,
+]);
+phase0_assert(
+    $adminCe['status'] === 200
+        && str_contains($adminCe['body'], '<script type="application/json" id="efsdb-bootstrap">')
+        && str_contains($adminCe['body'], '<efsdb-admin></efsdb-admin>'),
+    'Authenticated admin CE branch renders the shipped admin custom element host with the shared bootstrap payload contract',
+    $failures
+);
+
 $system = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=system', 'GET', [
     'cookies' => $cookies,
 ]);

@@ -1,0 +1,1 @@
+import './Admin.ce.svelte';

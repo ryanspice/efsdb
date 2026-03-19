@@ -4,8 +4,35 @@ if (!$perms->canManageUsers($user)) {
     return;
 }
 
+$useAdminCe = isset($_GET['ui']) && $_GET['ui'] === 'ce';
 $roles = $app->getIdentity()->listRoles(false);
 $settings = $app->getIdentity()->getTenantSettings();
+
+if ($useAdminCe) {
+    $bootstrap = [
+        'app' => 'admin',
+        'tag' => 'efsdb-admin',
+        'assetFile' => '/js/efsdb-admin.js',
+        'apiBase' => '/api/admin',
+        'authBase' => '/api/auth',
+        'user' => $user->toApi(),
+        'flags' => [
+            'canManageUsers' => $perms->canManageUsers($user),
+            'canManageRoles' => $perms->canManageRoles($user),
+            'canManageSettings' => $perms->canManageSettings($user),
+        ],
+        'urls' => [
+            'legacy' => '?action=admin',
+        ],
+    ];
+    $bootstrapJson = json_encode($bootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    ?>
+    <script type="module" src="/js/efsdb-admin.js"></script>
+    <script type="application/json" id="efsdb-bootstrap"><?php echo $bootstrapJson ?: '{}'; ?></script>
+    <efsdb-admin></efsdb-admin>
+    <?php
+    return;
+}
 ?>
 <section class="space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
