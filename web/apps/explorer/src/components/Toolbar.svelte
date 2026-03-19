@@ -71,6 +71,7 @@
     <label class="scale">
       <span>Scale</span>
       <input
+        data-testid="explorer-scale-input"
         type="range"
         min="0.6"
         max="1.6"

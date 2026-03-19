@@ -7,9 +7,10 @@
     mode: ExplorerMode;
     scale: number;
     onNavToIndex: (idx: number) => void;
+    onActivateIndex: (idx: number) => void;
   };
 
-  let { items, selectedName, mode, scale, onNavToIndex } = $props<Props>();
+  let { items, selectedName, mode, scale, onNavToIndex, onActivateIndex } = $props<Props>();
 
   let gap = 320;
   let depth = 250;
@@ -136,7 +137,7 @@
   });
 </script>
 
-<div class="coverPane" onwheel={onWheel}>
+<div class="coverPane" data-testid="explorer-coverflow" onwheel={onWheel}>
   <div class="coverHeader">
     <button class="navBtn" type="button" onclick={() => nav(-1)} aria-label="Previous">‹</button>
     <div class="title">Coverflow</div>
@@ -147,6 +148,7 @@
     class="stage"
     role="group"
     aria-label="Coverflow stage"
+    data-testid="explorer-coverflow-stage"
     use:bindStage
   >
     {#if !items.length}
@@ -162,6 +164,7 @@
           class:active={v.item.name === selectedName}
           style={v.hidden ? 'display:none;' : v.style}
           onclick={() => onNavToIndex(v.i)}
+          ondblclick={() => onActivateIndex(v.i)}
         >
           <div class="ico">{iconFor(v.item)}</div>
           <div class="name" title={v.item.name}>{v.item.name}</div>

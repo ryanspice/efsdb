@@ -1,13 +1,16 @@
 <script lang="ts">
   import type { ColumnState, ExplorerItem, ExplorerMode } from '../lib/types';
+  import { dragScroll } from '../lib/actions/dragScroll';
 
   type Props = {
     mode: ExplorerMode;
+    scale: number;
     columns: ColumnState[];
     onItemClick: (colIndex: number, item: ExplorerItem) => void;
+    onItemDoubleClick: (colIndex: number, item: ExplorerItem) => void;
   };
 
-  let { mode, columns, onItemClick } = $props<Props>();
+  let { mode, scale, columns, onItemClick, onItemDoubleClick } = $props<Props>();
 
   function iconFor(item: ExplorerItem) {
     if (item.type === 'dir') return '📁';
@@ -22,11 +25,21 @@
     if (item.kind === 'chunk') return 'label info';
     return 'label muted';
   }
+
+  function handleWheel(event: WheelEvent): void {
+    const list = event.currentTarget as HTMLDivElement;
+    if (list.scrollHeight <= list.clientHeight) {
+      return;
+    }
+
+    list.scrollTop += event.deltaY;
+    event.preventDefault();
+  }
 </script>
 
-<div class="cols" role="region" aria-label="Miller columns">
+<div class="cols" role="region" aria-label="Miller columns" style={`--column-scale:${scale};`}>
   {#each columns as col, i (col.path)}
-    <section class="col" aria-label={`Column ${i + 1}`}>
+    <section class="col" aria-label={`Column ${i + 1}`} data-testid={`explorer-column-${i}`}>
       <header class="colHeader">{i === 0 ? 'ROOT' : col.path.split('/').filter(Boolean).pop()}</header>
 
       {#if col.loading}
@@ -35,7 +48,13 @@
           <div class="loadingText">Loading…</div>
         </div>
       {:else}
-        <div class="list" role="list">
+        <div
+          class="list"
+          role="list"
+          data-testid={`explorer-column-list-${i}`}
+          use:dragScroll={{ axis: 'y' }}
+          onwheel={handleWheel}
+        >
           {#if col.items.length === 0}
             <div class="empty">
               {mode === 'raw'
@@ -49,7 +68,9 @@
                 class="row"
                 class:active={col.selectedItem === item.name}
                 class:dim={mode === 'raw' && item.type === 'dir'}
+                data-testid={`explorer-row-${i}`}
                 onclick={() => onItemClick(i, item)}
+                ondblclick={() => onItemDoubleClick(i, item)}
               >
                 <span class="left">
                   <span class="ico" aria-hidden="true">{iconFor(item)}</span>
@@ -79,8 +100,8 @@
   }
 
   .col {
-    width: 260px;
-    min-width: 260px;
+    width: calc(260px * var(--column-scale));
+    min-width: calc(260px * var(--column-scale));
     border: 1px solid var(--border);
     border-radius: 14px;
     background: var(--panel);
@@ -92,31 +113,37 @@
   }
 
   .colHeader {
-    padding: 10px 12px;
+    padding: calc(10px * var(--column-scale)) calc(12px * var(--column-scale));
     border-bottom: 1px solid var(--border);
     font-weight: 700;
-    font-size: 12px;
+    font-size: calc(12px * var(--column-scale));
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
   .list {
-    padding: 8px;
+    padding: calc(8px * var(--column-scale));
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: calc(6px * var(--column-scale));
     min-height: 0;
     flex: 1 1 auto;
     overflow: auto;
+    cursor: grab;
+    scrollbar-gutter: stable;
+  }
+
+  .list.drag-scrolling {
+    cursor: grabbing;
   }
 
   .row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: calc(8px * var(--column-scale));
+    padding: calc(8px * var(--column-scale)) calc(10px * var(--column-scale));
     border-radius: 12px;
     border: 1px solid transparent;
     background: transparent;
@@ -140,11 +167,11 @@
     min-width: 0;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: calc(8px * var(--column-scale));
   }
 
   .ico {
-    width: 18px;
+    width: calc(18px * var(--column-scale));
     opacity: 0.85;
   }
 
@@ -154,7 +181,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-weight: 600;
-    font-size: 13px;
+    font-size: calc(13px * var(--column-scale));
   }
   .label.muted {
     color: var(--muted);
@@ -172,19 +199,19 @@
   .arrow {
     color: inherit;
     opacity: 0.7;
-    font-size: 16px;
+    font-size: calc(16px * var(--column-scale));
   }
 
   .loading {
     display: grid;
     place-items: center;
-    padding: 24px;
-    gap: 10px;
+    padding: calc(24px * var(--column-scale));
+    gap: calc(10px * var(--column-scale));
     color: var(--muted);
   }
   .spinner {
-    width: 22px;
-    height: 22px;
+    width: calc(22px * var(--column-scale));
+    height: calc(22px * var(--column-scale));
     border-radius: 999px;
     border: 3px solid color-mix(in oklab, var(--muted), transparent 65%);
     border-top-color: var(--primary);
@@ -196,17 +223,17 @@
     }
   }
   .loadingText {
-    font-size: 12px;
+    font-size: calc(12px * var(--column-scale));
   }
 
   .empty {
     min-height: 180px;
     display: grid;
     place-items: center;
-    padding: 18px;
+    padding: calc(18px * var(--column-scale));
     text-align: center;
     color: var(--muted);
-    font-size: 12px;
+    font-size: calc(12px * var(--column-scale));
     line-height: 1.6;
     border: 1px dashed color-mix(in oklab, var(--border), transparent 30%);
     border-radius: 12px;

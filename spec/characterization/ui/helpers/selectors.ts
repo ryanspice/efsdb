@@ -13,6 +13,34 @@ export function explorerHost(page: Page): Locator {
   return page.locator('efsdb-explorer');
 }
 
+export function explorerColumn(page: Page, index: number): Locator {
+  return explorerHost(page).locator(`[data-testid="explorer-column-${index}"]`);
+}
+
+export function explorerColumnList(page: Page, index: number): Locator {
+  return explorerHost(page).locator(`[data-testid="explorer-column-list-${index}"]`);
+}
+
+export function explorerScaleInput(page: Page): Locator {
+  return explorerHost(page).locator('[data-testid="explorer-scale-input"]');
+}
+
+export function explorerCover(page: Page): Locator {
+  return explorerHost(page).locator('[data-testid="explorer-cover"]');
+}
+
+export function explorerPreviewPanel(page: Page): Locator {
+  return explorerHost(page).locator('[data-testid="explorer-preview-panel"]');
+}
+
+export function explorerDetailsPopup(page: Page): Locator {
+  return explorerHost(page).locator('[data-testid="explorer-details-popup"]');
+}
+
+export function explorerRelationshipsPanel(page: Page): Locator {
+  return explorerHost(page).locator('[data-testid="explorer-details-relationships"]');
+}
+
 export function adminHost(page: Page): Locator {
   return page.locator('efsdb-admin');
 }

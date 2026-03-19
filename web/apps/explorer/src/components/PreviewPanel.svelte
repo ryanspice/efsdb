@@ -5,12 +5,13 @@
   type Props = {
     client: DataClient;
     mode: ExplorerMode;
+    scale: number;
     activeItem: ExplorerItem | null;
     widthPx: number;
     onToggle: () => void;
   };
 
-  let { client, mode, activeItem, widthPx, onToggle } = $props<Props>();
+  let { client, mode, scale, activeItem, widthPx, onToggle } = $props<Props>();
 
   let details = $state<DetailsResponse | null>(null);
   let status = $state<'idle' | 'loading' | 'error'>('idle');
@@ -94,7 +95,7 @@
   }
 </script>
 
-<aside class="pane" style={`width:${widthPx}px`}>
+<aside class="pane" data-testid="explorer-preview-panel" style={`width:${widthPx}px; --preview-scale:${scale};`}>
   <header class="hdr">
     <div class="ttl">Preview</div>
     <button class="btn" type="button" onclick={onToggle} title="Toggle preview">⟷</button>
@@ -147,7 +148,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
+    padding: calc(10px * var(--preview-scale)) calc(12px * var(--preview-scale));
     border-bottom: 1px solid var(--border);
   }
 
@@ -155,13 +156,13 @@
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    font-size: 12px;
+    font-size: calc(12px * var(--preview-scale));
     color: var(--muted);
   }
 
   .btn {
-    width: 34px;
-    height: 30px;
+    width: calc(34px * var(--preview-scale));
+    height: calc(30px * var(--preview-scale));
     border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--card);
@@ -170,9 +171,10 @@
   }
 
   .body {
-    padding: 12px;
+    padding: calc(12px * var(--preview-scale));
     overflow: auto;
     height: 100%;
+    font-size: calc(14px * var(--preview-scale));
   }
 
   .empty {
@@ -185,7 +187,7 @@
   }
 
   .err {
-    padding: 10px;
+    padding: calc(10px * var(--preview-scale));
     border-radius: 12px;
     border: 1px solid color-mix(in oklab, var(--danger), transparent 55%);
     background: color-mix(in oklab, var(--danger), transparent 85%);
@@ -196,14 +198,14 @@
     background: color-mix(in oklab, black, transparent 65%);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 10px;
+    padding: calc(10px * var(--preview-scale));
     display: grid;
     place-items: center;
     margin-bottom: 12px;
   }
 
   img {
-    max-height: 220px;
+    max-height: calc(220px * var(--preview-scale));
     max-width: 100%;
     object-fit: contain;
     border-radius: 10px;
@@ -213,9 +215,9 @@
     background: var(--codeBg);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 10px;
+    padding: calc(10px * var(--preview-scale));
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-    font-size: 12px;
+    font-size: calc(12px * var(--preview-scale));
     white-space: pre-wrap;
     max-height: 260px;
     overflow: auto;
@@ -226,7 +228,7 @@
     border: 1px solid var(--border);
     background: var(--card);
     border-radius: 14px;
-    padding: 26px 12px;
+    padding: calc(26px * var(--preview-scale)) calc(12px * var(--preview-scale));
     display: grid;
     place-items: center;
     font-weight: 900;
@@ -246,22 +248,22 @@
 
   .sub {
     color: var(--muted);
-    font-size: 12px;
+    font-size: calc(12px * var(--preview-scale));
     margin-top: 2px;
   }
 
   .paths {
     border-top: 1px solid var(--border);
-    padding-top: 10px;
+    padding-top: calc(10px * var(--preview-scale));
   }
 
   .pathsHdr {
-    font-size: 11px;
+    font-size: calc(11px * var(--preview-scale));
     font-weight: 900;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 8px;
+    margin-bottom: calc(8px * var(--preview-scale));
   }
 
   .pathBox {
@@ -271,9 +273,9 @@
     border: 1px solid var(--border);
     background: color-mix(in oklab, black, transparent 75%);
     color: var(--muted);
-    padding: 10px;
+    padding: calc(10px * var(--preview-scale));
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-    font-size: 12px;
+    font-size: calc(12px * var(--preview-scale));
     word-break: break-all;
     cursor: pointer;
   }

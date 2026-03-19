@@ -10,7 +10,7 @@
   import type { BootstrapPayload, BootstrapTheme } from '@contracts/bootstrap';
   import { readBootstrapPayloadForApp } from '@utils/bootstrap/hostProps';
   import { getTheme, onThemeChange } from '@utils/bootstrap/themeBridge';
-  import type { ColumnState, ExplorerItem, ExplorerLayout, ExplorerMode } from './lib/types';
+  import type { ColumnState, DetailsResponse, ExplorerItem, ExplorerLayout, ExplorerMode } from './lib/types';
   import { DataClient } from './lib/api/explorerClient';
   import { loadLayout, saveLayout } from './lib/layout/layoutStore';
   import { dragHandle } from './lib/actions/drag';
@@ -19,6 +19,7 @@
   import MillerColumns from './components/MillerColumns.svelte';
   import CoverFlow from './components/CoverFlow.svelte';
   import PreviewPanel from './components/PreviewPanel.svelte';
+  import DetailsPopup from './components/DetailsPopup.svelte';
 
   type ExplorerBootstrapPayload = BootstrapPayload & {
     app: 'explorer';
@@ -43,8 +44,14 @@
   let bootState = $state<'loading' | 'ready' | 'auth_required' | 'error'>('loading');
   let statusMessage = $state('');
   let whoAmI = $state<Record<string, unknown> | null>(null);
+  let popupDetails = $state<DetailsResponse | null>(null);
+  let popupLoading = $state(false);
+  let popupError = $state('');
 
   let listTimer: number | null = null;
+  let popupToken = 0;
+
+  const effectiveCoverHeight = $derived.by(() => Math.round(layout.coverHeight * layout.scale));
 
   const activeColIndex = $derived.by(() => {
     for (let i = columns.length - 1; i >= 0; i--) {
@@ -213,6 +220,40 @@
     }
   }
 
+  async function openDetailsPopup(item: ExplorerItem): Promise<void> {
+    const pathValue = (item.rawPath as string) || item.name;
+    const token = ++popupToken;
+    popupLoading = true;
+    popupDetails = null;
+    popupError = '';
+
+    try {
+      const details = await client.details(pathValue, mode);
+      if (token !== popupToken) {
+        return;
+      }
+
+      popupDetails = details;
+    } catch (error: unknown) {
+      if (token !== popupToken) {
+        return;
+      }
+
+      popupError = error instanceof Error ? error.message : 'Unable to load the selected details.';
+    } finally {
+      if (token === popupToken) {
+        popupLoading = false;
+      }
+    }
+  }
+
+  function closeDetailsPopup(): void {
+    popupToken += 1;
+    popupLoading = false;
+    popupDetails = null;
+    popupError = '';
+  }
+
   function onScale(value: number): void {
     layout.scale = value;
     saveLayout(layout);
@@ -280,6 +321,16 @@
     }
   }
 
+  async function handleItemDoubleClick(colIndex: number, item: ExplorerItem): Promise<void> {
+    await handleItemClick(colIndex, item);
+
+    if (item.type === 'dir') {
+      return;
+    }
+
+    await openDetailsPopup(item);
+  }
+
   function coverNavToIndex(idx: number): void {
     const col = activeCol;
     if (!col) {
@@ -294,11 +345,30 @@
     void handleItemClick(activeColIndex, item);
   }
 
+  function coverActivateIndex(idx: number): void {
+    const col = activeCol;
+    if (!col) {
+      return;
+    }
+
+    const item = col.items[idx];
+    if (!item) {
+      return;
+    }
+
+    void handleItemDoubleClick(activeColIndex, item);
+  }
+
   function togglePreview(): void {
     previewCollapsed = !previewCollapsed;
   }
 
   function onKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && (popupDetails !== null || popupLoading || popupError !== '')) {
+      closeDetailsPopup();
+      return;
+    }
+
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName?.toUpperCase();
     if (tag === 'INPUT' || tag === 'TEXTAREA') {
@@ -356,7 +426,7 @@
   });
 </script>
 
-<div class="root">
+<div class="root" style={`--explorer-scale:${layout.scale};`}>
   {#if bootState === 'loading'}
     <div class="statusCard">
       <div class="statusTitle">Connecting to EFSDB…</div>
@@ -394,8 +464,15 @@
         }}
       />
 
-      <div class="cover" style={`height:${layout.coverHeight}px`}>
-        <CoverFlow items={coverItems} {selectedName} {mode} scale={layout.scale} onNavToIndex={coverNavToIndex} />
+      <div class="cover" data-testid="explorer-cover" style={`height:${effectiveCoverHeight}px`}>
+        <CoverFlow
+          items={coverItems}
+          {selectedName}
+          {mode}
+          scale={layout.scale}
+          onNavToIndex={coverNavToIndex}
+          onActivateIndex={coverActivateIndex}
+        />
       </div>
 
       <div
@@ -408,7 +485,13 @@
 
     <div class="main">
       <div class="colsPane">
-        <MillerColumns {mode} {columns} onItemClick={handleItemClick} />
+        <MillerColumns
+          {mode}
+          scale={layout.scale}
+          {columns}
+          onItemClick={handleItemClick}
+          onItemDoubleClick={handleItemDoubleClick}
+        />
       </div>
 
       <div
@@ -419,13 +502,30 @@
       ></div>
 
       {#if !previewCollapsed}
-        <PreviewPanel client={client} {mode} activeItem={activeItem} widthPx={layout.previewWidth} onToggle={togglePreview} />
+        <PreviewPanel
+          client={client}
+          {mode}
+          scale={layout.scale}
+          activeItem={activeItem}
+          widthPx={layout.previewWidth}
+          onToggle={togglePreview}
+        />
       {:else}
         <div class="previewCollapsed">
           <button class="btn" type="button" onclick={togglePreview}>Show Preview</button>
         </div>
       {/if}
     </div>
+  {/if}
+
+  {#if popupLoading || popupDetails !== null || popupError !== ''}
+    <DetailsPopup
+      details={popupDetails}
+      {mode}
+      loading={popupLoading}
+      error={popupError}
+      onClose={closeDetailsPopup}
+    />
   {/if}
 </div>
 
