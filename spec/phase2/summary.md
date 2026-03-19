@@ -45,6 +45,8 @@
   - `GET /api/facets` is schema-driven behind the live seam
   - only schema-marked facet fields are legal
   - facet counts are computed against the current filtered result set
+- Live seam compatibility:
+  - `/api/products`, `/api/search`, and `/api/facets` keep the current live-seam wrong-method compatibility behavior unless deliberately re-characterized later
 - Schema:
   - write-time normalization/defaulting/coercion is authoritative
   - read-time shaping may be tolerant for API responses
@@ -55,6 +57,9 @@
   - lazy-on-read indexing is not the main completeness strategy
 
 ## Entity rollout matrix as shipped
+
+Schema coverage and index support do not imply broad endpoint exposure.
+Endpoint exposure remains allowlist- and permission-controlled.
 
 | Entity | Phase 2 status | Search exposure | Facet exposure | Notes |
 | --- | --- | --- | --- | --- |
