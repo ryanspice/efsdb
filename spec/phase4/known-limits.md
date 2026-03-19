@@ -34,20 +34,9 @@ The unsupported model is:
 - emulate full SvelteKit server behavior
 - claim endpoint/action/runtime compatibility that is not characterized
 
-## Adapter package caveat
-
-Runtime and router behavior are characterized from the PHP side.
-
-The adapter package itself still has one explicit verification caveat:
-
-- `efsdb/adapters/php` package build was not confirmed in this workspace because `tsup` was unavailable on PATH
-
-That caveat should be resolved separately from runtime claims.
-
 ## Cleanup / future work
 
 Follow-up work should stay narrow:
 
-1. verify the local `efsdb/adapters/php` package build with the expected toolchain installed
-2. keep contract docs aligned to the supported static-prerender surface
-3. do not broaden claims to `__action`, SSR, or server-runtime parity without new implementation and characterization
+1. keep contract docs aligned to the supported static-prerender surface
+2. do not broaden claims to `__action`, SSR, or server-runtime parity without new implementation and characterization

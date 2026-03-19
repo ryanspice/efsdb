@@ -98,17 +98,18 @@ The Phase 4 delivery surface is characterized at the PHP/runtime/router seam:
 
 These checks are the source of truth for the supported adapter-mode surface.
 
-## Follow-up note: adapter package build verification
+## Adapter package build verification
 
-Runtime behavior is implemented and characterized.
+Runtime behavior is implemented and characterized, and the local adapter package build is now verified as well.
 
-One follow-up remains outside the runtime claims:
+Confirmed local package build:
 
-- local package-build verification for `efsdb/adapters/php`
+- `bun install`
+- `bun run build`
 
-In this workspace, `bun run build` in `efsdb/adapters/php` could not be confirmed because `tsup` was unavailable on PATH at the time of verification.
+Run those commands in `efsdb/adapters/php`.
 
 That means the truthful current state is:
 
 - PHP/runtime delivery behavior is implemented and green
-- adapter package build plumbing still needs one local toolchain verification step
+- `efsdb/adapters/php` now builds locally with package-local tooling

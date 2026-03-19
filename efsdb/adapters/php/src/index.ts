@@ -1,5 +1,5 @@
-import path from "node:path";
-import fs from "node:fs";
+import * as path from "node:path";
+import * as fs from "node:fs";
 import { fileURLToPath } from "url";
 import type { Adapter } from "@sveltejs/kit";
 import { execPhp, rimraf, copyDir, pushCliOption } from "./utils.js";
@@ -85,7 +85,9 @@ export default function adapterEfsdbPhp(opts: AdapterEfsdbPhpOptions = {}): Adap
       if (o.runPhpImport) {
         const importPhp = path.join(publicDir, "import.php");
         const basePath = builder.config.kit.paths.base || "/";
-        const trailingSlash = builder.config.kit.trailingSlash || "ignore";
+        // SvelteKit's builder config does not expose one root-level trailingSlash value.
+        // The PHP runtime can resolve imported static output permissively when metadata is "ignore".
+        const trailingSlash = "ignore";
 
         const buildImportArgs = (sourceDir: string, extra: string[] = []) => {
           const args = [
