@@ -1,12 +1,11 @@
-# Products Contract (Draft)
-
-Status:
-- draft for Phase 2 implementation
-- finalize after characterization is green
+# Products Contract
 
 Route family:
 - `GET /api/products`
 - `GET /api/products/{id}`
+
+Typed payloads:
+- `web/contracts/products.ts`
 
 Auth:
 - bearer token required
@@ -20,11 +19,11 @@ Behavior:
   - `id asc`
 - cursors are opaque and encode stable boundary values, not page numbers
 
-Planned request shape:
+Request shape:
 - `GET /api/products?limit=20&cursor=...`
-- optional exact filters may be added for schema-marked product fields in Phase 2
+- optional exact filters may be added for schema-marked product fields
 
-Planned response shape:
+Representative response shape:
 ```json
 {
   "results": [
@@ -46,8 +45,7 @@ Planned response shape:
   ],
   "meta": {
     "limit": 20,
-    "nextCursor": null,
-    "strategy": "index-doc-scan"
+    "nextCursor": null
   }
 }
 ```

@@ -17,8 +17,8 @@ test('explorer host boots with shared bootstrap contract', async ({ page }) => {
     app: 'explorer',
     tag: 'efsdb-explorer',
     assetFile: explorerBundlePath,
-    apiBase: '/api/explorer',
-    authBase: '/api/auth'
+    apiBase: '/_efsdb/api/explorer',
+    authBase: '/_efsdb/api/auth'
   });
 
   expect((bootstrap.initial as Record<string, unknown>)?.mode).toBe('natural');
@@ -44,7 +44,7 @@ test('natural and raw mode bootstrap values are preserved', async ({ page }) => 
   expect((bootstrap.initial as Record<string, unknown>)?.mode).toBe('natural');
   await expect(explorerHost(page).locator('.segbtn.active')).toContainText('Natural');
 
-  const response = await page.goto('/?action=explorer&mode=raw');
+  const response = await page.goto('/_efsdb/explorer?mode=raw');
   expect(response?.ok()).toBeTruthy();
   await waitForCustomElement(page, 'efsdb-explorer');
 

@@ -4,6 +4,7 @@
   "storage": {
     "mime": "application/json; charset=utf-8",
     "logicalPathTemplate": "audit/{occurredAt}-{id}.json",
+    "encryption": "tenant",
     "chunkProfiles": {
       "default": {
         "target": 65536

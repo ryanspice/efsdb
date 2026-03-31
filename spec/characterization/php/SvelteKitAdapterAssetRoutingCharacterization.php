@@ -18,7 +18,7 @@ function phase4_asset_header(array $headers, string $name): ?string
     return null;
 }
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase4-adapter-assets';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase4-adapter-assets';
 $bootstrapSecret = 'phase4-adapter-assets-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -76,7 +76,7 @@ phase0_assert(
     $failures
 );
 
-$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase4-adapter-assets-scoped';
+$scopedDataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase4-adapter-assets-scoped';
 $scopedBootstrapSecret = 'phase4-adapter-assets-scoped-secret';
 
 Phase0Harness::resetDir($scopedDataDir);

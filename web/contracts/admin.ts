@@ -1,3 +1,8 @@
+import type { AuthUser } from './auth';
+import type { FacetBucket, FacetResponse } from './facets';
+import type { ProductListResponse, ProductSummary } from './products';
+import type { SearchResponse, SearchResult } from './search';
+
 export interface AdminUserRecord {
   id: string;
   username: string;
@@ -54,6 +59,33 @@ export interface TenantSettingsRecord {
 
 export interface AdminSettingsResponse {
   result: Record<string, unknown>;
+}
+
+export interface AdminBootstrapResponse {
+  user: AuthUser;
+  users: AdminUserRecord[];
+  roles: AdminRoleRecord[];
+  settings: Record<string, unknown>;
+}
+
+export interface WorkspaceResourceRecord {
+  id: string;
+  logicalPath?: string;
+  mime?: string;
+  size?: number;
+  mtime?: string;
+  [key: string]: unknown;
+}
+
+export interface CatalogWorkspaceResponse {
+  workspaceResources: WorkspaceResourceRecord[];
+  search: SearchResult[];
+  facets: Record<string, FacetBucket[]>;
+  meta: {
+    workspaceResources: { total: number; offset: number; limit: number };
+    search: SearchResponse['meta'];
+    facets: FacetResponse['meta'];
+  };
 }
 
 export interface IndexRebuildResult {

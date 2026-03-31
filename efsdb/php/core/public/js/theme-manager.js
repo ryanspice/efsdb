@@ -1,25 +1,35 @@
 (function () {
   var storageKey = 'efsdb-theme';
   var themeSelector = '[data-theme-toggle]';
-  var componentSelector = 'efsdb-login, efsdb-explorer';
+  var componentSelector =
+    'efsdb-login, efsdb-explorer, efsdb-admin, efsdb-builder';
 
   function normalizeTheme(value) {
-    return value === 'light' ? 'light' : 'dark';
+    return value === 'light' || value === 'green' ? value : 'dark';
   }
 
   function readTheme() {
     try {
-      return normalizeTheme(localStorage.getItem(storageKey));
+      return normalizeTheme(localStorage.getItem(storageKey) || 'light');
     } catch (error) {
-      return normalizeTheme(document.documentElement.dataset.theme);
+      return normalizeTheme(document.documentElement.dataset.theme || 'light');
     }
   }
 
   function syncToggle(theme) {
     document.querySelectorAll(themeSelector).forEach(function (button) {
       button.setAttribute('data-theme-current', theme);
-      button.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
-      button.setAttribute('title', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+
+      var isLight = theme === 'light';
+      var isGreen = theme === 'green';
+
+      button.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+
+      var nextTitle = 'Switch to dark mode';
+      if (theme === 'dark') nextTitle = 'Switch to green mode';
+      if (theme === 'green') nextTitle = 'Switch to light mode';
+
+      button.setAttribute('title', nextTitle);
     });
   }
 
@@ -36,18 +46,26 @@
 
     try {
       localStorage.setItem(storageKey, nextTheme);
-    } catch (error) {
-    }
+    } catch (error) {}
 
     syncToggle(nextTheme);
     syncComponents(nextTheme);
-    window.dispatchEvent(new CustomEvent('efsdb-themechange', { detail: { theme: nextTheme } }));
+    window.dispatchEvent(
+      new CustomEvent('efsdb-themechange', { detail: { theme: nextTheme } })
+    );
     return nextTheme;
   }
 
   function toggleTheme() {
-    var current = normalizeTheme(document.documentElement.dataset.theme || readTheme());
-    return applyTheme(current === 'light' ? 'dark' : 'light');
+    var current = normalizeTheme(
+      document.documentElement.dataset.theme || readTheme()
+    );
+    var next = 'dark';
+    if (current === 'light') next = 'dark';
+    else if (current === 'dark') next = 'green';
+    else if (current === 'green') next = 'light';
+
+    return applyTheme(next);
   }
 
   document.addEventListener('click', function (event) {
@@ -65,11 +83,23 @@
     toggleTheme();
   });
 
-  var observer = new MutationObserver(function () {
-    syncComponents(normalizeTheme(document.documentElement.dataset.theme || readTheme()));
+  var observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      if (
+        mutation.type === 'attributes' &&
+        mutation.attributeName === 'data-theme'
+      ) {
+        syncComponents(
+          normalizeTheme(document.documentElement.dataset.theme || readTheme())
+        );
+      }
+    });
   });
 
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
 
   window.setEfsdbTheme = applyTheme;
   window.getEfsdbTheme = function () {

@@ -1,6 +1,6 @@
-export type BootstrapApp = 'login' | 'explorer' | 'admin';
-export type BootstrapTheme = 'dark' | 'light';
-export type BootstrapTag = 'efsdb-login' | 'efsdb-explorer' | 'efsdb-admin';
+export type BootstrapApp = 'login' | 'explorer' | 'admin' | 'builder';
+export type BootstrapTheme = 'dark' | 'light' | 'green';
+export type BootstrapTag = 'efsdb-login' | 'efsdb-explorer' | 'efsdb-admin' | 'efsdb-builder';
 
 export interface BootstrapUser {
   id: string;

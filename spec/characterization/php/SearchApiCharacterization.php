@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase2-search-api';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase2-search-api';
 $bootstrapSecret = 'phase2-search-api-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -31,16 +31,25 @@ $member = $identity->createUser([
 $adminToken = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, $bootstrapSecret);
 $memberToken = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, (string)$member['loginKey']);
 
-$search = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/search?q=lamp', 'GET', ['bearer' => $memberToken]);
-$forbidden = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/search?entity=system_users&q=tenant', 'GET', ['bearer' => $memberToken]);
-$adminSearch = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/search?entity=system_users&q=tenant', 'GET', ['bearer' => $adminToken]);
+$defaultSearch = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/search?q=lamp', 'GET', ['bearer' => $memberToken]);
+$productSearch = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/search?entity=products&q=lamp', 'GET', ['bearer' => $memberToken]);
+$forbidden = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/search?entity=system_users&q=tenant', 'GET', ['bearer' => $memberToken]);
+$adminSearch = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/search?entity=system_users&q=tenant', 'GET', ['bearer' => $adminToken]);
 
 phase0_assert(
-    $search['status'] === 200
-        && is_array($search['json'])
-        && (($search['json']['meta']['entity'] ?? null) === 'products')
-        && (($search['json']['results'][0]['id'] ?? null) === 'prod-api-search-a'),
-    'Search API defaults to products and returns schema-driven results behind the live seam',
+    $defaultSearch['status'] === 200
+        && is_array($defaultSearch['json'])
+        && (($defaultSearch['json']['meta']['entity'] ?? null) === 'public_workspace_files'),
+    'Search API defaults to public_workspace_files behind the live seam',
+    $failures
+);
+
+phase0_assert(
+    $productSearch['status'] === 200
+        && is_array($productSearch['json'])
+        && (($productSearch['json']['meta']['entity'] ?? null) === 'products')
+        && (($productSearch['json']['results'][0]['id'] ?? null) === 'prod-api-search-a'),
+    'Search API returns schema-driven results for specific entities',
     $failures
 );
 

@@ -12,10 +12,12 @@
   "fields": {
     "id": { "type": "string", "required": true, "trim": true },
     "tenantKey": { "type": "string", "trim": true, "lowercase": true },
-    "root": { "type": "string", "trim": true, "enum": ["published", "staging"] },
+    "root": { "type": "string", "trim": true, "enum": ["production", "staging"] },
     "publicPath": { "type": "string", "trim": true },
     "visibility": { "type": "string", "enum": ["public", "restricted"] },
     "logicalPath": { "type": "string", "trim": true },
+    "workspaceArea": { "type": "string", "trim": true, "enum": ["routes", "layouts", "components", "content", "assets", "meta"] },
+    "resourceKind": { "type": "string", "trim": true, "enum": ["route", "layout", "component", "content", "locale", "asset", "meta", "site-file"] },
     "mime": { "type": "string", "trim": true },
     "size": { "type": "integer" },
     "updatedAt": { "type": "datetime" }
@@ -26,15 +28,17 @@
     "publicPath": { "source": "publicPath", "kind": "keyword", "searchable": true, "sortable": true },
     "visibility": { "source": "visibility", "kind": "keyword", "filterable": true, "facet": true },
     "logicalPath": { "source": "logicalPath", "kind": "keyword", "searchable": true },
+    "workspaceArea": { "source": "workspaceArea", "kind": "keyword", "searchable": true, "filterable": true, "facet": true },
+    "resourceKind": { "source": "resourceKind", "kind": "keyword", "searchable": true, "filterable": true, "facet": true },
     "mime": { "source": "mime", "kind": "keyword", "filterable": true, "facet": true },
     "size": { "source": "size", "kind": "number", "filterable": true, "sortable": true },
     "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true }
   },
   "search": {
-    "defaultFields": ["publicPath", "logicalPath", "mime"],
+    "defaultFields": ["logicalPath", "publicPath", "workspaceArea", "resourceKind", "mime"],
     "mode": "contains_ci"
   },
   "summary": {
-    "fields": ["id", "tenantKey", "root", "publicPath", "visibility", "mime", "size", "updatedAt"]
+    "fields": ["id", "root", "logicalPath", "publicPath", "workspaceArea", "resourceKind", "visibility", "mime", "size", "updatedAt"]
   }
 }

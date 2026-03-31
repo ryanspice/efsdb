@@ -1,18 +1,27 @@
 # Explorer Contract
 
+Typed payloads:
+- `web/contracts/explorer.ts`
+
 Current source inputs:
 - `efsdb/php/core/src/Explorer.php`
 - `efsdb/php/core/public/index.php`
-- `efsdb-explorer/src/Explorer.ce.svelte`
-- `efsdb-explorer/src/lib/api/DataClient.ts`
+- `web/apps/explorer/src/Explorer.ce.svelte`
+- `web/apps/explorer/src/lib/api/explorerClient.ts`
 
-Freeze in Phase 0:
+Active surface:
 - list payload shape
 - details payload shape
+- save payload shape
 - ticket payload shape
 - download access rules
 - natural versus raw mode expectations
 
-Target note:
-- endpoint family is expected to survive
-- UI parity work is later than Phase 0
+Current explorer mode contract:
+- `natural` is logical-content-only and must not expose system entities, manifests, or chunks in the same listing
+- `raw` is storage-inspection-only and must not mix logical file rows into raw storage trees
+- `POST /api/explorer/save` is natural-only and intended for editable text/code files under admin-grade access
+
+Executable parity coverage:
+- `spec/characterization/ui/explorer.spec.ts`
+- `spec/characterization/ui/ExplorerBehaviorCharacterization.spec.ts`

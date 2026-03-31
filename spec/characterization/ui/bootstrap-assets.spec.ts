@@ -21,7 +21,7 @@ test('login and explorer hosts reference stable bundle filenames and valid boots
   });
 
   await loginViaUi(page);
-  const response = await page.goto('/?action=explorer');
+  const response = await page.goto('/_efsdb/explorer');
   expect(response?.ok()).toBeTruthy();
   await waitForCustomElement(page, 'efsdb-explorer');
   await expect(explorerHost(page)).toBeVisible();
@@ -36,7 +36,7 @@ test('login and explorer hosts reference stable bundle filenames and valid boots
 });
 
 test('api routes remain json and do not leak host html', async ({ request }) => {
-  for (const path of ['/api/health', '/api/auth/whoami', '/api/explorer/list?mode=natural']) {
+  for (const path of ['/_efsdb/api/health', '/_efsdb/api/auth/whoami', '/_efsdb/api/explorer/list?mode=natural']) {
     const response = await request.get(path);
     const contentType = response.headers()['content-type'] ?? '';
     const body = await response.text();

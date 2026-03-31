@@ -23,6 +23,11 @@ final class GarbageCollector
             'purgedLookups' => 0,
             'purgedChunks' => 0,
         ];
+        
+        // Also garbage collect dev servers
+        require_once __DIR__ . '/NodeEnvironmentService.php';
+        $nodeEnv = new NodeEnvironmentService($this->store);
+        $nodeEnv->gcServers(300);
 
         foreach ($this->store->listEntities(true) as $entity) {
             $expired = [];

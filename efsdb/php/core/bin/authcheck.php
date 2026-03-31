@@ -4,7 +4,7 @@ declare(strict_types=1);
 define('EFSDB_TEST_MODE', true);
 ob_start();
 
-$dataDir = __DIR__ . '/../.cache/authcheck-data';
+$dataDir = __DIR__ . '/../../../../.cache/efsdb/tests/core/authcheck-data';
 if (is_dir($dataDir)) {
     $it = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($dataDir, RecursiveDirectoryIterator::SKIP_DOTS),

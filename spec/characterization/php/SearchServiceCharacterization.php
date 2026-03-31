@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase2-search-service';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase2-search-service';
 $bootstrapSecret = 'phase2-search-service-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -75,8 +75,8 @@ phase0_assert(
 );
 
 phase0_assert(
-    ($defaultEntityResults['meta']['entity'] ?? null) === 'products',
-    'Missing search entity temporarily defaults to products for compatibility during Phase 2',
+    ($defaultEntityResults['meta']['entity'] ?? null) === 'public_workspace_files',
+    'Missing search entity defaults to public_workspace_files',
     $failures
 );
 

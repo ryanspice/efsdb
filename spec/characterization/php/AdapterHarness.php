@@ -6,7 +6,7 @@ require_once __DIR__ . '/Phase0Harness.php';
 /**
  * @param array<string,mixed> $options
  */
-function phase4_seed_adapter_root(string $dataDir, string $bootstrapSecret, string $root = 'published', array $options = []): App
+function phase4_seed_adapter_root(string $dataDir, string $bootstrapSecret, string $root = 'production', array $options = []): App
 {
     $app = Phase0Harness::bootApp($dataDir, $bootstrapSecret);
     $importer = $app->getPublicSiteImport();
@@ -22,6 +22,7 @@ function phase4_seed_adapter_root(string $dataDir, string $bootstrapSecret, stri
     mkdir($prerenderDir . '/blog', 0777, true);
 
     file_put_contents($clientDir . '/immutable/app.js', 'console.log("adapter app");');
+    file_put_contents($clientDir . '/immutable/app.12345678.js', 'console.log("hashed adapter app");');
     file_put_contents($clientDir . '/immutable/app.css', 'body{color:#111;}');
     file_put_contents($clientDir . '/assets/site.json', '{"asset":true}');
     file_put_contents($clientDir . '/assets/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
@@ -73,7 +74,7 @@ function phase4_runtime_request(string $dataDir, string $uri, string $method = '
     @header_remove();
     @http_response_code(200);
     ob_start();
-    include 'B:/Dev/PHPFS/efsdb/php/runtime/index.php';
+    include __DIR__ . '/../../../efsdb/php/core/public/index.php';
     $body = (string)ob_get_clean();
     $headers = headers_list();
     $headerMap = [];

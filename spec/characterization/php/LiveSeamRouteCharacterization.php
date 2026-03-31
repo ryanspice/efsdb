@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/Phase0Harness.php';
 require_once __DIR__ . '/AdapterHarness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-live-seam';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase0-live-seam';
 $bootstrapSecret = 'phase0-live-seam-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -12,11 +12,11 @@ $app = Phase0Harness::bootApp($dataDir, $bootstrapSecret);
 $workspace = $app->getPublicWorkspace();
 $identity = $app->getIdentity();
 
-$workspace->writeFile('published', '/index.html', '<h1>Published root</h1>', [
-    'mime' => 'text/html; charset=utf-8',
+$workspace->writeFile('production', '/index.php', '<?php return "<h1>Published root</h1>";', [
+    'mime' => 'application/x-httpd-php',
 ]);
-$workspace->writeFile('staging', '/secret/index.html', '<h1>Staging secret</h1>', [
-    'mime' => 'text/html; charset=utf-8',
+$workspace->writeFile('staging', '/secret/index.php', '<?php return "<h1>Staging secret</h1>";', [
+    'mime' => 'application/x-httpd-php',
 ]);
 
 $member = $identity->createUser([
@@ -27,14 +27,14 @@ $member = $identity->createUser([
 
 $failures = [];
 
-$health = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/health');
+$health = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/health');
 phase0_assert(
     $health['status'] === 200 && is_array($health['json']) && ($health['json']['status'] ?? null) === 'ok',
     'GET /api/health returns the live seam health payload',
     $failures
 );
 
-$unknownApi = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/does-not-exist');
+$unknownApi = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/does-not-exist');
 phase0_assert(
     $unknownApi['status'] === 404 && is_array($unknownApi['json']) && (($unknownApi['json']['error']['code'] ?? null) === 'not_found'),
     'Unknown /api/* routes fall through to JSON 404 not_found',
@@ -44,7 +44,7 @@ phase0_assert(
 $adminToken = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, $bootstrapSecret);
 $memberToken = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, (string)$member['loginKey']);
 
-$wrongAdminMethod = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/admin/users', 'PUT', [
+$wrongAdminMethod = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/admin/users', 'PUT', [
     'bearer' => $adminToken,
 ]);
 phase0_assert(
@@ -53,7 +53,7 @@ phase0_assert(
     $failures
 );
 
-$wrongProductsMethod = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/products', 'POST', [
+$wrongProductsMethod = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/products', 'POST', [
     'bearer' => $adminToken,
 ]);
 phase0_assert(
@@ -62,7 +62,7 @@ phase0_assert(
     $failures
 );
 
-$whoAmIPost = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/auth/whoami', 'POST', [
+$whoAmIPost = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/auth/whoami', 'POST', [
     'bearer' => $adminToken,
 ]);
 phase0_assert(
@@ -71,7 +71,7 @@ phase0_assert(
     $failures
 );
 
-$explorerPost = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/explorer/list?mode=natural', 'POST', [
+$explorerPost = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/explorer/list?mode=natural', 'POST', [
     'bearer' => $adminToken,
 ]);
 phase0_assert(
@@ -80,7 +80,7 @@ phase0_assert(
     $failures
 );
 
-$fallbackLoginFailure = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin', 'POST', [
+$fallbackLoginFailure = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/login', 'POST', [
     'post' => ['login_key' => 'wrong-secret'],
 ]);
 phase0_assert(
@@ -89,7 +89,63 @@ phase0_assert(
     $failures
 );
 
-$fallbackLoginSuccess = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin', 'POST', [
+$guestControlRoot = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb');
+$guestControlRootSlash = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/');
+phase0_assert(
+    $guestControlRoot['status'] === 200
+        && $guestControlRootSlash['status'] === 200
+        && str_contains($guestControlRoot['body'], 'guest-overlay-frame')
+        && str_contains($guestControlRootSlash['body'], 'guest-overlay-frame')
+        && str_contains($guestControlRoot['body'], 'Requested route /_efsdb/')
+        && str_contains($guestControlRootSlash['body'], 'Requested route /_efsdb/'),
+    'Bare and slash-suffixed control-plane roots both resolve to the same guest auth overlay home surface',
+    $failures
+);
+
+$guestLoginOverlay = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/login');
+phase0_assert(
+    $guestLoginOverlay['status'] === 200
+        && str_contains($guestLoginOverlay['body'], 'guest-overlay-frame')
+        && str_contains($guestLoginOverlay['body'], 'Requested route /_efsdb/login')
+        && str_contains($guestLoginOverlay['body'], 'Exit to website'),
+    'Explicit guest login now renders inside the website-backed auth overlay shell',
+    $failures
+);
+
+$guestLoginRejectsPublicNext = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/login?next=%2Fstaging');
+phase0_assert(
+    $guestLoginRejectsPublicNext['status'] === 200
+        && str_contains($guestLoginRejectsPublicNext['body'], 'redirect":"\\/_efsdb\\/admin"')
+        && !str_contains($guestLoginRejectsPublicNext['body'], 'redirect":"\\/staging"'),
+    'Login overlay ignores non-control-plane redirect targets',
+    $failures
+);
+
+$guestExplorerOverlayUri = '/_efsdb/explorer?mode=natural&path=' . rawurlencode('site/staging/routes/index.php');
+$guestExplorerOverlay = Phase0Harness::request($dataDir, $bootstrapSecret, $guestExplorerOverlayUri);
+phase0_assert(
+    $guestExplorerOverlay['status'] === 200
+        && str_contains($guestExplorerOverlay['body'], '<efsdb-login')
+        && str_contains($guestExplorerOverlay['body'], 'guest-overlay-frame')
+        && str_contains($guestExplorerOverlay['body'], 'src="/staging"')
+        && str_contains($guestExplorerOverlay['body'], 'redirect":"\\/_efsdb\\/explorer?mode=natural\\u0026path=site%2Fstaging%2Froutes%2Findex.php')
+        && str_contains($guestExplorerOverlay['body'], 'Exit to website'),
+    'Unauthenticated control-plane routes render the auth overlay over the resolved website context',
+    $failures
+);
+
+$authenticatedExplorerPage = Phase0Harness::request($dataDir, $bootstrapSecret, $guestExplorerOverlayUri, 'GET', [
+    'bearer' => $adminToken,
+]);
+phase0_assert(
+    $authenticatedExplorerPage['status'] === 200
+        && str_contains($authenticatedExplorerPage['body'], '<efsdb-explorer></efsdb-explorer>')
+        && !str_contains($authenticatedExplorerPage['body'], 'guest-overlay-frame'),
+    'Authenticated control-plane route requests bypass the auth overlay and render the normal surface',
+    $failures
+);
+
+$fallbackLoginSuccess = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/login', 'POST', [
     'post' => ['login_key' => $bootstrapSecret],
 ]);
 phase0_assert(
@@ -98,7 +154,7 @@ phase0_assert(
     $failures
 );
 
-$logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/?logout=1');
+$logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/logout');
 phase0_assert(
     $logout['status'] === 302,
     'Compatibility logout path issues a redirect',
@@ -122,8 +178,8 @@ phase0_assert(
     $failures
 );
 
-$stagingGuestExisting = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'GET');
-$stagingGuestMissing = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/missing/index.html', 'GET');
+$stagingGuestExisting = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret', 'GET');
+$stagingGuestMissing = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/missing', 'GET');
 phase0_assert(
     $stagingGuestExisting['status'] === 404
         && $stagingGuestMissing['status'] === 404
@@ -132,7 +188,7 @@ phase0_assert(
     $failures
 );
 
-$stagingMember = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'GET', [
+$stagingMember = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret', 'GET', [
     'bearer' => $memberToken,
 ]);
 phase0_assert(
@@ -141,7 +197,7 @@ phase0_assert(
     $failures
 );
 
-$stagingAdmin = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'GET', [
+$stagingAdmin = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret', 'GET', [
     'bearer' => $adminToken,
 ]);
 phase0_assert(
@@ -150,7 +206,7 @@ phase0_assert(
     $failures
 );
 
-$stagingHead = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret/index.html', 'HEAD', [
+$stagingHead = Phase0Harness::request($dataDir, $bootstrapSecret, '/staging/secret', 'HEAD', [
     'bearer' => $adminToken,
 ]);
 phase0_assert(
@@ -162,7 +218,7 @@ phase0_assert(
     $failures
 );
 
-phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'published');
+phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'production');
 phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'staging');
 
 $adapterPublished = Phase0Harness::request($dataDir, $bootstrapSecret, '/', 'GET');
@@ -204,11 +260,11 @@ phase0_assert(
     $failures
 );
 
-$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-live-seam-adapter-scoped';
+$scopedDataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase0-live-seam-adapter-scoped';
 $scopedBootstrapSecret = 'phase0-live-seam-adapter-scoped-secret';
 
 Phase0Harness::resetDir($scopedDataDir);
-phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'published', [
+phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'production', [
     'basePath' => '/docs',
     'trailingSlash' => 'never',
     'appDir' => 'app',

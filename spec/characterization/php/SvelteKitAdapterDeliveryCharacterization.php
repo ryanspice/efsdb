@@ -18,7 +18,7 @@ function phase4_header(array $headers, string $name): ?string
     return null;
 }
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase4-adapter-delivery';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase4-adapter-delivery';
 $bootstrapSecret = 'phase4-adapter-delivery-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -41,7 +41,7 @@ phase0_assert(
         && ($root['status'] ?? null) === 200
         && str_contains((string)($root['body'] ?? ''), 'Adapter root')
         && phase4_header($root['headers'] ?? [], 'Content-Type') === 'text/html; charset=utf-8',
-    'Adapter-mode router serves imported prerendered HTML from the published root',
+    'Adapter-mode router serves imported prerendered HTML from the production root',
     $failures
 );
 
@@ -91,7 +91,7 @@ phase0_assert(
     $failures
 );
 
-$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase4-adapter-delivery-scoped';
+$scopedDataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase4-adapter-delivery-scoped';
 $scopedBootstrapSecret = 'phase4-adapter-delivery-scoped-secret';
 
 Phase0Harness::resetDir($scopedDataDir);

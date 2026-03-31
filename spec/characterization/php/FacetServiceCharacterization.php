@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase2-facet-service';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase2-facet-service';
 $bootstrapSecret = 'phase2-facet-service-secret';
 
 Phase0Harness::resetDir($dataDir);

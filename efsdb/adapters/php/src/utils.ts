@@ -30,6 +30,7 @@ export function writeFile(file: string, data: string) {
 }
 
 export function execPhp(bin: string, args: string[]): Promise<void> {
+    console.log(`Executing: ${bin} ${args.join(' ')}`);
     return new Promise((resolve, reject) => {
         const child = spawn(bin, args, { stdio: 'inherit' });
         child.on('close', (code) => {

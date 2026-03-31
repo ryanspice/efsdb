@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-auth-identity';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase0-auth-identity';
 $bootstrapSecret = 'phase0-auth-identity-secret';
 
 Phase0Harness::resetDir($dataDir);

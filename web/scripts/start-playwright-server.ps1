@@ -16,4 +16,4 @@ if (Test-Path $dataDir) {
 
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
-php -c $phpIni -S ("127.0.0.1:" + $port) -t $publicDir
+php -c $phpIni -d efsdb.process_id=playwright-server -S ("127.0.0.1:" + $port) -t $publicDir

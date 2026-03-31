@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-api-content';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase0-api-content';
 $bootstrapSecret = 'phase0-api-content-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -13,21 +13,21 @@ $token = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, $bootstrapS
 $cases = [
     [
         'label' => 'Health uses JSON response envelope only',
-        'uri' => '/api/health',
+        'uri' => '/_efsdb/api/health',
         'method' => 'GET',
         'expectStatus' => 200,
         'bearer' => null,
     ],
     [
         'label' => 'Unknown API route uses JSON error envelope only',
-        'uri' => '/api/not-real',
+        'uri' => '/_efsdb/api/not-real',
         'method' => 'GET',
         'expectStatus' => 404,
         'bearer' => null,
     ],
     [
         'label' => 'Invalid login returns JSON error envelope only',
-        'uri' => '/api/auth/login',
+        'uri' => '/_efsdb/api/auth/login',
         'method' => 'POST',
         'json' => ['key' => 'wrong-key'],
         'expectStatus' => 401,
@@ -35,35 +35,35 @@ $cases = [
     ],
     [
         'label' => 'Wrong admin method still returns JSON without HTML',
-        'uri' => '/api/admin/users',
+        'uri' => '/_efsdb/api/admin/users',
         'method' => 'PUT',
         'expectStatus' => 405,
         'bearer' => $token,
     ],
     [
         'label' => 'Permissive whoami POST still returns JSON without HTML',
-        'uri' => '/api/auth/whoami',
+        'uri' => '/_efsdb/api/auth/whoami',
         'method' => 'POST',
         'expectStatus' => 200,
         'bearer' => $token,
     ],
     [
-        'label' => '/api/products returns JSON without HTML',
-        'uri' => '/api/products',
+        'label' => '/_efsdb/api/products returns JSON without HTML',
+        'uri' => '/_efsdb/api/products',
         'method' => 'GET',
         'expectStatus' => 200,
         'bearer' => $token,
     ],
     [
-        'label' => '/api/search returns JSON without HTML',
-        'uri' => '/api/search?q=test',
+        'label' => '/_efsdb/api/search returns JSON without HTML',
+        'uri' => '/_efsdb/api/search?q=test',
         'method' => 'GET',
         'expectStatus' => 200,
         'bearer' => $token,
     ],
     [
-        'label' => '/api/facets returns JSON without HTML',
-        'uri' => '/api/facets',
+        'label' => '/_efsdb/api/facets returns JSON without HTML',
+        'uri' => '/_efsdb/api/facets',
         'method' => 'GET',
         'expectStatus' => 200,
         'bearer' => $token,

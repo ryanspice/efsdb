@@ -1,5 +1,44 @@
 export type ExplorerMode = 'natural' | 'raw';
 
+export interface ExplorerStorageSummary {
+  kind: 'logical' | 'manifest' | 'chunk' | 'raw-dir';
+  chunkCount?: number;
+}
+
+export interface ExplorerBuildError {
+  path?: string;
+  message: string;
+  line?: number;
+  column?: number;
+  frame?: string | null;
+}
+
+export interface ExplorerBuildStatus {
+  environment: 'staging' | 'production';
+  status: 'idle' | 'building' | 'success' | 'failed';
+  tool: string;
+  startedAt?: string | null;
+  updatedAt?: string | null;
+  finishedAt?: string | null;
+  lastSuccessfulAt?: string | null;
+  lastFailureAt?: string | null;
+  lastGoodPreview?: string | null;
+  componentCount?: number;
+  error?: ExplorerBuildError | null;
+}
+
+export interface ExplorerSitePreview {
+  environment: 'staging' | 'production';
+  kind: 'route' | 'environment';
+  label: string;
+  url: string;
+}
+
+export interface ExplorerSiteRuntimeResponse {
+  preview: ExplorerSitePreview | null;
+  build: ExplorerBuildStatus | null;
+}
+
 export interface ExplorerItem {
   name: string;
   type: 'dir' | 'file';
@@ -7,6 +46,12 @@ export interface ExplorerItem {
   rawPath?: string;
   kind?: string;
   manifestId?: string;
+  entity?: string;
+  mime?: string;
+  ext?: string;
+  logicalPath?: string | null;
+  preview?: string | null;
+  storage?: ExplorerStorageSummary;
 }
 
 export interface ExplorerListResponse {
@@ -26,6 +71,7 @@ export interface ExplorerDetailsResponse {
   logicalPath?: string | null;
   manifestId: string;
   storage?: Record<string, unknown>;
+  siteRuntime?: ExplorerSiteRuntimeResponse | null;
 }
 
 export interface ExplorerTicketResponse {
@@ -33,3 +79,5 @@ export interface ExplorerTicketResponse {
   ticket: string;
   expiresIn: number;
 }
+
+export type ExplorerSaveResponse = ExplorerDetailsResponse;

@@ -1,18 +1,20 @@
 # Auth Contract
 
-Current source inputs:
-- `efsdb/php/core/src/Auth.php`
-- `efsdb/php/core/src/IdentityManager.php`
+Typed payloads:
+- `web/contracts/auth.ts`
+
+Behavioral source of truth:
 - `spec/auth-contract.md`
-- `web/apps/login/src/Login.ce.svelte`
 
-Freeze in Phase 0:
-- login payload and error shape
-- refresh rotation behavior
-- logout behavior
-- whoami payload
-- display-mode payload and actual-role preservation
+Active route family:
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/whoami`
+- `POST /api/auth/display-mode`
 
-Open contract note:
-- current route family is likely to survive
-- current method permissiveness is not authoritative for 1.0
+Current guarantees:
+- short-lived bearer access token plus rotating refresh cookie
+- `actualRole` stays distinct from the effective display mode
+- refresh rotation is single-use
+- login, refresh, logout, and whoami remain the stable client entrypoints

@@ -3,21 +3,29 @@
     "blob": {
         "file": "blob_manifest.m",
         "id": "blob_001",
+        "storage_id": "m_8620755a35d0d4c538c265310f47f2c9",
+        "bucket_id": "b_88637a9ebec8f57e0f944948",
+        "manifest_aad": "manifest:m_8620755a35d0d4c538c265310f47f2c9",
         "plaintext_content": "Hello EFSDB Conformance",
-        "mime": "text\/plain",
+        "mime": "text/plain",
         "chunk_file": "blob_chunk.c",
-        "chunk_hash": "a7145f6d374e89709a18eac295a52e475404202b65b2003d37b2b3879de8fc68"
+        "chunk_hash": "a7145f6d374e89709a18eac295a52e475404202b65b2003d37b2b3879de8fc68",
+        "chunk_aad": "chunk:a7145f6d374e89709a18eac295a52e475404202b65b2003d37b2b3879de8fc68"
     },
     "doc": {
         "file": "doc_manifest.m",
         "id": "doc_001",
+        "storage_id": "m_68ba9155c7c8dc0bffdce1c40314bca1",
+        "bucket_id": "b_97833aa40c47c6f10394887d",
+        "manifest_aad": "manifest:m_68ba9155c7c8dc0bffdce1c40314bca1",
         "data": {
             "id": "doc_001",
             "foo": "bar",
             "num": 42
         },
         "chunk_file": "doc_chunk.c",
-        "chunk_hash": "84f549f24a24c3e90a3de7f8c400562731c7c4d446a84edc33e1a9b26620c6c5"
+        "chunk_hash": "84f549f24a24c3e90a3de7f8c400562731c7c4d446a84edc33e1a9b26620c6c5",
+        "chunk_aad": "chunk:84f549f24a24c3e90a3de7f8c400562731c7c4d446a84edc33e1a9b26620c6c5"
     },
     "index": {
         "file": "index_segment.seg",

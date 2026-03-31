@@ -11,6 +11,8 @@ export type ExplorerItem = ContractExplorerItem;
 export type ListResponse = ExplorerListResponse;
 export type DetailsResponse = ExplorerDetailsResponse;
 export type TicketResponse = ExplorerTicketResponse;
+export type SiteRuntimeResponse = import('@contracts/explorer').ExplorerSiteRuntimeResponse;
+export type SiteBuildStatus = import('@contracts/explorer').ExplorerBuildStatus;
 
 export interface ColumnState {
   path: string;

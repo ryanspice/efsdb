@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/Phase0Harness.php';
 require_once __DIR__ . '/AdapterHarness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-delivery-mode';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase1-delivery-mode';
 $bootstrapSecret = 'phase1-delivery-mode-secret';
 
 Phase0Harness::resetDir($dataDir);

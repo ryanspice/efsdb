@@ -7,7 +7,7 @@ let explorerParitySeeded = false;
 let explorerParityPath: string | null = null;
 
 export async function gotoLoginHost(page: Page): Promise<void> {
-  const response = await page.goto('/?action=login');
+  const response = await page.goto('/_efsdb/login');
   expect(response?.ok()).toBeTruthy();
   await waitForCustomElement(page, 'efsdb-login');
   await expect(loginHost(page)).toBeVisible();
@@ -19,7 +19,9 @@ export async function loginViaUi(page: Page, key: string = playwrightBootstrapSe
   await expect(input).toBeVisible();
   await input.fill(key);
   await loginSubmit(page).click();
-  await page.waitForURL(/action=admin/);
+  await page.waitForURL((url) => {
+    return url.pathname.replace(/\/+$/, '') === '/_efsdb/admin';
+  });
   await page.waitForLoadState('networkidle');
 }
 
@@ -28,20 +30,13 @@ export async function seedExplorerParityFixtures(page: Page): Promise<string> {
     return explorerParityPath;
   }
 
-  await page.waitForURL(/action=admin/);
+  await page.waitForURL((url) => {
+    return url.pathname.replace(/\/+$/, '') === '/_efsdb/admin';
+  });
   await page.waitForLoadState('networkidle');
 
   const seededPath = await page.evaluate(async () => {
-    const settingsResponse = await window.fetch('/api/admin/settings');
-    if (!settingsResponse.ok) {
-      throw new Error(`Failed to read tenant settings: ${settingsResponse.status}`);
-    }
-
-    const settingsPayload = (await settingsResponse.json()) as {
-      result?: { settings?: { tenantKey?: string } };
-    };
-    const tenantKey = settingsPayload.result?.settings?.tenantKey ?? 'tenant';
-    const filePayloads = Array.from({ length: 18 }, (_, index) => ({
+    const filePayloads = Array.from({ length: 36 }, (_, index) => ({
       root: 'published',
       path: `/explorer-parity/file-${String(index + 1).padStart(2, '0')}.txt`,
       content: `Explorer parity fixture ${index + 1}`,
@@ -56,7 +51,7 @@ export async function seedExplorerParityFixtures(page: Page): Promise<string> {
     });
 
     for (const payload of filePayloads) {
-      const response = await window.fetch('/api/admin/public-workspace/file', {
+      const response = await window.fetch('/_efsdb/api/admin/public-workspace/file', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -74,12 +69,19 @@ export async function seedExplorerParityFixtures(page: Page): Promise<string> {
       }
     }
 
-    return `public_workspace_files/public/${tenantKey}/published/explorer-parity`;
+    return 'site/production/content/explorer-parity';
   });
 
   explorerParitySeeded = true;
   explorerParityPath = seededPath;
   return seededPath;
+}
+
+async function waitForExplorerReady(page: Page): Promise<void> {
+  const host = explorerHost(page);
+  await expect(host.locator('[data-testid="explorer-column-0"] .row').first()).toBeVisible({
+    timeout: 30_000
+  });
 }
 
 export async function openExplorer(
@@ -94,15 +96,16 @@ export async function openExplorer(
     path ??= seededPath;
   }
 
-  const params = new URLSearchParams({ action: 'explorer', mode });
+  const params = new URLSearchParams({ mode });
   if (path) {
     params.set('path', path);
   }
 
-  const response = await page.goto(`/?${params.toString()}`);
+  const response = await page.goto(`/_efsdb/explorer?${params.toString()}`);
   expect(response?.ok()).toBeTruthy();
   await waitForCustomElement(page, 'efsdb-explorer');
   await expect(explorerHost(page)).toBeVisible();
+  await waitForExplorerReady(page);
 }
 
 export async function openAdminCe(page: Page): Promise<void> {
@@ -113,6 +116,6 @@ export async function openAdminCe(page: Page): Promise<void> {
 
 export async function openLegacyAdmin(page: Page): Promise<void> {
   await loginViaUi(page);
-  const response = await page.goto('/?action=admin&ui=legacy');
+  const response = await page.goto('/_efsdb/admin?ui=legacy');
   expect(response?.ok()).toBeTruthy();
 }

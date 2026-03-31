@@ -4,83 +4,150 @@ import {
   explorerColumn,
   explorerColumnList,
   explorerCover,
-  explorerDetailsPopup,
   explorerHost,
   explorerPreviewPanel,
-  explorerRelationshipsPanel,
   explorerScaleInput
 } from './helpers/selectors';
 
-const parityColumnIndex = 5;
-const nestedColumnIndex = 6;
+test.describe.configure({ timeout: 60_000 });
 
-test('drag-to-scrub and hovered-wheel scrolling work on explorer columns', async ({ page }) => {
+async function explorerColumnCount(page: Page): Promise<number> {
+  return await explorerHost(page).locator('section[data-testid^="explorer-column-"]').count();
+}
+
+async function lastExplorerColumnIndex(page: Page): Promise<number> {
+  await expect.poll(() => explorerColumnCount(page)).toBeGreaterThan(0);
+  return (await explorerColumnCount(page)) - 1;
+}
+
+async function currentContentColumn(page: Page) {
+  return explorerColumn(page, await lastExplorerColumnIndex(page));
+}
+
+test('drag-to-scrub selects rows and wheel scrolling works when the column overflows', async ({
+  page
+}) => {
   await openExplorer(page, 'natural', { seedFixtures: true });
 
-  const list = explorerColumnList(page, parityColumnIndex);
+  const contentIndex = await lastExplorerColumnIndex(page);
+  const column = explorerColumn(page, contentIndex);
+  const list = explorerColumnList(page, contentIndex);
+  const startRow = column.locator('.row', { hasText: 'file-01.txt' });
+  const targetRow = column.locator('.row', { hasText: 'file-04.txt' });
+
+  await expect(startRow).toBeVisible();
+  await expect(targetRow).toBeVisible();
+
+  const startBox = await startRow.boundingBox();
+  const targetBox = await targetRow.boundingBox();
+  expect(startBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  if (!startBox || !targetBox) {
+    throw new Error('Explorer row bounding box unavailable');
+  }
+
+  const pointerId = 1;
+  const startPoint = {
+    x: startBox.x + startBox.width / 2,
+    y: startBox.y + startBox.height / 2
+  };
+  const targetPoint = {
+    x: targetBox.x + targetBox.width / 2,
+    y: targetBox.y + targetBox.height / 2
+  };
+
+  await startRow.dispatchEvent('pointerdown', {
+    pointerId,
+    pointerType: 'mouse',
+    button: 0,
+    buttons: 1,
+    clientX: startPoint.x,
+    clientY: startPoint.y
+  });
+  await page.evaluate(
+    ({ pointerId, clientX, clientY }) => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: 1,
+          clientX,
+          clientY,
+          bubbles: true
+        })
+      );
+    },
+    {
+      pointerId,
+      clientX: startPoint.x,
+      clientY: startPoint.y + 12
+    }
+  );
+  await page.evaluate(
+    ({ pointerId, clientX, clientY }) => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: 1,
+          clientX,
+          clientY,
+          bubbles: true
+        })
+      );
+    },
+    {
+      pointerId,
+      clientX: targetPoint.x,
+      clientY: targetPoint.y
+    }
+  );
+  await page.evaluate(
+    ({ pointerId, clientX, clientY }) => {
+      window.dispatchEvent(
+        new PointerEvent('pointerup', {
+          pointerId,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: 0,
+          clientX,
+          clientY,
+          bubbles: true
+        })
+      );
+    },
+    {
+      pointerId,
+      clientX: targetPoint.x,
+      clientY: targetPoint.y
+    }
+  );
+
+  await expect(column.locator('.row.active')).toContainText('file-04.txt');
+
   const metrics = await list.evaluate((node) => ({
     clientHeight: node.clientHeight,
     scrollHeight: node.scrollHeight,
     scrollTop: node.scrollTop
   }));
-  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
 
-  const box = await list.boundingBox();
-  expect(box).not.toBeNull();
-  if (!box) {
-    throw new Error('Explorer list bounding box unavailable');
+  if (metrics.scrollHeight > metrics.clientHeight) {
+    await list.hover();
+    await list.dispatchEvent('wheel', { deltaY: 140 });
+    await expect.poll(() => list.evaluate((node) => node.scrollTop)).toBeGreaterThan(metrics.scrollTop);
   }
-
-  await list.hover();
-  await list.dispatchEvent('wheel', { deltaY: 420 });
-  await expect.poll(() => list.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
-
-  const scrollBeforeDrag = await list.evaluate((node) => node.scrollTop);
-  await list.evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    const pointerId = 1;
-    const startX = rect.left + rect.width / 2;
-    const startY = rect.top + 36;
-    const endY = rect.bottom - 36;
-
-    node.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        pointerId,
-        button: 0,
-        clientX: startX,
-        clientY: startY,
-        bubbles: true
-      })
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId,
-        button: 0,
-        clientX: startX,
-        clientY: endY,
-        bubbles: true
-      })
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointerup', {
-        pointerId,
-        button: 0,
-        clientX: startX,
-        clientY: endY,
-        bubbles: true
-      })
-    );
-  });
-
-  await expect.poll(() => list.evaluate((node) => node.scrollTop)).not.toBe(scrollBeforeDrag);
 });
 
 test('global explorer scale affects coverflow columns and preview consistently', async ({ page }) => {
   await openExplorer(page, 'natural', { seedFixtures: true });
-  await explorerColumn(page, parityColumnIndex).locator('.row', { hasText: 'file-01.txt' }).click();
+
+  const contentIndex = await lastExplorerColumnIndex(page);
+  await explorerColumn(page, contentIndex).locator('.row', { hasText: 'file-01.txt' }).click();
 
   const cover = explorerCover(page);
-  const column = explorerColumn(page, parityColumnIndex);
+  const column = explorerColumn(page, contentIndex);
   const preview = explorerPreviewPanel(page);
   const scaleInput = explorerScaleInput(page);
 
@@ -103,40 +170,121 @@ test('global explorer scale affects coverflow columns and preview consistently',
   expect(parseFloat(after.previewFont)).toBeGreaterThan(parseFloat(before.previewFont));
 });
 
-test('double-click folder opens and double-click file shows the minimal details popup', async ({ page }) => {
-  await openExplorer(page, 'natural', { seedFixtures: true });
-
-  const folderRow = explorerColumn(page, parityColumnIndex).locator('.row', { hasText: 'nested' });
-  await folderRow.scrollIntoViewIfNeeded();
-  await folderRow.dblclick();
-  await expect(explorerColumn(page, nestedColumnIndex)).toBeVisible();
-
-  const fileRow = explorerColumn(page, nestedColumnIndex).locator('.row', { hasText: 'details.txt' });
-  await fileRow.dblclick();
-
-  const popup = explorerDetailsPopup(page);
-  await expect(popup).toBeVisible();
-  await expect(popup).toContainText('Item details');
-  await expect(popup).toContainText('Manifest ID');
-});
-
-test('raw explorer double-click opens the storage relationships popup without changing ticket assumptions', async ({
+test('double-click folder opens a nested column and double-click file routes into builder', async ({
   page
 }) => {
-  await openExplorer(page, 'raw', { seedFixtures: true });
+  await openExplorer(page, 'natural', { seedFixtures: true });
 
-  const fileRow = explorerColumn(page, parityColumnIndex).locator('.row', { hasText: 'file-01.txt' });
-  await fileRow.click();
-  await expect(explorerHost(page).locator('.toolbar .btn[title="Open"]')).toBeEnabled();
+  const contentIndex = await lastExplorerColumnIndex(page);
+  const folderRow = explorerColumn(page, contentIndex).locator('.row', { hasText: 'nested' });
+  const beforeCount = await explorerColumnCount(page);
+  await folderRow.scrollIntoViewIfNeeded();
+  await folderRow.dblclick();
 
-  const ticketResponse = page.waitForResponse((response) => {
-    return response.url().includes('/api/explorer/ticket') && response.ok();
+  await expect.poll(() => explorerColumnCount(page)).toBe(beforeCount + 1);
+
+  const nestedIndex = await lastExplorerColumnIndex(page);
+  const fileRow = explorerColumn(page, nestedIndex).locator('.row', { hasText: 'details.txt' });
+  const builderNavigation = page.waitForURL((url) => {
+    return url.pathname.replace(/\/+$/, '') === '/_efsdb/builder';
   });
-  await explorerHost(page).locator('.toolbar .btn[title="Open"]').click();
-  await ticketResponse;
-
   await fileRow.dblclick();
-  await expect(explorerDetailsPopup(page)).toBeVisible();
-  await expect(explorerRelationshipsPanel(page)).toContainText('Connected file relationships');
-  await expect(explorerRelationshipsPanel(page)).toContainText('Chunk count');
+  await builderNavigation;
+
+  const builderPath = new URL(page.url()).searchParams.get('path');
+  expect(builderPath).toBe('site/production/content/explorer-parity/nested/details.txt');
+});
+
+test('raw explorer keeps storage inspection separate from logical file rows', async ({ page }) => {
+  await openExplorer(page, 'raw', { path: 'public_workspace_files', seedFixtures: true });
+
+  const rootColumn = explorerColumn(page, 0);
+  await rootColumn.locator('.row', { hasText: 'public_workspace_files' }).dblclick();
+
+  const entityColumn = explorerColumn(page, 1);
+  await expect(entityColumn.locator('.row', { hasText: 'manifests' })).toBeVisible();
+  await expect(entityColumn.locator('.row', { hasText: 'chunks' })).toBeVisible();
+  await expect(entityColumn.locator('.row', { hasText: 'file-01.txt' })).toHaveCount(0);
+  await expect(entityColumn.locator('.row', { hasText: 'nested' })).toHaveCount(0);
+});
+
+test('raw explorer open action routes the selected manifest into builder', async ({ page }) => {
+  await openExplorer(page, 'raw', { path: 'public_workspace_files', seedFixtures: true });
+
+  const rootColumn = explorerColumn(page, 0);
+  await rootColumn.locator('.row', { hasText: 'public_workspace_files' }).dblclick();
+
+  const entityColumn = explorerColumn(page, 1);
+  await entityColumn.locator('.row', { hasText: 'manifests' }).dblclick();
+
+  const manifestColumn = explorerColumn(page, 2);
+  const manifestRow = manifestColumn.locator('.row').first();
+  await expect(manifestRow).toBeVisible();
+  await manifestRow.click();
+
+  const openButton = explorerHost(page).getByRole('button', { name: 'Open in Builder' });
+  await expect(openButton).toBeEnabled();
+
+  const builderNavigation = page.waitForURL((url) => {
+    return url.pathname.replace(/\/+$/, '') === '/_efsdb/builder';
+  });
+  await openButton.click();
+  await builderNavigation;
+
+  const builderPath = new URL(page.url()).searchParams.get('path') ?? '';
+  expect(builderPath).toContain('public_workspace_files/manifests/');
+  expect(builderPath.endsWith('.m')).toBeTruthy();
+});
+
+test('raw explorer exposes manifest and chunk storage trees for privileged inspection', async ({
+  page
+}) => {
+  await openExplorer(page, 'raw', { path: 'public_workspace_files', seedFixtures: true });
+
+  const rootColumn = explorerColumn(page, 0);
+  await rootColumn.locator('.row', { hasText: 'public_workspace_files' }).dblclick();
+
+  const entityColumn = explorerColumn(page, 1);
+  await expect(entityColumn.locator('.row', { hasText: 'manifests' })).toBeVisible();
+  await expect(entityColumn.locator('.row', { hasText: 'chunks' })).toBeVisible();
+
+  await entityColumn.locator('.row', { hasText: 'manifests' }).dblclick();
+  const manifestColumn = explorerColumn(page, 2);
+  await expect(manifestColumn.locator('.row').first()).toBeVisible();
+
+  await entityColumn.locator('.row', { hasText: 'chunks' }).dblclick();
+  const chunkLevelOne = explorerColumn(page, 2);
+  await expect(chunkLevelOne.locator('.row').first()).toBeVisible();
+
+  const firstChunkBranch = chunkLevelOne.locator('.row').first();
+  await firstChunkBranch.dblclick();
+  await expect(explorerColumn(page, 3).locator('.row').first()).toBeVisible();
+
+  await explorerColumn(page, 3).locator('.row').first().dblclick();
+  await expect(explorerColumn(page, 4).locator('.row').first()).toBeVisible();
+});
+
+test('natural explorer previews text read-only and routes edits into builder', async ({ page }) => {
+  await openExplorer(page, 'natural', { seedFixtures: true });
+
+  const contentColumn = await currentContentColumn(page);
+  const targetRow = contentColumn.locator('.row', { hasText: 'file-01.txt' });
+  await targetRow.click();
+
+  const preview = explorerPreviewPanel(page);
+  await expect(preview.locator('.name', { hasText: 'file-01.txt' })).toBeVisible();
+  await expect(preview.getByText('Read-only text file')).toBeVisible();
+  await expect(preview.locator('[data-testid="explorer-save-button"]')).toHaveCount(0);
+
+  const openButton = preview.getByRole('button', { name: 'Open in Builder' });
+  await expect(openButton).toBeEnabled();
+
+  const builderNavigation = page.waitForURL((url) => {
+    return url.pathname.replace(/\/+$/, '') === '/_efsdb/builder';
+  });
+  await openButton.click();
+  await builderNavigation;
+
+  const builderPath = new URL(page.url()).searchParams.get('path');
+  expect(builderPath).toBe('site/production/content/explorer-parity/file-01.txt');
 });

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase2-facet-api';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase2-facet-api';
 $bootstrapSecret = 'phase2-facet-api-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -33,10 +33,10 @@ $products->upsert([
     'price' => ['amount' => 79.99, 'currency' => 'usd'],
 ]);
 
-$facet = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/facets?field=category&filter[status]=active', 'GET', [
+$facet = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/facets?entity=products&field=category&filter[status]=active', 'GET', [
     'bearer' => $token,
 ]);
-$badField = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/facets?field=loginKeyHash', 'GET', [
+$badField = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/facets?entity=products&field=loginKeyHash', 'GET', [
     'bearer' => $token,
 ]);
 

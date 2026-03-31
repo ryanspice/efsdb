@@ -2,7 +2,7 @@ import type { AuthResponse, AuthUser } from '@contracts/auth';
 import { authorizedFetch, refreshAccessToken } from '@utils/bootstrap/authBridge';
 import { describeJsonError, mustJson } from '@utils/http';
 
-export async function ensureAdminSession(): Promise<boolean> {
+export async function ensureAdminSession(): Promise<AuthResponse | null> {
   return refreshAccessToken();
 }
 

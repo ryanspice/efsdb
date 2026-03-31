@@ -15,8 +15,8 @@ $bootstrap = [
     'app' => 'admin',
     'tag' => 'efsdb-admin',
     'assetFile' => '/js/efsdb-admin.js',
-    'apiBase' => '/api/admin',
-    'authBase' => '/api/auth',
+    'apiBase' => '/_efsdb/api/admin',
+    'authBase' => '/_efsdb/api/auth',
     'user' => $user->toApi(),
     'flags' => [
         'canManageUsers' => $perms->canManageUsers($user),
@@ -24,7 +24,7 @@ $bootstrap = [
         'canManageSettings' => $perms->canManageSettings($user),
     ],
     'urls' => [
-        'legacy' => '?action=admin&ui=legacy',
+        'legacy' => efsdb_control_plane_path('admin', ['ui' => 'legacy']),
     ],
 ];
 $bootstrapJson = json_encode($bootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);

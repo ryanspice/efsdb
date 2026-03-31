@@ -15,7 +15,7 @@ final class DeliveryModeResolver
 
     public function resolve(string $root): string
     {
-        $root = strtolower(trim($root)) === 'staging' ? 'staging' : 'published';
+        $root = PublicWorkspace::normalizeEnvironmentRoot($root);
         $doc = $this->workspace->getRoot($root, false);
         $rootMode = is_array($doc) ? ($doc['deliveryMode'] ?? null) : null;
         if (is_string($rootMode) && in_array($rootMode, self::VALID_MODES, true)) {
@@ -24,6 +24,9 @@ final class DeliveryModeResolver
 
         $settings = $this->identity->getTenantSettings();
         $tenantMode = $settings['settings']['publicWorkspace.' . $root . '.deliveryMode'] ?? null;
+        if ($tenantMode === null && $root === PublicWorkspace::ROOT_PRODUCTION) {
+            $tenantMode = $settings['settings']['publicWorkspace.published.deliveryMode'] ?? null;
+        }
         if (is_string($tenantMode) && in_array($tenantMode, self::VALID_MODES, true)) {
             return $tenantMode;
         }

@@ -1,0 +1,44 @@
+{
+    "entity": "project_files",
+    "kind": "file",
+    "storage": {
+        "mime": "application/octet-stream",
+        "chunkProfiles": {
+            "default": {
+                "target": 131072
+            }
+        }
+    },
+    "fields": [
+        {
+            "name": "id",
+            "type": "string",
+            "required": true
+        },
+        {
+            "name": "name",
+            "type": "string",
+            "required": true
+        },
+        {
+            "name": "mime",
+            "type": "string"
+        },
+        {
+            "name": "logicalPath",
+            "type": "string"
+        }
+    ],
+    "indexes": {
+        "logicalPath": {
+            "type": "string",
+            "field": "logicalPath",
+            "unique": true,
+            "lookupFastPath": true
+        }
+    },
+    "search": {
+        "defaultFields": ["name", "logicalPath"],
+        "mode": "contains_ci"
+    }
+}

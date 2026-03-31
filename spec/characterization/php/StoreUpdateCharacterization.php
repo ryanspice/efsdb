@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-store-update';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase0-store-update';
 $bootstrapSecret = 'phase0-store-update-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -46,10 +46,9 @@ $logical = $store->findManifestByLogicalPath('docs', 'tenant/site/file.json');
 $sameLookup = $store->findDocumentByLookup('docs', 'slug', 'same');
 $changedLookup = $store->findDocumentByLookup('docs', 'slug', 'changed');
 
-$oldDigest = $store->fingerprint('lookup:docs:slug', 'same');
-$newDigest = $store->fingerprint('lookup:docs:slug', 'changed');
-$oldLookupPath = $dataDir . '/idx/lookup/docs/' . substr($oldDigest, 0, 2) . '/' . substr($oldDigest, 2, 2) . '/' . $oldDigest . '.lk';
-$newLookupPath = $dataDir . '/idx/lookup/docs/' . substr($newDigest, 0, 2) . '/' . substr($newDigest, 2, 2) . '/' . $newDigest . '.lk';
+$refLookupPath = new ReflectionMethod($store, 'lookupPath');
+$oldLookupPath = $refLookupPath->invoke($store, 'docs', 'slug', 'same');
+$newLookupPath = $refLookupPath->invoke($store, 'docs', 'slug', 'changed');
 
 phase0_assert(
     ($doc1['title'] ?? null) === 'fourth',

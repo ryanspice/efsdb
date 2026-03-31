@@ -27,7 +27,7 @@ function phase1_runtime_request(string $dataDir, string $uri, string $method = '
     @header_remove();
     @http_response_code(200);
     ob_start();
-    include 'B:/Dev/PHPFS/efsdb/php/runtime/index.php';
+    include __DIR__ . '/../../../efsdb/php/runtime/index.php';
     $body = (string)ob_get_clean();
     $headers = headers_list();
     $headerMap = [];
@@ -51,13 +51,15 @@ function phase1_runtime_request(string $dataDir, string $uri, string $method = '
     ];
 }
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-runtime-entry';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase1-runtime-entry';
 $bootstrapSecret = 'phase1-runtime-entry-secret';
 
 Phase0Harness::resetDir($dataDir);
 $app = Phase0Harness::bootApp($dataDir, $bootstrapSecret);
 $workspace = $app->getPublicWorkspace();
-$workspace->writeFile('published', '/index.html', '<h1>Runtime published</h1>', [
+$workspace->ensureRoot('production', ['enabled' => true]);
+$workspace->ensureRoot('staging', ['enabled' => true]);
+$workspace->writeFile('production', '/index.html', '<h1>Runtime published</h1>', [
     'mime' => 'text/html; charset=utf-8',
 ]);
 $workspace->writeFile('staging', '/secret/index.html', '<h1>Runtime staging</h1>', [
@@ -99,7 +101,7 @@ phase0_assert(
     $failures
 );
 
-phase4_seed_adapter_root($dataDir, $bootstrapSecret);
+phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'production');
 
 $adapterPublished = phase4_runtime_request($dataDir, '/', 'GET');
 phase0_assert(
@@ -123,11 +125,11 @@ phase0_assert(
     $failures
 );
 
-$scopedDataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-runtime-entry-scoped';
+$scopedDataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase1-runtime-entry-scoped';
 $scopedBootstrapSecret = 'phase1-runtime-entry-scoped-secret';
 
 Phase0Harness::resetDir($scopedDataDir);
-phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'published', [
+phase4_seed_adapter_root($scopedDataDir, $scopedBootstrapSecret, 'production', [
     'basePath' => '/docs',
     'trailingSlash' => 'never',
     'appDir' => 'app',

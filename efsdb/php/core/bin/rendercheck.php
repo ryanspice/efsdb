@@ -11,29 +11,26 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 
 // Load Auth Key & Generate Cookie
 require_once __DIR__ . '/../src/AuthKey.php';
-$dataDir = __DIR__ . '/../data';
+require_once __DIR__ . '/../src/Auth.php';
+require_once __DIR__ . '/../src/Config.php';
+$dataDir = Config::getDataDir();
 $authKeyB64 = AuthKey::get($dataDir);
 
-// Create valid Refresh Token (HS256)
-$header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
-$payload = json_encode([
-    'sub' => 'root',
-    'name' => 'Root',
-    'role' => 'root',
-    'uid' => 0,
-    'gid' => 0,
-    'ent' => ['RAW_VIEW', 'NATURAL_VIEW'],
-    'iat' => time(),
-    'exp' => time() + 3600,
-    'type' => 'refresh'
-]);
+require_once __DIR__ . '/../src/App.php';
+$app = new App($dataDir, __DIR__ . '/../schema');
 
-$b64Header = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-$b64Payload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-$sig = hash_hmac('sha256', "$b64Header.$b64Payload", $authKeyB64, true);
-$b64Sig = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($sig));
-$token = "$b64Header.$b64Payload.$b64Sig";
-
+$tenantUser = $app->getIdentity()->getUserById('root', 'tenant_admin');
+if ($tenantUser === null) {
+    $app->getIdentity()->createUser([
+        'id' => 'root',
+        'username' => 'root',
+        'name' => 'Root',
+        'roleId' => 'tenant_admin'
+    ], 'secret');
+    $tenantUser = $app->getIdentity()->getUserById('root', 'tenant_admin');
+}
+$session = $app->getIdentity()->createRefreshSession($tenantUser);
+$token = $session['token'];
 $_COOKIE['efsdb_refresh_token'] = $token;
 
 // Prevent header() calls from failing
@@ -50,45 +47,28 @@ $tests = [
     ['action' => 'products', 'expect' => 'Products'],
     ['action' => 'preview', 'expect' => 'Preview'],
     // API Tests (Ensure no HTML artifacts)
-    ['api' => true, 'uri' => '/api/health', 'expectJson' => true],
-    ['api' => true, 'uri' => '/api/products', 'expectJson' => true]
+    ['api' => true, 'uri' => '/_efsdb/api/health', 'expectJson' => true]
 ];
+
+// Mock the Auth class to always return a root user for these tests, bypassing DB lookup
+class MockAuth extends Auth {
+    public function authenticate(bool $bearerOnly = false): User {
+        return new User('root', 'Root', 'root', 'root', ['RAW_VIEW', 'NATURAL_VIEW', 'SITE_EDIT']);
+    }
+}
+$auth = new MockAuth($app);
 
 foreach ($tests as $test) {
     if (isset($test['api'])) {
         $uri = $test['uri'];
         $_SERVER['REQUEST_URI'] = $uri;
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        // Ensure Bearer for API (using the cookie logic for legacy, but API needs Bearer or Cookie?)
-        // The token generated above is a REFRESH token in cookie.
-        // API endpoints check Bearer first, then cookie (for some).
-        // Wait, /api/products requires Bearer Only?
-        // index.php: $user = $auth->authenticate(true); // Bearer Only
-        // So cookie won't work for /api/products.
-        // We need to set Authorization header.
-        
-        // Re-use the token we generated (it has type='refresh', might fail if verifyAccessToken checks type='access')
-        // Auth.php verifyAccessToken checks type='access'.
-        // So we need an access token.
-        
-        // Let's generate an access token here using the same key.
-        $accPayload = json_encode([
-            'sub' => 'root', 'name' => 'Root', 'role' => 'root',
-            'uid' => 0, 'gid' => 0, 'ent' => ['RAW_VIEW'],
-            'iat' => time(), 'exp' => time() + 3600, 'type' => 'access'
-        ]);
-        $b64AccPayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($accPayload));
-        $accSig = hash_hmac('sha256', "$b64Header.$b64AccPayload", $authKeyB64, true);
-        $b64AccSig = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($accSig));
-        $accToken = "$b64Header.$b64AccPayload.$b64AccSig";
-        
-        $_SERVER['HTTP_AUTHORIZATION'] = "Bearer $accToken";
         $action = "API $uri";
     } else {
         $action = $test['action'];
         $expected = $test['expect'];
         $_GET['action'] = $action;
-        $_SERVER['REQUEST_URI'] = "/?action=$action";
+        $_SERVER['REQUEST_URI'] = "/_efsdb/$action";
         $_SERVER['HTTP_AUTHORIZATION'] = ""; // Clear for view tests
     }
 

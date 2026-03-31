@@ -28,19 +28,19 @@
         }
 
         refreshPromise = (async function () {
-            const refreshRes = await originalFetch('/api/auth/refresh', {
+            const refreshRes = await originalFetch('/_efsdb/api/auth/refresh', {
                 method: 'POST',
                 credentials: 'same-origin'
             });
 
             if (!refreshRes.ok) {
                 accessToken = null;
-                return false;
+                return null;
             }
 
             const data = await refreshRes.json();
             accessToken = data.accessToken || null;
-            return !!accessToken;
+            return accessToken ? data : null;
         })();
 
         try {
@@ -66,12 +66,12 @@
         }
 
         const response = await originalFetch(input, requestInit);
-        if (response.status !== 401 || url.includes('/api/auth/refresh')) {
+        if (response.status !== 401 || url.includes('/_efsdb/api/auth/refresh')) {
             return response;
         }
 
-        const success = await tryRefresh().catch(() => false);
-        if (!success) {
+        const refreshed = await tryRefresh().catch(() => null);
+        if (!refreshed || !accessToken) {
             return response;
         }
 

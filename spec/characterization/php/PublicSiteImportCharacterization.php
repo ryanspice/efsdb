@@ -11,7 +11,7 @@ require_once __DIR__ . '/Phase0Harness.php';
 function phase4_run_import(array $arguments, array $environment): array
 {
     $php = escapeshellarg(PHP_BINARY);
-    $script = escapeshellarg('B:/Dev/PHPFS/efsdb/php/runtime/import.php');
+    $script = escapeshellarg(__DIR__ . '/../../../efsdb/php/runtime/import.php');
     $ini = php_ini_loaded_file();
 
     $parts = [$php];
@@ -38,7 +38,7 @@ function phase4_run_import(array $arguments, array $environment): array
         putenv($key . '=' . $value);
     }
 
-    $process = proc_open(implode(' ', $parts), $descriptors, $pipes, 'B:/Dev/PHPFS');
+    $process = proc_open(implode(' ', $parts), $descriptors, $pipes, '' . __DIR__ . '/../../..');
     if (!is_resource($process)) {
         throw new RuntimeException('Unable to start public-site import process');
     }
@@ -68,7 +68,7 @@ function phase4_run_import(array $arguments, array $environment): array
     return $result;
 }
 
-$cacheDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase4-public-site-import';
+$cacheDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase4-public-site-import';
 $webDir = $cacheDir . '/public';
 $dataDir = $cacheDir . '/.efsdb';
 $bootstrapSecret = 'phase4-public-site-import-secret';
@@ -174,8 +174,10 @@ phase0_assert(
     $failures
 );
 
+$bucketId = $app->getStore()->bucketIdForEntity(PublicWorkspace::FILE_ENTITY);
+
 phase0_assert(
-    is_dir($dataDir . '/public_workspace_files/manifests')
+    is_dir($dataDir . '/obj/' . $bucketId . '/manifests')
         && !is_dir($dataDir . '/site_pages'),
     'adapter import no longer creates detached site_pages storage as active truth',
     $failures

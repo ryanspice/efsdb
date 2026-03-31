@@ -22,7 +22,7 @@ final class PublicSiteImport
             throw new RuntimeException("Import source directory does not exist: $sourceDir");
         }
 
-        $root = $this->normalizeRoot((string)($options['root'] ?? 'published'));
+        $root = $this->normalizeRoot((string)($options['root'] ?? PublicWorkspace::ROOT_PRODUCTION));
         $prefix = $this->normalizePrefix((string)($options['prefix'] ?? ''));
         $chunkSize = isset($options['chunkSize']) ? max(1, (int)$options['chunkSize']) : null;
         $deliveryMode = $this->normalizeOptionalString($options['deliveryMode'] ?? null);
@@ -64,6 +64,8 @@ final class PublicSiteImport
                 'mime' => $this->guessMime($logicalPath),
                 'chunkSize' => $chunkSize,
             ]);
+
+            echo "IMPORTED FILE: $logicalPath\n";
 
             $imported++;
             $relativePaths[] = ltrim(str_replace('\\', '/', $logicalPath), '/');
@@ -149,8 +151,7 @@ final class PublicSiteImport
 
     private function normalizeRoot(string $root): string
     {
-        $root = strtolower(trim($root));
-        return $root === 'staging' ? 'staging' : 'published';
+        return PublicWorkspace::normalizeEnvironmentRoot($root);
     }
 
     private function normalizePrefix(string $prefix): string

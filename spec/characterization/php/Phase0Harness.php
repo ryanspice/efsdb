@@ -17,8 +17,8 @@ require_once __DIR__ . '/../../../efsdb/php/core/src/Schema.php';
 
 final class Phase0Harness
 {
-    public const LIVE_SEAM = 'B:/Dev/PHPFS/efsdb/php/core/public/index.php';
-    public const SCHEMA_DIR = 'B:/Dev/PHPFS/efsdb/php/core/schema';
+    public const LIVE_SEAM = __DIR__ . '/../../../efsdb/php/core/public/index.php';
+    public const SCHEMA_DIR = __DIR__ . '/../../../efsdb/php/core/schema';
 
     public static function resetDir(string $dir): void
     {
@@ -70,6 +70,16 @@ final class Phase0Harness
     {
         self::primeEnv($dataDir, $bootstrapSecret);
 
+        foreach (array_keys($_SERVER) as $key) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            if (($key === 'CONTENT_TYPE' || $key === 'CONTENT_LENGTH' || str_starts_with($key, 'HTTP_')) && $key !== 'HTTP_HOST') {
+                unset($_SERVER[$key]);
+            }
+        }
+
         $_SERVER['REQUEST_METHOD'] = $method;
         $_SERVER['REQUEST_URI'] = $uri;
         $_SERVER['HTTP_AUTHORIZATION'] = '';
@@ -83,6 +93,22 @@ final class Phase0Harness
 
         if (isset($options['cookies']) && is_array($options['cookies'])) {
             $_COOKIE = $options['cookies'];
+        }
+
+        if (isset($options['headers']) && is_array($options['headers'])) {
+            foreach ($options['headers'] as $name => $value) {
+                if (!is_string($name) || !is_scalar($value)) {
+                    continue;
+                }
+
+                $normalized = strtoupper(str_replace('-', '_', trim($name)));
+                if ($normalized === 'CONTENT_TYPE' || $normalized === 'CONTENT_LENGTH') {
+                    $_SERVER[$normalized] = (string)$value;
+                    continue;
+                }
+
+                $_SERVER['HTTP_' . $normalized] = (string)$value;
+            }
         }
 
         $parts = parse_url($uri);
@@ -143,7 +169,7 @@ final class Phase0Harness
 
     public static function loginAccessToken(string $dataDir, string $bootstrapSecret, string $loginKey): string
     {
-        $login = self::request($dataDir, $bootstrapSecret, '/api/auth/login', 'POST', [
+        $login = self::request($dataDir, $bootstrapSecret, '/_efsdb/api/auth/login', 'POST', [
             'json' => ['key' => $loginKey],
         ]);
 

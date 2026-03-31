@@ -1,7 +1,9 @@
+import type { AuthResponse } from '@contracts/auth';
+
 type WindowAuthBridge = Window & {
   getAccessToken?: () => string | null;
   setAccessToken?: (token: string | null) => void;
-  refreshAccessToken?: () => Promise<boolean>;
+  refreshAccessToken?: () => Promise<AuthResponse | null>;
 };
 
 function authWindow(): WindowAuthBridge {
@@ -25,9 +27,9 @@ async function mustJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function refreshAccessToken(): Promise<boolean> {
+export async function refreshAccessToken(): Promise<AuthResponse | null> {
   if (typeof authWindow().refreshAccessToken !== 'function') {
-    return false;
+    return null;
   }
 
   return authWindow().refreshAccessToken!();

@@ -1,17 +1,13 @@
 # Admin Contract
 
-Current source inputs:
-- `efsdb/php/core/public/index.php`
-- `efsdb/php/core/public/views/admin.php`
-- `efsdb/php/core/src/IdentityManager.php`
+Typed payloads:
+- `web/contracts/admin.ts`
 
-Freeze in Phase 0:
+Current live-seam surface:
 - users API surface
 - roles API surface
 - settings API surface
-- display-mode controls needed by admin UI
-
-Phase 1 and Phase 2 additions now behind the same live seam:
+- display-mode controls used by the admin UI
 - public workspace root/file lifecycle APIs
 - manual garbage collection API
 - manual index rebuild API
@@ -21,6 +17,6 @@ Current admin rebuild path:
 - tenant-admin or equivalent settings-management access required
 - explicit rebuild is the primary indexing-completeness path for legacy records
 
-Migration note:
-- current admin page is legacy
-- future admin surface moves to CE delivery
+Current host note:
+- `efsdb/php/core/public/views/admin.php` is the CE-first admin host
+- `_admin_legacy.php` is still an explicit rollback path while it remains operationally useful

@@ -6,12 +6,12 @@
 />
 
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { AuthErrorResponse, AuthResponse, AuthUser } from '@contracts/auth';
   import type { BootstrapPayload, BootstrapTheme } from '@contracts/bootstrap';
-  import { readBootstrapPayloadForApp } from '@utils/bootstrap/hostProps';
   import { loginWithKey, logoutSession, refreshSession, setAccessToken } from '@utils/bootstrap/authBridge';
+  import { readBootstrapPayloadForApp } from '@utils/bootstrap/hostProps';
   import { getTheme, onThemeChange } from '@utils/bootstrap/themeBridge';
+  import { onMount } from 'svelte';
 
   type LoginBootstrapPayload = BootstrapPayload & {
     app: 'login';
@@ -23,9 +23,9 @@
   };
 
   const bootstrap = readBootstrapPayloadForApp<LoginBootstrapPayload>('login');
-  const authBase = (bootstrap.authBase ?? bootstrap.apiBase ?? '/api/auth').replace(/\/$/, '');
-  const redirectUrl = bootstrap.urls?.redirect ?? '?action=admin';
-  const homeUrl = bootstrap.urls?.home ?? '?';
+  const authBase = (bootstrap.authBase ?? bootstrap.apiBase ?? '/_efsdb/api/auth').replace(/\/$/, '');
+  const redirectUrl = bootstrap.urls?.redirect ?? '/_efsdb/admin';
+  const homeUrl = bootstrap.urls?.home ?? '/_efsdb/control';
   const host = $host();
 
   let user = $state<AuthUser | null>(bootstrap.user ?? null);
@@ -281,41 +281,57 @@
 
 <style>
   :host {
+    /*
+     * Host-local token bridge.
+     * Theme ownership still lives outside this component; only the stable web-side aliases
+     * are consumed here. Local surface values stay in place to preserve the current card UI.
+     */
     display: block;
-    font-family:
-      'Segoe UI Variable',
-      'Segoe UI',
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      sans-serif;
-    color: var(--text, #eef4df);
-    --primary: #c6ff00;
-    --primary-hover: #d6ff49;
-    --primary-text: #10200d;
-    --danger: #ff7b8b;
-    --success: #bde270;
-    --bg-card: rgba(21, 31, 19, 0.92);
-    --bg-input: rgba(14, 22, 13, 0.94);
-    --border: rgba(198, 255, 0, 0.18);
-    --border-strong: rgba(198, 255, 0, 0.35);
-    --muted: #a2b392;
-    --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    font-family: var(--efs-font-sans);
+    color: var(--efs-text-default);
+    --primary: var(--efs-accent-primary);
+    --primary-hover: var(--efs-accent-primary-hover);
+    --primary-text: var(--efs-text-inverse);
+    --primary-ink: var(--primary);
+    --danger: var(--efs-state-danger);
+    --success: var(--efs-state-success);
+    --bg-card: var(--efs-bg-surface-1);
+    --bg-input: var(--efs-bg-surface-0);
+    --border: var(--efs-border-field);
+    --border-strong: var(--efs-border-focus);
+    --muted: var(--efs-text-subtle);
+    --shadow: var(--efs-shadow-dialog);
   }
 
   :host([theme='light']) {
-    color: var(--text, #24311b);
-    --primary: #c6ff00;
-    --primary-hover: #d4ff45;
-    --primary-text: #13210f;
-    --danger: #b44a5a;
-    --success: #6d8f27;
-    --bg-card: rgba(255, 255, 255, 0.9);
-    --bg-input: rgba(245, 248, 238, 0.96);
-    --border: rgba(116, 145, 45, 0.18);
-    --border-strong: rgba(116, 145, 45, 0.35);
-    --muted: #5f7050;
-    --shadow: 0 18px 40px rgba(34, 48, 22, 0.12);
+    color: #0f172a;
+    --primary: var(--efs-accent-surface-light, color-mix(in srgb, var(--accent, #0f172a) 60%, #0f172a 40%));
+    --primary-hover: var(--efs-accent-surface-light-hover, color-mix(in srgb, var(--accent, #0f172a) 52%, #0f172a 48%));
+    --primary-text: var(--efs-text-inverse, #f5f7fb);
+    --primary-ink: var(--efs-accent-ink-light, color-mix(in srgb, var(--accent, #0f172a) 22%, #0f172a 78%));
+    --danger: #dc2626;
+    --success: #16a34a;
+    --bg-card: rgba(255, 255, 255, 0.92);
+    --bg-input: #f8fafc;
+    --border: #e2e8f0;
+    --border-strong: #94a3b8;
+    --muted: #64748b;
+    --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  :host([theme='green']) {
+    color: #e7eddc;
+    --primary: var(--accent, #c6ff00);
+    --primary-hover: color-mix(in srgb, var(--accent, #c6ff00) 80%, black);
+    --primary-text: var(--shell-pill-text, #050804);
+    --danger: #ef4444;
+    --success: #22c55e;
+    --bg-card: rgba(12, 20, 10, 0.8);
+    --bg-input: rgba(6, 10, 6, 0.4);
+    --border: rgba(198, 255, 0, 0.12);
+    --border-strong: rgba(198, 255, 0, 0.2);
+    --muted: #a2b392;
+    --shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
   }
 
   .login-shell {
@@ -324,6 +340,7 @@
     align-items: center;
     min-height: 320px;
     width: 100%;
+    padding: 1rem;
   }
 
   .login-card,
@@ -338,9 +355,8 @@
   }
 
   .eyebrow {
-    color: var(--primary);
-    font-size: 0.78rem;
-    font-weight: 700;
+    color: var(--primary-ink);
+    font: var(--efs-font-label);
     letter-spacing: 0.18em;
     text-transform: uppercase;
     margin-bottom: 0.8rem;
@@ -348,14 +364,15 @@
 
   h2 {
     margin: 0;
-    font-size: clamp(1.35rem, 2.1vw, 1.85rem);
+    font: var(--efs-font-title-lg);
     line-height: 1.12;
     font-weight: 800;
+    letter-spacing: -0.02em;
   }
 
   .subtitle {
     color: var(--muted);
-    font-size: 0.9rem;
+    font: var(--efs-font-body-md);
     margin: 0.9rem 0 1.3rem 0;
     line-height: 1.55;
   }
@@ -366,8 +383,7 @@
 
   label {
     display: block;
-    font-size: 0.82rem;
-    font-weight: 600;
+    font: var(--efs-font-label);
     margin-bottom: 0.55rem;
     color: var(--muted);
     text-transform: uppercase;
@@ -381,7 +397,7 @@
     border-radius: 16px;
     padding: 0.88rem 1rem;
     color: inherit;
-    font-size: 0.96rem;
+    font: var(--efs-font-body-lg);
     box-sizing: border-box;
     transition:
       border-color 0.2s,
@@ -392,7 +408,7 @@
   input:focus {
     outline: none;
     border-color: var(--border-strong);
-    box-shadow: 0 0 0 4px rgba(198, 255, 0, 0.12);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary), transparent 88%);
     transform: translateY(-1px);
   }
 
@@ -402,8 +418,8 @@
     align-items: center;
     padding: 0.82rem 1.1rem;
     border-radius: 16px;
+    font: var(--efs-font-body-sm);
     font-weight: 700;
-    font-size: 0.86rem;
     cursor: pointer;
     transition:
       transform 0.2s,
@@ -449,7 +465,7 @@
   .alert {
     padding: 0.85rem 1rem;
     border-radius: 16px;
-    font-size: 0.9rem;
+    font: var(--efs-font-body-sm);
     margin-bottom: 1rem;
   }
 
@@ -471,14 +487,14 @@
   .avatar {
     width: 3.25rem;
     height: 3.25rem;
-    background: linear-gradient(135deg, var(--primary), #85c84c);
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
     color: var(--primary-text);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 900;
-    font-size: 1.3rem;
+    font: var(--efs-font-title-md);
   }
 
   .user-info {
@@ -486,7 +502,7 @@
   }
 
   .user-info h2 {
-    font-size: 1.35rem;
+    font: var(--efs-font-title-md);
     margin-bottom: 0.4rem;
     word-break: break-word;
   }
@@ -495,12 +511,11 @@
     display: inline-block;
     padding: 0.3rem 0.7rem;
     border-radius: 999px;
-    font-size: 0.73rem;
-    font-weight: 700;
+    font: var(--efs-font-micro);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    background: rgba(198, 255, 0, 0.16);
-    color: var(--primary);
+    background: color-mix(in srgb, var(--primary-ink), transparent 84%);
+    color: var(--primary-ink);
   }
 
   .details-grid {
@@ -522,16 +537,16 @@
 
   .detail-item .detail-label {
     margin: 0;
-    font-size: 0.72rem;
+    font: var(--efs-font-label);
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    font-weight: 600;
   }
 
   .detail-item span {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.9rem;
+    font: var(--efs-font-body-sm);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     word-break: break-word;
   }
 
@@ -542,17 +557,17 @@
   }
 
   .tag {
-    background: rgba(14, 22, 13, 0.9);
+    background: var(--bg-input);
     border: 1px solid var(--border);
     padding: 0.3rem 0.55rem;
     border-radius: 999px;
-    font-size: 0.74rem;
+    font: var(--efs-font-body-xs);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
   .tag.accent {
-    border-color: rgba(198, 255, 0, 0.35);
-    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary-ink), transparent 44%);
+    color: var(--primary-ink);
   }
 
   .actions {
@@ -565,7 +580,7 @@
   .hint {
     margin-top: 1.35rem;
     color: var(--muted);
-    font-size: 0.79rem;
+    font: var(--efs-font-body-sm);
     line-height: 1.55;
   }
 
@@ -604,7 +619,7 @@
     }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 47.99rem) {
     .login-card,
     .profile-card {
       padding: 1.2rem;

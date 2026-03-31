@@ -186,6 +186,33 @@ final class IdentityManager
         return null;
     }
 
+    public function verifyUserKey(string $userId, string $key): bool
+    {
+        $key = trim($key);
+        if ($key === '') {
+            return false;
+        }
+
+        $doc = $this->store->getDocument(Store::ENTITY_SYSTEM_USERS, $userId);
+        if ($doc === null || ($doc['status'] ?? 'active') !== 'active') {
+            return false;
+        }
+
+        $hash = (string)($doc['loginKeyHash'] ?? '');
+        if ($hash === '' || !password_verify($key, $hash)) {
+            return false;
+        }
+
+        $loginKeyId = $this->loginKeyId($key);
+        if (($doc['loginKeyId'] ?? null) !== $loginKeyId) {
+            $doc['loginKeyId'] = $loginKeyId;
+            $doc['updatedAt'] = gmdate('c');
+            $this->store->upsert(Store::ENTITY_SYSTEM_USERS, $doc, ['lookupFields' => ['username', 'loginKeyId']]);
+        }
+
+        return true;
+    }
+
     public function getUserById(string $userId, ?string $effectiveRole = null): ?User
     {
         $doc = $this->store->getDocument(Store::ENTITY_SYSTEM_USERS, $userId);
@@ -404,6 +431,14 @@ final class IdentityManager
                 'entitlements' => [
                     Permissions::ENT_NATURAL_VIEW,
                     Permissions::ENT_RAW_VIEW,
+                    Permissions::ENT_SITE_EDIT,
+                    Permissions::ENT_SYSTEM_USERS_VIEW,
+                    Permissions::ENT_SYSTEM_USERS_EDIT,
+                    Permissions::ENT_SYSTEM_ROLES_VIEW,
+                    Permissions::ENT_SYSTEM_ROLES_EDIT,
+                    Permissions::ENT_SYSTEM_SETTINGS_VIEW,
+                    Permissions::ENT_SYSTEM_SETTINGS_EDIT,
+                    Permissions::ENT_ENVIRONMENT_CHANGE,
                     Permissions::ENT_ADMIN_USERS,
                     Permissions::ENT_ADMIN_ROLES,
                     Permissions::ENT_ADMIN_SETTINGS,
@@ -419,6 +454,14 @@ final class IdentityManager
                 'entitlements' => [
                     Permissions::ENT_NATURAL_VIEW,
                     Permissions::ENT_RAW_VIEW,
+                    Permissions::ENT_SITE_EDIT,
+                    Permissions::ENT_SYSTEM_USERS_VIEW,
+                    Permissions::ENT_SYSTEM_USERS_EDIT,
+                    Permissions::ENT_SYSTEM_ROLES_VIEW,
+                    Permissions::ENT_SYSTEM_ROLES_EDIT,
+                    Permissions::ENT_SYSTEM_SETTINGS_VIEW,
+                    Permissions::ENT_SYSTEM_SETTINGS_EDIT,
+                    Permissions::ENT_ENVIRONMENT_CHANGE,
                     Permissions::ENT_ADMIN_USERS,
                     Permissions::ENT_ADMIN_ROLES,
                     Permissions::ENT_ADMIN_SETTINGS,
@@ -430,7 +473,30 @@ final class IdentityManager
         ];
 
         foreach ($defaults as $role) {
-            if ($this->getRoleDocument($role['id']) !== null) {
+            $existing = $this->getRoleDocument($role['id']);
+            if ($existing !== null) {
+                $mergedEntitlements = array_values(array_unique(array_merge(
+                    array_map('strval', $existing['entitlements'] ?? []),
+                    array_map('strval', $role['entitlements'] ?? [])
+                )));
+                $updated = false;
+
+                if ($mergedEntitlements !== array_values(array_map('strval', $existing['entitlements'] ?? []))) {
+                    $existing['entitlements'] = $mergedEntitlements;
+                    $updated = true;
+                }
+
+                foreach (['operatorOnly', 'system'] as $field) {
+                    if (($existing[$field] ?? null) !== $role[$field]) {
+                        $existing[$field] = $role[$field];
+                        $updated = true;
+                    }
+                }
+
+                if ($updated) {
+                    $existing['updatedAt'] = gmdate('c');
+                    $this->store->upsert(Store::ENTITY_SYSTEM_ROLES, $existing);
+                }
                 continue;
             }
 

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Audit.php';
 require_once __DIR__ . '/DeliveryModeResolver.php';
+require_once __DIR__ . '/EnvironmentOperationsService.php';
 require_once __DIR__ . '/EntityExposurePolicy.php';
 require_once __DIR__ . '/Explorer.php';
 require_once __DIR__ . '/GarbageCollector.php';
@@ -13,9 +14,14 @@ require_once __DIR__ . '/FacetService.php';
 require_once __DIR__ . '/Permissions.php';
 require_once __DIR__ . '/ProductService.php';
 require_once __DIR__ . '/PublicSiteRouter.php';
+require_once __DIR__ . '/PublicSiteImport.php';
 require_once __DIR__ . '/PublicWorkspace.php';
+require_once __DIR__ . '/RuntimeMonitorService.php';
 require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/SearchService.php';
+require_once __DIR__ . '/SiteBuildService.php';
+require_once __DIR__ . '/NodeEnvironmentService.php';
+require_once __DIR__ . '/GhostPreloadService.php';
 require_once __DIR__ . '/Store.php';
 
 final class App
@@ -31,10 +37,16 @@ final class App
     private PublicWorkspace $publicWorkspace;
     private DeliveryModeResolver $deliveryModeResolver;
     private PublicSiteRouter $publicSiteRouter;
+    private PublicSiteImport $publicSiteImport;
     private IndexRebuilder $indexRebuilder;
     private ProductService $productService;
     private SearchService $searchService;
     private FacetService $facetService;
+    private SiteBuildService $siteBuildService;
+    private GhostPreloadService $ghostPreloadService;
+    private EnvironmentOperationsService $environmentOperations;
+    private ?NodeEnvironmentService $nodeEnv = null;
+    private ?RuntimeMonitorService $runtimeMonitor = null;
 
     public function __construct(string $dataDir, string $schemaDir)
     {
@@ -43,6 +55,9 @@ final class App
 
         if (!$this->store->hasMasterKey()) {
             $this->store->initMasterKey();
+            $isFirstRun = true;
+        } else {
+            $isFirstRun = false;
         }
 
         $this->idx = new IndexManager($dataDir, $this->store->masterKeyB64(), $this->store);
@@ -53,13 +68,26 @@ final class App
         $this->audit = new Audit($this);
         $this->garbageCollector = new GarbageCollector($this->store, $this->audit);
         $this->publicWorkspace = new PublicWorkspace($this->store, $this->identity, $this->audit);
+
+        if ($isFirstRun) {
+            $this->publicWorkspace->ensureInitialized();
+        }
         $this->deliveryModeResolver = new DeliveryModeResolver($this->identity, $this->publicWorkspace);
         $this->publicSiteRouter = new PublicSiteRouter($this->publicWorkspace, $this->deliveryModeResolver);
-        $this->explorer = new Explorer($this->store, $this->permissions);
+        $this->publicSiteImport = new PublicSiteImport($this->publicWorkspace, $this->audit);
+        $this->explorer = new Explorer($this->store, $this->permissions, $this->publicWorkspace);
         $this->indexRebuilder = new IndexRebuilder($this->store, $this->schema, $this->idx);
         $this->productService = new ProductService($this->store, $this->schema, $this->idx);
         $this->searchService = new SearchService($this->store, $this->schema, $this->idx, $this->permissions);
         $this->facetService = new FacetService($this->schema, $this->idx, $this->permissions);
+        $this->siteBuildService = new SiteBuildService($this->store, $this->publicWorkspace);
+        $this->ghostPreloadService = new GhostPreloadService($this->store, $this->publicWorkspace, $this->publicSiteRouter);
+        $this->environmentOperations = new EnvironmentOperationsService(
+            $this->store,
+            $this->publicWorkspace,
+            $this->siteBuildService,
+            $this->audit
+        );
     }
 
     public function getStore(): Store
@@ -117,6 +145,11 @@ final class App
         return $this->publicSiteRouter;
     }
 
+    public function getPublicSiteImport(): PublicSiteImport
+    {
+        return $this->publicSiteImport;
+    }
+
     public function getIndexRebuilder(): IndexRebuilder
     {
         return $this->indexRebuilder;
@@ -137,6 +170,21 @@ final class App
         return $this->facetService;
     }
 
+    public function getSiteBuildService(): SiteBuildService
+    {
+        return $this->siteBuildService;
+    }
+
+    public function getGhostPreloadService(): GhostPreloadService
+    {
+        return $this->ghostPreloadService;
+    }
+
+    public function getEnvironmentOperations(): EnvironmentOperationsService
+    {
+        return $this->environmentOperations;
+    }
+
     /**
      * @param array<string,mixed> $doc
      * @return array<string,mixed>
@@ -154,5 +202,22 @@ final class App
     public function uploadFile(string $entity, $stream, array $meta): array
     {
         return $this->store->storeFile($entity, $stream, $meta);
+    }
+
+    public function getNodeEnvironmentService(): NodeEnvironmentService
+    {
+        if ($this->nodeEnv === null) {
+            $this->nodeEnv = new NodeEnvironmentService($this->getStore());
+        }
+        return $this->nodeEnv;
+    }
+
+    public function getRuntimeMonitorService(): RuntimeMonitorService
+    {
+        if ($this->runtimeMonitor === null) {
+            $this->runtimeMonitor = new RuntimeMonitorService($this->getStore());
+        }
+
+        return $this->runtimeMonitor;
     }
 }

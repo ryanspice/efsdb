@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase2-product-service';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase2-product-service';
 $bootstrapSecret = 'phase2-product-service-secret';
 
 Phase0Harness::resetDir($dataDir);

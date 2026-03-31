@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Crypto.php';
+require_once __DIR__ . '/RequestTiming.php';
 
 final class IndexManager
 {
@@ -21,22 +22,23 @@ final class IndexManager
      */
     public function update(string $entity, array $manifest, array $schemaIndexes): void
     {
-        $id = (string)($manifest['id'] ?? '');
-        if ($id === '') {
+        $logicalId = (string)($manifest['id'] ?? '');
+        $storageId = $this->storageIdForRecord($entity, $manifest);
+        if ($logicalId === '' || $storageId === '') {
             return;
         }
 
-        $previous = $this->readRecordDoc($entity, $id);
+        $previous = $this->readRecordDoc($entity, $storageId);
         if (is_array($previous)) {
-            $this->removePostings($entity, $id, $previous['postings'] ?? []);
+            $this->removePostings($entity, $storageId, $previous['postings'] ?? []);
         }
 
         $record = $this->buildRecordDoc($entity, $manifest, $schemaIndexes);
         if (!($record['tombstoned'] ?? false)) {
-            $this->addPostings($entity, $id, $record['postings'] ?? []);
+            $this->addPostings($entity, $storageId, $record['postings'] ?? []);
         }
 
-        $this->writeRecordDoc($entity, $id, $record);
+        $this->writeRecordDoc($entity, $storageId, $record);
     }
 
     /**
@@ -44,13 +46,18 @@ final class IndexManager
      */
     public function remove(string $entity, string $id, array $schemaIndexes = []): void
     {
-        $existing = $this->readRecordDoc($entity, $id);
+        $storageId = $this->storageIdForLogicalId($entity, $id);
+        if ($storageId === null) {
+            return;
+        }
+
+        $existing = $this->readRecordDoc($entity, $storageId);
         if (!is_array($existing)) {
             return;
         }
 
-        $this->removePostings($entity, $id, $existing['postings'] ?? []);
-        $path = $this->recordDocPath($entity, $id);
+        $this->removePostings($entity, $storageId, $existing['postings'] ?? []);
+        $path = $this->recordDocPath($entity, $storageId);
         if (is_file($path)) {
             unlink($path);
         }
@@ -109,46 +116,50 @@ final class IndexManager
      */
     public function matchRecords(string $entity, array $query): array
     {
-        $q = strtolower(trim((string)($query['q'] ?? '')));
-        $filters = is_array($query['filters'] ?? null) ? $query['filters'] : [];
-        $searchableFields = array_values(array_map('strval', $query['searchableFields'] ?? []));
-        $weights = is_array($query['weights'] ?? null) ? $query['weights'] : [];
-        $sort = is_array($query['sort'] ?? null) && $query['sort'] !== []
-            ? $this->normalizeSort($query['sort'])
-            : ['id' => 'asc'];
+        $runner = function () use ($entity, $query): array {
+            $q = strtolower(trim((string)($query['q'] ?? '')));
+            $filters = is_array($query['filters'] ?? null) ? $query['filters'] : [];
+            $searchableFields = array_values(array_map('strval', $query['searchableFields'] ?? []));
+            $weights = is_array($query['weights'] ?? null) ? $query['weights'] : [];
+            $sort = is_array($query['sort'] ?? null) && $query['sort'] !== []
+                ? $this->normalizeSort($query['sort'])
+                : ['id' => 'asc'];
 
-        $candidateIds = $this->candidateIdsForFilters($entity, $filters);
-        $strategy = $candidateIds !== null ? 'postings-intersection' : 'index-doc-scan';
-        $records = $candidateIds !== null ? $this->loadRecordDocsById($entity, $candidateIds) : $this->scanRecordDocs($entity);
+            $candidateIds = $this->candidateIdsForFilters($entity, $filters);
+            $strategy = $candidateIds !== null ? 'postings-intersection' : 'index-doc-scan';
+            $records = $candidateIds !== null ? $this->loadRecordDocsById($entity, $candidateIds) : $this->scanRecordDocs($entity);
 
-        $results = [];
-        foreach ($records as $record) {
-            if (!is_array($record) || !empty($record['tombstoned'])) {
-                continue;
+            $results = [];
+            foreach ($records as $record) {
+                if (!is_array($record) || !empty($record['tombstoned'])) {
+                    continue;
+                }
+
+                if (!$this->matchesFilters($record, $filters)) {
+                    continue;
+                }
+
+                $score = $q === '' ? 0.0 : $this->scoreRecord($record, $q, $searchableFields, $weights);
+                if ($q !== '' && $score <= 0.0) {
+                    continue;
+                }
+
+                $record['score'] = $score;
+                $results[] = $record;
             }
 
-            if (!$this->matchesFilters($record, $filters)) {
-                continue;
-            }
+            usort($results, fn(array $left, array $right): int => $this->compareRecords($left, $right, $sort));
 
-            $score = $q === '' ? 0.0 : $this->scoreRecord($record, $q, $searchableFields, $weights);
-            if ($q !== '' && $score <= 0.0) {
-                continue;
-            }
+            return [
+                'records' => $results,
+                'meta' => [
+                    'strategy' => $strategy,
+                    'sort' => $sort,
+                ],
+            ];
+        };
 
-            $record['score'] = $score;
-            $results[] = $record;
-        }
-
-        usort($results, fn(array $left, array $right): int => $this->compareRecords($left, $right, $sort));
-
-        return [
-            'records' => $results,
-            'meta' => [
-                'strategy' => $strategy,
-                'sort' => $sort,
-            ],
-        ];
+        return RequestTiming::current()?->measure('index_lookup', $runner) ?? $runner();
     }
 
     /**
@@ -190,6 +201,7 @@ final class IndexManager
 
         return [
             'id' => (string)$manifest['id'],
+            'storageId' => (string)($manifest['storageId'] ?? ''),
             'entity' => $entity,
             'fields' => $fields,
             'postings' => $postings,
@@ -591,7 +603,7 @@ final class IndexManager
 
     private function entityDir(string $entity): string
     {
-        return $this->dataDir . '/idx/entity/' . $entity;
+        return $this->dataDir . '/idx/v2/search/' . $this->bucketIdForEntity($entity);
     }
 
     private function recordDocsDir(string $entity): string
@@ -606,8 +618,61 @@ final class IndexManager
 
     private function postingPath(string $entity, string $field, string $term): string
     {
-        $digest = $this->fingerprint('term:' . $entity . ':' . $field, $term);
-        return $this->entityDir($entity) . '/terms/' . $field . '/' . substr($digest, 0, 2) . '/' . substr($digest, 2, 2) . '/' . $digest . '.term';
+        $fieldToken = $this->fieldTokenForEntityField($entity, $field);
+        $digest = $this->fingerprint('term:' . $this->bucketIdForEntity($entity) . ':' . $fieldToken, $term);
+        return $this->entityDir($entity) . '/terms/' . $fieldToken . '/' . substr($digest, 0, 2) . '/' . substr($digest, 2, 2) . '/' . $digest . '.term';
+    }
+
+    private function bucketIdForEntity(string $entity): string
+    {
+        if ($this->store !== null) {
+            return $this->store->bucketIdForEntity($entity);
+        }
+
+        return 'b_' . substr($this->fingerprint('bucket', $entity), 0, 24);
+    }
+
+    private function fieldTokenForEntityField(string $entity, string $field): string
+    {
+        if ($this->store !== null) {
+            return $this->store->fieldTokenForEntityField($entity, $field);
+        }
+
+        return 'f_' . substr($this->fingerprint('field:' . $this->bucketIdForEntity($entity), $field), 0, 24);
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     */
+    private function storageIdForRecord(string $entity, array $manifest): string
+    {
+        $candidate = trim((string)($manifest['storageId'] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+
+        $logicalId = trim((string)($manifest['id'] ?? ''));
+        if ($logicalId !== '') {
+            $resolved = $this->storageIdForLogicalId($entity, $logicalId);
+            if ($resolved !== null) {
+                return $resolved;
+            }
+        }
+
+        return '';
+    }
+
+    private function storageIdForLogicalId(string $entity, string $id): ?string
+    {
+        if (str_starts_with($id, 'm_')) {
+            return $id;
+        }
+
+        if ($this->store === null) {
+            return null;
+        }
+
+        return $this->store->storageIdForLogicalId($entity, $id);
     }
 
     private function fingerprint(string $namespace, string $value): string

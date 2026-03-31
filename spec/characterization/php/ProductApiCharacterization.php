@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase2-product-api';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase2-product-api';
 $bootstrapSecret = 'phase2-product-api-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -20,8 +20,8 @@ $app->getProductService()->upsert([
 $token = Phase0Harness::loginAccessToken($dataDir, $bootstrapSecret, $bootstrapSecret);
 $failures = [];
 
-$list = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/products', 'GET', ['bearer' => $token]);
-$get = Phase0Harness::request($dataDir, $bootstrapSecret, '/api/products/prod-api', 'GET', ['bearer' => $token]);
+$list = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/products', 'GET', ['bearer' => $token]);
+$get = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/api/products/prod-api', 'GET', ['bearer' => $token]);
 
 phase0_assert(
     $list['status'] === 200

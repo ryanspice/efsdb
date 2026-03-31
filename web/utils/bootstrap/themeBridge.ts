@@ -10,7 +10,8 @@ function themeWindow(): WindowThemeBridge {
 }
 
 export function getTheme(): BootstrapTheme {
-  return themeWindow().getEfsdbTheme?.() ?? 'dark';
+  const theme = themeWindow().getEfsdbTheme?.();
+  return theme === 'light' || theme === 'green' ? theme : 'dark';
 }
 
 export function setTheme(theme: BootstrapTheme): BootstrapTheme {
@@ -20,7 +21,8 @@ export function setTheme(theme: BootstrapTheme): BootstrapTheme {
 export function onThemeChange(callback: (theme: BootstrapTheme) => void): () => void {
   const handler = (event: Event): void => {
     const detail = (event as CustomEvent<{ theme?: BootstrapTheme }>).detail;
-    callback(detail?.theme === 'light' ? 'light' : 'dark');
+    const theme = detail?.theme;
+    callback(theme === 'light' || theme === 'green' ? theme : 'dark');
   };
 
   window.addEventListener('efsdb-themechange', handler as EventListener);

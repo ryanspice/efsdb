@@ -10,6 +10,10 @@ export const webContractsDir = resolve(currentDir, 'contracts');
 export const webUiDir = resolve(currentDir, 'ui');
 export const webUtilsDir = resolve(currentDir, 'utils');
 
+function toCssBundleName(fileName: string): string {
+  return fileName.endsWith('.js') ? fileName.slice(0, -3) : fileName;
+}
+
 export type CustomElementBuildOptions = {
   entry: string;
   name: string;
@@ -39,7 +43,8 @@ export function createCustomElementConfig(options: CustomElementBuildOptions): U
         entry: options.entry,
         name: options.name,
         formats: ['es'],
-        fileName: () => options.fileName
+        fileName: () => options.fileName,
+        cssFileName: toCssBundleName(options.fileName)
       }
     }
   };

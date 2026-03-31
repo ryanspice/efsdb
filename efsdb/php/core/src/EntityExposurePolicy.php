@@ -12,12 +12,12 @@ final class EntityExposurePolicy
      */
     private const SEARCH_ALLOWLIST = [
         'products' => 'authenticated',
-        Store::ENTITY_SYSTEM_USERS => 'admin',
-        Store::ENTITY_SYSTEM_ROLES => 'admin',
-        'public_workspace_roots' => 'admin',
-        'public_workspace_files' => 'admin',
+        Store::ENTITY_SYSTEM_USERS => 'system_users',
+        Store::ENTITY_SYSTEM_ROLES => 'system_roles',
+        'public_workspace_roots' => 'site',
+        'public_workspace_files' => 'site',
         Store::ENTITY_SYSTEM_SESSIONS => 'internal',
-        Store::ENTITY_SYSTEM_SETTINGS => 'internal',
+        Store::ENTITY_SYSTEM_SETTINGS => 'system_settings',
         Store::ENTITY_SYSTEM_AUDIT => 'internal',
     ];
 
@@ -27,7 +27,7 @@ final class EntityExposurePolicy
 
     public function defaultSearchEntity(): string
     {
-        return 'products';
+        return 'public_workspace_files';
     }
 
     public function canSearch(User $user, string $entity): bool
@@ -39,9 +39,10 @@ final class EntityExposurePolicy
 
         return match ($scope) {
             'authenticated' => true,
-            'admin' => $this->permissions->canManageUsers($user)
-                || $this->permissions->canManageRoles($user)
-                || $this->permissions->canManageSettings($user),
+            'site' => $this->permissions->canViewSiteWorkspace($user),
+            'system_users' => $this->permissions->canViewUsers($user),
+            'system_roles' => $this->permissions->canViewRoles($user),
+            'system_settings' => $this->permissions->canViewSettings($user),
             'internal' => $this->permissions->canManageSettings($user) || $user->actualRole === 'operator_root',
             default => false,
         };

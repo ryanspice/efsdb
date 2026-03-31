@@ -1,0 +1,11 @@
+export { default as Surface } from './primitives/Surface.svelte';
+export { default as StatusPill } from './primitives/StatusPill.svelte';
+export { default as SegmentedSwitch } from './primitives/SegmentedSwitch.svelte';
+export { default as AppShell } from './shell/AppShell.svelte';
+export { default as AppGuard } from './shell/AppGuard.svelte';
+export { default as WindowShell } from './shell/WindowShell.svelte';
+export { default as LoginPopup } from './shell/LoginPopup.svelte';
+export { default as TopCommandBar } from './shell/TopCommandBar.svelte';
+export { default as SplitPane } from './shell/SplitPane.svelte';
+export { default as ExplorerToolbar } from './explorer/ExplorerToolbar.svelte';
+export { default as MillerColumns } from './explorer/MillerColumns.svelte';

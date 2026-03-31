@@ -1,20 +1,18 @@
-# Search Contract (Draft)
-
-Status:
-- draft for Phase 2 implementation
-- finalize after characterization is green
+# Search Contract
 
 Route family:
 - `GET /api/search`
+
+Typed payloads:
+- `web/contracts/search.ts`
 
 Auth and exposure:
 - bearer token required
 - entity exposure is allowlist-driven
 - schema presence does not imply endpoint exposure
 
-Planned request shape:
-- `entity` is required in the draft contract
-- temporary compatibility may default missing `entity` to `products` during Phase 2 rollout
+Request shape:
+- `entity` is required for the schema-driven search surface
 - optional:
   - `q`
   - `limit`
@@ -30,7 +28,7 @@ Cursor:
 - opaque
 - encodes stable boundary values, not page numbers
 
-Planned response shape:
+Representative response shape:
 ```json
 {
   "results": [

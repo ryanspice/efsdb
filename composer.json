@@ -1,0 +1,16 @@
+{
+  "name": "efsdb/efsdb",
+  "description": "EFSDB - PHP-first, multi-tenant control plane + site runtime",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "ext-json": "*",
+    "ext-pdo": "*",
+    "ext-sqlite3": "*"
+  },
+  "autoload": {
+    "classmap": [
+      "efsdb/php/core/src/"
+    ]
+  }
+}

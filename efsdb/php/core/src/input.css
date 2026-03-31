@@ -4,74 +4,132 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+    --accent: #0f172a;
+    --shell-body-bg: #f8fafc;
+    --shell-overlay: none;
+    --shell-overlay-opacity: 0;
+    --shell-text: #0f172a;
+    --shell-text-strong: #020617;
+    --shell-muted: #64748b;
+    --shell-border: #e2e8f0;
+    --shell-border-strong: #cbd5e1;
+    --shell-panel-bg: #ffffff;
+    --shell-soft-bg: #f8fafc;
+    --shell-inset-bg: #f1f5f9;
+    --shell-inset-strong-bg: #e2e8f0;
+    --shell-nav-bg: #ffffff;
+    --shell-hover-bg: #f1f5f9;
+    --shell-code-bg: #f1f5f9;
+    --shell-pre-bg: #f8fafc;
+    --shell-input-bg: #ffffff;
+    --shell-input-placeholder: #94a3b8;
+    --shell-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shell-pill-text: #ffffff;
+    --shell-nav-text: #475569;
+    --shell-code-text: #0f172a;
+    --shell-chip-bg: #f1f5f9;
+    --shell-scrollbar: rgba(15, 23, 42, 0.15);
+    --shell-breakpoint-phone-max: 47.99rem;
+    --shell-breakpoint-tablet: 48rem;
+    --shell-breakpoint-laptop: 64rem;
+    --shell-breakpoint-desktop: 80rem;
+    --shell-font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    --shell-font-mono: ui-monospace, "SFMono-Regular", monospace;
+    --shell-font-micro: 700 11px/1.35 var(--shell-font-sans);
+    --shell-font-label: 700 12px/1.45 var(--shell-font-sans);
+    --shell-font-body-xs: 12px/1.55 var(--shell-font-sans);
+    --shell-font-body-sm: 13px/1.6 var(--shell-font-sans);
+    --shell-font-body-md: 14px/1.65 var(--shell-font-sans);
+    --shell-font-body-lg: 16px/1.7 var(--shell-font-sans);
+    --shell-font-title-sm: 600 15px/1.35 var(--shell-font-sans);
+    --shell-font-title-md: 600 18px/1.3 var(--shell-font-sans);
+    --shell-font-title-lg: 600 24px/1.15 var(--shell-font-sans);
+    --shell-font-title-xl: 700 32px/1.02 var(--shell-font-sans);
+  }
+
+  html[data-theme='dark'] {
+    color-scheme: dark;
+    --accent: #f8fafc;
+    --shell-link: #c6ff00;
+    --shell-body-bg: #020617;
+    --shell-overlay: none;
+    --shell-overlay-opacity: 0;
+    --shell-text: #cbd5e1;
+    --shell-text-strong: #f8fafc;
+    --shell-muted: #94a3b8;
+    --shell-border: rgba(255, 255, 255, 0.1);
+    --shell-border-strong: rgba(255, 255, 255, 0.15);
+    --shell-panel-bg: rgba(15, 23, 42, 0.6);
+    --shell-soft-bg: rgba(30, 41, 59, 0.5);
+    --shell-inset-bg: rgba(0, 0, 0, 0.2);
+    --shell-inset-strong-bg: rgba(0, 0, 0, 0.3);
+    --shell-nav-bg: rgba(2, 6, 23, 0.85);
+    --shell-hover-bg: rgba(255, 255, 255, 0.05);
+    --shell-code-bg: rgba(255, 255, 255, 0.03);
+    --shell-pre-bg: rgba(0, 0, 0, 0.2);
+    --shell-input-bg: rgba(15, 23, 42, 0.6);
+    --shell-input-placeholder: #64748b;
+    --shell-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+    --shell-pill-text: #020617;
+    --shell-nav-text: #cbd5e1;
+    --shell-code-text: #e2e8f0;
+    --shell-chip-bg: rgba(30, 41, 59, 0.5);
+    --shell-scrollbar: rgba(255, 255, 255, 0.1);
+  }
+
+  html[data-theme='green'] {
     color-scheme: dark;
     --accent: #c6ff00;
     --shell-body-bg:
-      radial-gradient(circle at top left, rgba(198, 255, 0, 0.08), transparent 28%),
-      linear-gradient(180deg, rgba(198, 255, 0, 0.04), transparent 24%),
-      linear-gradient(180deg, #0f170d 0%, #081006 100%);
+      radial-gradient(circle at top left, rgba(198, 255, 0, 0.05), transparent 28%),
+      linear-gradient(180deg, rgba(198, 255, 0, 0.03), transparent 24%),
+      linear-gradient(180deg, #0f170d 0%, #050804 100%);
     --shell-overlay:
-      radial-gradient(circle at 15% 20%, transparent 0 130px, rgba(198, 255, 0, 0.08) 131px 132px, transparent 133px),
-      radial-gradient(circle at 78% 18%, transparent 0 220px, rgba(198, 255, 0, 0.07) 221px 222px, transparent 223px),
-      radial-gradient(circle at 40% 74%, transparent 0 180px, rgba(198, 255, 0, 0.06) 181px 182px, transparent 183px),
-      radial-gradient(circle at 96% 96%, transparent 0 160px, rgba(198, 255, 0, 0.05) 161px 162px, transparent 163px);
+      radial-gradient(circle at 15% 20%, transparent 0 130px, rgba(198, 255, 0, 0.05) 131px 132px, transparent 133px),
+      radial-gradient(circle at 78% 18%, transparent 0 220px, rgba(198, 255, 0, 0.04) 221px 222px, transparent 223px),
+      radial-gradient(circle at 40% 74%, transparent 0 180px, rgba(198, 255, 0, 0.03) 181px 182px, transparent 183px),
+      radial-gradient(circle at 96% 96%, transparent 0 160px, rgba(198, 255, 0, 0.03) 161px 162px, transparent 163px);
     --shell-overlay-opacity: 0.7;
     --shell-text: #e7eddc;
     --shell-text-strong: #f0f5e5;
     --shell-muted: #a2b392;
-    --shell-border: rgba(198, 255, 0, 0.14);
-    --shell-border-strong: rgba(198, 255, 0, 0.24);
-    --shell-panel-bg: rgba(12, 20, 10, 0.82);
-    --shell-soft-bg: rgba(28, 39, 26, 0.72);
-    --shell-inset-bg: rgba(9, 15, 8, 0.34);
-    --shell-inset-strong-bg: rgba(5, 9, 5, 0.52);
-    --shell-nav-bg: rgba(11, 19, 8, 0.84);
-    --shell-hover-bg: rgba(255, 255, 255, 0.05);
-    --shell-code-bg: rgba(255, 255, 255, 0.04);
-    --shell-pre-bg: rgba(0, 0, 0, 0.28);
-    --shell-input-bg: rgba(6, 10, 6, 0.42);
+    --shell-border: rgba(198, 255, 0, 0.12);
+    --shell-border-strong: rgba(198, 255, 0, 0.2);
+    --shell-panel-bg: rgba(12, 20, 10, 0.8);
+    --shell-soft-bg: rgba(28, 39, 26, 0.6);
+    --shell-inset-bg: rgba(9, 15, 8, 0.3);
+    --shell-inset-strong-bg: rgba(5, 9, 5, 0.4);
+    --shell-nav-bg: rgba(11, 19, 8, 0.85);
+    --shell-hover-bg: rgba(255, 255, 255, 0.04);
+    --shell-code-bg: rgba(255, 255, 255, 0.03);
+    --shell-pre-bg: rgba(0, 0, 0, 0.25);
+    --shell-input-bg: rgba(6, 10, 6, 0.4);
     --shell-input-placeholder: #73856a;
-    --shell-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    --shell-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
     --shell-pill-text: #0a1208;
     --shell-nav-text: #c5d0b8;
     --shell-code-text: #dbe6cc;
-    --shell-chip-bg: rgba(28, 39, 26, 0.72);
-    --shell-scrollbar: rgba(198, 255, 0, 0.24);
+    --shell-chip-bg: rgba(28, 39, 26, 0.6);
+    --shell-scrollbar: rgba(198, 255, 0, 0.2);
   }
 
-  html[data-theme='light'] {
-    color-scheme: light;
-    --shell-body-bg:
-      radial-gradient(circle at top left, rgba(198, 255, 0, 0.12), transparent 26%),
-      linear-gradient(180deg, rgba(198, 255, 0, 0.06), transparent 22%),
-      linear-gradient(180deg, #f9fbf2 0%, #edf3df 100%);
-    --shell-overlay:
-      radial-gradient(circle at 15% 20%, transparent 0 130px, rgba(126, 157, 40, 0.12) 131px 132px, transparent 133px),
-      radial-gradient(circle at 78% 18%, transparent 0 220px, rgba(126, 157, 40, 0.1) 221px 222px, transparent 223px),
-      radial-gradient(circle at 40% 74%, transparent 0 180px, rgba(126, 157, 40, 0.08) 181px 182px, transparent 183px),
-      radial-gradient(circle at 96% 96%, transparent 0 160px, rgba(126, 157, 40, 0.07) 161px 162px, transparent 163px);
-    --shell-overlay-opacity: 0.52;
-    --shell-text: #24311b;
-    --shell-text-strong: #18220f;
-    --shell-muted: #5f7050;
-    --shell-border: rgba(116, 145, 45, 0.18);
-    --shell-border-strong: rgba(116, 145, 45, 0.34);
-    --shell-panel-bg: rgba(255, 255, 255, 0.82);
-    --shell-soft-bg: rgba(247, 250, 240, 0.86);
-    --shell-inset-bg: rgba(243, 247, 233, 0.9);
-    --shell-inset-strong-bg: rgba(237, 243, 223, 0.95);
-    --shell-nav-bg: rgba(248, 250, 243, 0.86);
-    --shell-hover-bg: rgba(116, 145, 45, 0.1);
-    --shell-code-bg: rgba(116, 145, 45, 0.08);
-    --shell-pre-bg: rgba(244, 248, 235, 0.96);
-    --shell-input-bg: rgba(255, 255, 255, 0.92);
-    --shell-input-placeholder: #7d8b6d;
-    --shell-shadow: 0 18px 40px rgba(34, 48, 22, 0.12);
-    --shell-pill-text: #14220f;
-    --shell-nav-text: #495c39;
-    --shell-code-text: #435438;
-    --shell-chip-bg: rgba(243, 247, 233, 0.92);
-    --shell-scrollbar: rgba(116, 145, 45, 0.34);
+  @media (min-width: 48rem) {
+    :root {
+      --shell-font-body-md: 15px/1.65 var(--shell-font-sans);
+      --shell-font-title-sm: 600 16px/1.35 var(--shell-font-sans);
+      --shell-font-title-md: 600 19px/1.28 var(--shell-font-sans);
+      --shell-font-title-lg: 600 26px/1.12 var(--shell-font-sans);
+      --shell-font-title-xl: 700 36px/1.02 var(--shell-font-sans);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --shell-font-title-md: 600 20px/1.25 var(--shell-font-sans);
+      --shell-font-title-lg: 600 28px/1.1 var(--shell-font-sans);
+      --shell-font-title-xl: 700 40px/1.02 var(--shell-font-sans);
+    }
   }
 
   * {
@@ -89,7 +147,7 @@
     overflow-x: hidden;
     background: var(--shell-body-bg);
     color: var(--shell-text);
-    font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    font-family: var(--shell-font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     position: relative;
@@ -123,13 +181,11 @@
 
   thead th {
     border-bottom: 1px solid var(--shell-border);
-    padding-bottom: 0.9rem;
+    padding-bottom: 0.75rem;
     text-align: left;
     vertical-align: top;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+    font: var(--shell-font-label);
+    letter-spacing: 0.05em;
     color: var(--shell-muted);
   }
 
@@ -137,7 +193,7 @@
     border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 24%);
     padding: 0.95rem 0;
     vertical-align: top;
-    font-size: 0.95rem;
+    font: var(--shell-font-body-md);
     color: var(--shell-text);
   }
 
@@ -146,7 +202,7 @@
     border: 1px solid var(--shell-border);
     background: var(--shell-code-bg);
     padding: 0.15rem 0.5rem;
-    font-size: 0.82em;
+    font: 600 0.82em/1.2 var(--shell-font-mono);
     color: var(--shell-text-strong);
   }
 
@@ -157,7 +213,8 @@
     border: 1px solid var(--shell-border);
     background: var(--shell-pre-bg);
     padding: 1rem;
-    font-size: 0.9rem;
+    font: var(--shell-font-body-sm);
+    font-family: var(--shell-font-mono);
     line-height: 1.8;
     color: var(--shell-code-text);
     white-space: pre-wrap;
@@ -186,50 +243,193 @@
   }
 }
 
+@layer utilities {
+  [data-tooltip] {
+    position: relative;
+    cursor: pointer;
+  }
+  
+  [data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: var(--shell-text-strong);
+    color: var(--shell-panel-bg);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    pointer-events: none;
+    z-index: 50;
+    box-shadow: var(--shell-shadow);
+  }
+  
+  [data-tooltip]::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    border-width: 4px;
+    border-style: solid;
+    border-color: var(--shell-text-strong) transparent transparent transparent;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    pointer-events: none;
+    z-index: 50;
+  }
+  
+  [data-tooltip]:hover::before,
+  [data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 @layer components {
+  /* Workspace Layout with Toggleable Sidebar */
+  .workspace-layout {
+    display: grid;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (min-width: 80rem) {
+    .workspace-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(22rem, 26rem);
+    }
+  }
+
+  /* Sidebar Positioning Classes */
+  .workspace-layout[data-sidebar-pos="right"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 26rem);
+  }
+  
+  .workspace-layout[data-sidebar-pos="left"] {
+    display: grid;
+    grid-template-columns: minmax(22rem, 26rem) minmax(0, 1fr);
+  }
+  .workspace-layout[data-sidebar-pos="left"] > aside {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .workspace-layout[data-sidebar-pos="left"] > div {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .workspace-layout[data-sidebar-pos="top"] {
+    display: flex;
+    flex-direction: column;
+  }
+  .workspace-layout[data-sidebar-pos="top"] > aside {
+    order: -1;
+    width: 100%;
+  }
+  .workspace-layout[data-sidebar-pos="top"] > div {
+    order: 0;
+    width: 100%;
+  }
+
+  .workspace-layout[data-sidebar-pos="bottom"] {
+    display: flex;
+    flex-direction: column;
+  }
+  .workspace-layout[data-sidebar-pos="bottom"] > aside {
+    order: 1;
+    width: 100%;
+  }
+  .workspace-layout[data-sidebar-pos="bottom"] > div {
+    order: 0;
+    width: 100%;
+  }
+
+  /* Fallback for small screens to always stack */
+  @media (max-width: 79.99rem) {
+    .workspace-layout[data-sidebar-pos="right"],
+    .workspace-layout[data-sidebar-pos="left"] {
+      display: flex;
+      flex-direction: column;
+    }
+    .workspace-layout[data-sidebar-pos="right"] > aside,
+    .workspace-layout[data-sidebar-pos="left"] > aside {
+      order: 1;
+      width: 100%;
+    }
+    .workspace-layout[data-sidebar-pos="right"] > div,
+    .workspace-layout[data-sidebar-pos="left"] > div {
+      order: 0;
+      width: 100%;
+    }
+  }
+
   .page-shell {
-    @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-[2448px] px-4 sm:px-6 lg:px-8;
   }
 
   .shell-panel {
-    @apply rounded-[28px] border backdrop-blur-xl;
+    @apply rounded-3xl border backdrop-blur-xl;
     border-color: var(--shell-border);
     background: var(--shell-panel-bg);
     box-shadow: var(--shell-shadow);
   }
 
   .soft-panel {
-    @apply rounded-[22px] border;
+    @apply rounded-2xl border;
     border-color: var(--shell-border);
     background: var(--shell-soft-bg);
   }
 
   .section-label {
-    @apply text-[0.72rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)];
+    @apply uppercase tracking-wider;
+    font: var(--shell-font-label);
+    color: color-mix(in srgb, var(--shell-muted), var(--shell-text-strong) 16%);
   }
 
   .shell-copy {
-    @apply text-sm leading-7 sm:text-base;
+    @apply leading-relaxed;
+    font: var(--shell-font-body-md);
     color: var(--shell-muted);
   }
 
+  .shell-copy a {
+    color: var(--shell-link, var(--accent));
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--shell-link, var(--accent)), transparent 60%);
+    text-underline-offset: 2px;
+  }
+
   .shell-title {
-    @apply text-2xl font-black uppercase leading-[0.98] tracking-[-0.04em] sm:text-3xl xl:text-4xl;
+    font: var(--shell-font-title-md);
     color: var(--shell-text-strong);
   }
 
   .page-title {
-    @apply text-[1.9rem] font-black uppercase leading-[0.98] tracking-[-0.04em] sm:text-[2.4rem] lg:text-[3rem];
+    font: var(--shell-font-title-xl);
+    letter-spacing: -0.03em;
     color: var(--shell-text-strong);
   }
 
   .pill-button {
-    @apply inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-5 py-3 text-xs font-black uppercase tracking-[0.18em] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(198,255,0,0.18)] sm:px-6;
+    @apply inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-4 py-2 transition duration-150 hover:-translate-y-px hover:shadow-md;
+    font: var(--shell-font-body-sm);
+    font-weight: 700;
     color: var(--shell-pill-text);
   }
 
   .ghost-button {
-    @apply inline-flex items-center justify-center rounded-full border px-5 py-3 text-xs font-bold uppercase tracking-[0.18em] transition duration-150 sm:px-6;
+    @apply inline-flex items-center justify-center rounded-full border px-4 py-2 transition duration-150;
+    font: var(--shell-font-body-sm);
+    font-weight: 700;
     border-color: var(--shell-border);
     color: var(--shell-text);
   }
@@ -244,17 +444,21 @@
   }
 
   .metric-label {
-    @apply text-[0.7rem] font-medium uppercase tracking-[0.28em];
+    font: var(--shell-font-label);
     color: var(--shell-muted);
   }
 
   .metric-value {
-    @apply mt-4 break-words text-[1.4rem] font-black leading-[1.05] tracking-[-0.03em] sm:text-[1.85rem];
+    @apply mt-2 break-words;
+    font: var(--shell-font-title-lg);
+    font-weight: 600;
     color: var(--shell-text-strong);
   }
 
   .metric-copy {
-    @apply mt-4 text-sm leading-7;
+    @apply mt-4;
+    font: var(--shell-font-body-sm);
+    line-height: 1.8;
     color: var(--shell-muted);
   }
 
@@ -271,14 +475,15 @@
   }
 
   .field-stack label {
-    @apply text-[0.72rem] font-semibold uppercase tracking-[0.22em];
+    font: var(--shell-font-label);
     color: var(--shell-muted);
   }
 
   .field-stack input,
   .field-stack select,
   .field-stack textarea {
-    @apply w-full rounded-2xl border px-4 py-3 text-sm outline-none transition duration-150 focus:ring-4 focus:ring-[rgba(198,255,0,0.08)];
+    @apply w-full rounded-2xl border px-4 py-3 outline-none transition duration-150 focus:ring-4;
+    font: var(--shell-font-body-md);
     border-color: var(--shell-border);
     background: var(--shell-input-bg);
     color: var(--shell-text);
@@ -293,27 +498,46 @@
   .field-stack select:focus,
   .field-stack textarea:focus {
     border-color: var(--shell-border-strong);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--shell-border), transparent 30%);
   }
 
   .notice {
-    @apply rounded-2xl border px-4 py-3 text-sm leading-6;
+    @apply rounded-2xl border px-4 py-3;
+    font: var(--shell-font-body-sm);
+    line-height: 1.6;
     border-color: var(--shell-border);
     background: color-mix(in srgb, var(--accent), transparent 88%);
     color: var(--shell-text);
   }
 
   .flash-error {
-    @apply rounded-2xl border px-4 py-3 text-sm leading-6;
+    @apply rounded-2xl border px-4 py-3;
+    font: var(--shell-font-body-sm);
+    line-height: 1.6;
     border-color: rgba(255, 123, 139, 0.32);
     background: rgba(255, 123, 139, 0.14);
     color: #ffd7dd;
   }
 
   .tag {
-    @apply inline-flex items-center rounded-full border px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.16em];
+    @apply inline-flex items-center rounded-full border px-3 py-1;
+    font: var(--shell-font-body-xs);
+    font-weight: 600;
     border-color: var(--shell-border);
     color: var(--shell-nav-text);
     background: color-mix(in srgb, var(--shell-soft-bg), transparent 8%);
+  }
+
+  .tag.bg-emerald-100 {
+    background: color-mix(in srgb, var(--efs-state-success, #48c78e) 15%, transparent);
+    color: var(--efs-state-success, #48c78e);
+    border-color: color-mix(in srgb, var(--efs-state-success, #48c78e) 30%, transparent);
+  }
+
+  .tag.bg-amber-100 {
+    background: color-mix(in srgb, var(--efs-state-warning, #f0b34a) 15%, transparent);
+    color: var(--efs-state-warning, #f0b34a);
+    border-color: color-mix(in srgb, var(--efs-state-warning, #f0b34a) 30%, transparent);
   }
 
   .surface-panel {
@@ -333,12 +557,17 @@
   }
 
   .metric-heading {
-    @apply mt-4 text-lg font-semibold leading-7;
+    @apply mt-4;
+    font: var(--shell-font-title-sm);
+    line-height: 1.6;
     color: var(--shell-text-strong);
   }
 
   .surface-pre {
-    @apply mt-4 overflow-auto rounded-[18px] border p-4 text-xs leading-6;
+    @apply mt-4 overflow-auto rounded-[18px] border p-4;
+    font: var(--shell-font-body-xs);
+    font-family: var(--shell-font-mono);
+    line-height: 1.7;
     border-color: color-mix(in srgb, var(--shell-border), transparent 18%);
     background: var(--shell-inset-strong-bg);
     color: var(--shell-code-text);
@@ -354,7 +583,10 @@
   }
 
   .nav-link {
-    @apply inline-flex items-center rounded-full px-4 py-2.5 text-sm font-medium transition duration-150;
+    @apply inline-flex items-center rounded-full px-4 py-2.5 transition duration-150;
+    min-height: 44px;
+    font: var(--shell-font-body-sm);
+    font-weight: 600;
     color: var(--shell-nav-text);
   }
 
@@ -364,23 +596,28 @@
   }
 
   .nav-link-active {
-    border: 1px solid var(--shell-border-strong);
-    background: var(--shell-hover-bg);
-    color: var(--shell-text-strong);
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 50%);
+    background: color-mix(in srgb, var(--accent), transparent 90%);
+    color: var(--accent);
   }
 
   .brand-title {
+    font: var(--shell-font-title-md);
+    font-weight: 600;
+    letter-spacing: -0.02em;
     color: var(--shell-text-strong);
   }
 
   .user-chip {
     @apply inline-flex items-center gap-3 rounded-full px-4 py-2.5;
+    font: var(--shell-font-body-sm);
     border: 1px solid var(--shell-border);
     background: var(--shell-chip-bg);
   }
 
   .theme-button {
-    @apply inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-[0.18em] transition duration-150;
+    @apply inline-flex items-center justify-center rounded-full h-10 w-10 transition duration-150;
+    font: var(--shell-font-label);
     border: 1px solid var(--shell-border);
     background: var(--shell-soft-bg);
     color: var(--shell-text-strong);
@@ -391,18 +628,96 @@
     background: var(--shell-hover-bg);
   }
 
-  .theme-button[data-theme-current='light'] .theme-light,
-  .theme-button[data-theme-current='dark'] .theme-dark {
-    opacity: 1;
+  .theme-button svg {
+    display: none;
   }
 
-  .theme-button .theme-light,
-  .theme-button .theme-dark {
-    opacity: 0.65;
+  .theme-button[data-theme-current='light'] .theme-light,
+  .theme-button[data-theme-current='dark'] .theme-dark,
+  .theme-button[data-theme-current='green'] .theme-green {
+    display: block;
   }
 
   .footer-bar {
     border-top: 1px solid var(--shell-border);
+    font: var(--shell-font-body-sm);
     color: var(--shell-muted);
+  }
+
+  .nav-layout,
+  .nav-branding,
+  .nav-links,
+  .nav-actions,
+  .nav-site-links {
+    min-width: 0;
+  }
+
+  .nav-links {
+    scrollbar-width: thin;
+    scrollbar-color: var(--shell-scrollbar) transparent;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .nav-links::-webkit-scrollbar-thumb {
+    border-width: 2px;
+  }
+
+  @media (max-width: 63.99rem) {
+    .nav-layout {
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .nav-branding {
+      flex: 1 1 100%;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.875rem;
+    }
+
+    .nav-links {
+      width: 100%;
+    }
+
+    .nav-actions {
+      width: 100%;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+  }
+
+  @media (max-width: 47.99rem) {
+    .page-shell {
+      @apply px-4;
+    }
+
+    .nav-layout {
+      gap: 0.75rem;
+    }
+
+    .nav-branding {
+      gap: 0.75rem;
+    }
+
+    .nav-links {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 0.2rem;
+    }
+
+    .nav-links > * {
+      flex: 0 0 auto;
+    }
+
+    .nav-site-links {
+      display: none !important;
+    }
+
+    .nav-actions {
+      gap: 0.75rem;
+    }
   }
 }

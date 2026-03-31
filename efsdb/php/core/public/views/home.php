@@ -1,43 +1,126 @@
 <?php
+require_once __DIR__ . '/../../src/Explorer.php';
+require_once __DIR__ . '/../../src/SearchService.php';
+
 $settings = $app->getIdentity()->getTenantSettings();
-$roleCount = count($app->getIdentity()->listRoles(false));
-$userCount = count($app->getIdentity()->listUsers());
-$roleOrder = $settings['settings']['roleOrder'] ?? ['tenant_admin', 'member_premium', 'member_standard', 'guest'];
-$displayModes = !$isGuest && $user->availableDisplayModes !== [] ? $user->availableDisplayModes : $roleOrder;
-$bootstrapInjected = Config::getBootstrapSecret() !== null;
-$runtimeCards = [
+$explorer = new Explorer($app->getStore(), $perms);
+$search = $app->getSearchService();
+
+$envs = ['staging', 'production'];
+$areas = [
+    'routes' => [
+        'label' => 'Routes',
+        'desc' => 'App endpoints and pages',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>',
+        'link' => efsdb_control_plane_path('routes')
+    ],
+    'components' => [
+        'label' => 'Components',
+        'desc' => 'Reusable UI elements',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-7.162-7.162a2 2 0 0 0-2.828 0L3.838 16"/><path d="m21 21-7.162-7.162a2 2 0 0 0-2.828 0L3.838 21"/><path d="M12 3v12"/></svg>',
+        'link' => efsdb_control_plane_path('components')
+    ],
+    'content' => [
+        'label' => 'Content Blocks',
+        'desc' => 'Structured JSON data',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+    ],
+    'assets' => [
+        'label' => 'Assets',
+        'desc' => 'Images and static files',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>'
+    ]
+];
+
+$stats = [];
+foreach ($envs as $env) {
+    $stats[$env] = [];
+    foreach (array_keys($areas) as $area) {
+        $stats[$env][$area] = 0;
+    }
+}
+
+$routesCount = 0;
+$componentsCount = 0;
+$contentCount = 0;
+
+if (!$isGuest) {
+    // We can grab truthful counts from the search index facets
+    $query = $search->search($user, [
+        'entity' => 'public_workspace_files',
+        'limit' => 0,
+        'facets' => ['workspaceArea']
+    ]);
+
+    foreach ($query['facets']['workspaceArea'] ?? [] as $bucket) {
+        $val = strtolower($bucket['value']);
+        if (isset($areas[$val])) {
+            $stats['staging'][$val] = $bucket['count'];
+        }
+
+        if ($bucket['value'] === 'Routes') $routesCount = $bucket['count'];
+        if ($bucket['value'] === 'Components') $componentsCount = $bucket['count'];
+        if ($bucket['value'] === 'Content') $contentCount = $bucket['count'];
+    }
+}
+
+$dashboardCards = [
     [
-        'label' => 'Environment',
-        'value' => Config::getEnv(),
-        'copy' => 'Debug ' . (Config::isDebugEnabled() ? 'enabled' : 'disabled') . '.'
+        'label' => 'Site Builder',
+        'value' => 'Active',
+        'trend' => 'Visual editing surface',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('builder') . '?path=site/staging',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>'
     ],
     [
-        'label' => 'Bootstrap',
-        'value' => $bootstrapInjected ? 'Injected' : 'One-time',
-        'copy' => $bootstrapInjected
-            ? 'Server startup uses the configured secret.'
-            : 'First request can emit a tenant-admin key to the console.'
+        'label' => 'Explorer',
+        'value' => 'Raw',
+        'trend' => 'Direct file access',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('explorer') . '?mode=natural&path=site/staging',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>'
     ],
     [
-        'label' => 'Master Key',
-        'value' => $app->getStore()->hasMasterKey() ? 'Loaded' : 'Missing',
-        'copy' => 'Stored outside the public document root for the control plane.'
+        'label' => 'Environments',
+        'value' => '2',
+        'trend' => 'Staging & Production',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('environments'),
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>'
     ],
     [
-        'label' => 'Users',
-        'value' => (string)$userCount,
-        'copy' => 'Provisioned tenant identities.'
+        'label' => 'Routes',
+        'value' => (string)$routesCount,
+        'trend' => 'Live endpoints',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('routes'),
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>'
     ],
     [
-        'label' => 'Roles',
-        'value' => (string)$roleCount,
-        'copy' => 'Seeded and custom tenant roles.'
+        'label' => 'Components',
+        'value' => (string)$componentsCount,
+        'trend' => 'UI building blocks',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('components'),
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-7.162-7.162a2 2 0 0 0-2.828 0L3.838 16"/><path d="m21 21-7.162-7.162a2 2 0 0 0-2.828 0L3.838 21"/><path d="M12 3v12"/></svg>'
     ],
     [
-        'label' => 'Operator',
-        'value' => 'CLI-only',
-        'copy' => 'Recovery and production bootstrap stay outside the browser.'
+        'label' => 'Content Blocks',
+        'value' => (string)$contentCount,
+        'trend' => 'Structured JSON data',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('builder') . '?path=' . urlencode('site/staging/content'),
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
     ],
+    [
+        'label' => 'Deployments',
+        'value' => 'Live',
+        'trend' => 'History & Rolls',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('deployments'),
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>'
+    ],
+    [
+        'label' => 'Showcase',
+        'value' => 'Read-only',
+        'trend' => 'Storage & security demo',
+        'link' => $isGuest ? efsdb_control_plane_path('login') : efsdb_control_plane_path('showcase'),
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>'
+    ]
 ];
 ?>
 
@@ -45,154 +128,123 @@ $runtimeCards = [
     <section class="shell-panel p-5 sm:p-7">
         <div class="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div class="max-w-4xl">
-                <div class="section-label">Control Center</div>
-                <h1 class="shell-strong mt-4 max-w-[16ch] text-[clamp(1.85rem,3vw,2.9rem)] font-black uppercase leading-[0.98] tracking-[-0.04em]">
-                    Tenant admin dashboard for bootstrap, runtime, explorer, and role controls.
+                <div class="section-label">Workspace Overview</div>
+                <h1 class="shell-strong mt-4 max-w-[16ch] text-3xl font-semibold sm:text-4xl">
+                    EFSDB Studio
                 </h1>
                 <p class="shell-copy mt-4 max-w-3xl text-[0.94rem] leading-8">
-                    This is the browser control plane for EFSDB. It keeps runtime posture, login model, explorer
-                    access, and tenant administration in one place while leaving operator-root recovery in the CLI.
+                    Your friendly frontend to manage site resources, build components, and monitor your environments.
+                    Power-users can still dive deep via the raw Explorer.
                 </p>
             </div>
 
             <div class="flex flex-wrap gap-3 xl:max-w-[26rem] xl:justify-end">
                 <?php if ($isGuest): ?>
-                    <a class="pill-button" href="?action=login">Unlock Control Plane</a>
-                    <a class="ghost-button" href="#runtime-snapshot">Runtime Snapshot</a>
+                    <a class="pill-button" href="<?php echo efsdb_control_plane_path('login'); ?>">Sign In</a>
                 <?php else: ?>
-                    <a class="pill-button" href="?action=explorer">Open Explorer</a>
-                    <a class="ghost-button" href="?action=admin">Tenant Admin</a>
-                    <a class="ghost-button" href="?action=system">System Surface</a>
+                    <a class="pill-button" href="<?php echo htmlspecialchars(PublicWorkspace::previewUrlForLogicalPath("site/production/routes/index.php") ?? '/'); ?>" target="_blank">Open Live Site</a>
+                    <a class="ghost-button" href="<?php echo efsdb_control_plane_path('builder'); ?>?path=site/staging">Open Builder</a>
+                    <a class="ghost-button p-2" href="<?php echo efsdb_control_plane_path('explorer'); ?>?mode=natural&path=site/staging" title="Inspect in Explorer" aria-label="Inspect in Explorer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-70"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </a>
                 <?php endif; ?>
             </div>
         </div>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-        <article class="table-card">
-            <div class="section-label">Quick Access</div>
-            <h2 class="mt-4 page-title text-[clamp(1.6rem,2.8vw,2.35rem)] max-w-[16ch]">Restore the old control-panel feel</h2>
-            <div class="mt-6 grid gap-4 md:grid-cols-2">
-                <a class="surface-link-card" href="<?php echo $isGuest ? '?action=login' : '?action=explorer'; ?>">
-                    <div class="metric-label">Explorer</div>
-                    <div class="metric-heading">
-                        <?php echo $isGuest ? 'Unlock and browse secure content' : 'Browse decoded content and raw mappings'; ?>
-                    </div>
-                    <div class="metric-copy mt-3">Natural mode is decoded-first. Raw mode is gated by entitlements and exposes system entities for tenant admins.</div>
-                </a>
-                <a class="surface-link-card" href="<?php echo $isGuest ? '?action=login' : '?action=admin'; ?>">
-                    <div class="metric-label">Tenant Admin</div>
-                    <div class="metric-heading">
-                        <?php echo $isGuest ? 'Authenticate into admin controls' : 'Manage users, roles, and display modes'; ?>
-                    </div>
-                    <div class="metric-copy mt-3">Create users, rotate keys, add custom roles, and switch effective display mode without losing the actual actor.</div>
-                </a>
-                <a class="surface-link-card" href="?action=system">
-                    <div class="metric-label">System Surface</div>
-                    <div class="metric-heading">Inspect runtime posture and tenant settings</div>
-                    <div class="metric-copy mt-3">Review environment, bootstrap mode, manifest model, data root, and encrypted tenant settings.</div>
-                </a>
-                <a class="surface-link-card" href="<?php echo $isGuest ? '?action=login' : '?logout=1'; ?>">
-                    <div class="metric-label"><?php echo $isGuest ? 'Login Surface' : 'Session'; ?></div>
-                    <div class="metric-heading">
-                        <?php echo $isGuest ? 'Use the shipped login web component' : 'Logout or change effective mode'; ?>
-                    </div>
-                    <div class="metric-copy mt-3">
-                        <?php if ($isGuest): ?>
-                            Login keys exchange for short-lived bearer tokens in memory plus rotating refresh cookies for silent restore.
-                        <?php else: ?>
-                            Signed in as <?php echo htmlspecialchars($user->username); ?> with actual role <?php echo htmlspecialchars($user->actualRole); ?> and effective mode <?php echo htmlspecialchars($user->role); ?>.
-                        <?php endif; ?>
-                    </div>
-                </a>
-            </div>
+    <div class="grid gap-6 xl:grid-cols-2">
+        <?php foreach ($envs as $env): ?>
+            <article class="table-card flex flex-col">
+                <div class="flex items-center justify-between">
+                    <div class="section-label"><?php echo ucfirst($env); ?> Environment</div>
+                    <?php if ($env === 'production'): ?>
+                        <span class="tag bg-[var(--efs-state-success,#48c78e)]/10 text-[var(--efs-state-success,#48c78e)] border-[var(--efs-state-success,#48c78e)]/30">Live</span>
+                    <?php else: ?>
+                        <span class="tag bg-[var(--efs-state-warning,#f0b34a)]/10 text-[var(--efs-state-warning,#f0b34a)] border-[var(--efs-state-warning,#f0b34a)]/30">Draft</span>
+                    <?php endif; ?>
+                </div>
 
-            <div class="surface-panel mt-6">
-                <div class="metric-label">Display modes</div>
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <?php foreach ($displayModes as $mode): ?>
-                        <span class="tag"><?php echo htmlspecialchars((string)$mode); ?></span>
+                <h2 class="mt-4 page-title text-[clamp(1.4rem,2.2vw,2rem)]">
+                    <?php echo ucfirst($env); ?> Content
+                </h2>
+
+                <div class="mt-6 grid gap-4 sm:grid-cols-2 flex-grow">
+                    <?php foreach ($areas as $area => $info): ?>
+                        <?php
+                        $link = $isGuest ? efsdb_control_plane_path('login') :
+                               (isset($info['link']) ? $info['link'] : efsdb_control_plane_path('builder') . "?path=" . urlencode("site/$env/$area"));
+                        $explorerHref = efsdb_control_plane_path('explorer') . "?mode=natural&path=" . urlencode("site/$env/$area");
+                        ?>
+                        <div class="relative group h-full">
+                            <a href="<?php echo $link; ?>"
+                               class="surface-link-card flex flex-col h-full">
+                                <div class="flex items-start justify-between">
+                                    <div class="metric-label"><?php echo htmlspecialchars($info['label']); ?></div>
+                                    <div class="text-[var(--shell-muted)] group-hover:text-[var(--shell-text)] transition-colors">
+                                        <?php echo $info['icon']; ?>
+                                    </div>
+                                </div>
+                                <div class="metric-heading mt-2 text-2xl">
+                                    <?php echo htmlspecialchars((string)$stats[$env][$area]); ?>
+                                </div>
+                                <div class="metric-copy mt-auto pt-3 border-t border-[var(--shell-border)] border-opacity-50">
+                                    <?php echo htmlspecialchars($info['desc']); ?>
+                                </div>
+                            </a>
+                            <div class="absolute top-5 right-5 sm:top-6 sm:right-6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <a href="<?php echo $explorerHref; ?>" class="pointer-events-auto p-2 text-[var(--shell-muted)] hover:text-[var(--shell-text)] transition-colors rounded-md hover:bg-[var(--shell-hover-bg)]" title="Inspect in Explorer" aria-label="Inspect in Explorer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                </a>
+                            </div>
+                        </div>
                     <?php endforeach; ?>
                 </div>
-                <p class="shell-copy mt-4 text-sm leading-7">
-                    <?php if ($isGuest): ?>
-                        Guests can review runtime posture here before moving into the shipped login flow. Tenant admins
-                        can then inspect the system as guest, standard, premium, or tenant-admin while audit preserves
-                        the underlying actor.
-                    <?php else: ?>
-                        The browser control plane uses bearer access tokens for API calls and a rotating refresh cookie
-                        for silent session restore across the shipped web components and PHP shell views.
-                    <?php endif; ?>
-                </p>
-            </div>
-        </article>
 
-        <aside class="table-card">
-            <div class="section-label">Bootstrap And Auth</div>
-            <h2 class="mt-4 page-title text-[clamp(1.6rem,2.8vw,2.35rem)] max-w-[14ch]">Login, bootstrap, and operator boundary</h2>
-            <div class="shell-copy mt-5 space-y-4 text-sm leading-7">
-                <p>
-                    Bootstrap happens on the first HTTP request, not when <code>php -S</code> or <code>bun run dev</code> starts.
-                    Development can emit a one-time tenant-admin key when the data directory is first initialized.
-                    Production fails closed without injected bootstrap material.
-                </p>
-                <p>
-                    Operator-root remains console only. The browser never provisions or recovers operator authority.
-                    Tenant admin is the highest web role and is responsible for user, role, and tenant-setting control.
-                </p>
-                <p>
-                    The shipped <code>efsdb-login</code> and <code>efsdb-explorer</code> components now share the same
-                    session flow as the PHP shell instead of racing separate refresh requests.
-                </p>
-            </div>
-
-            <div class="mt-6 grid gap-4 sm:grid-cols-2">
-                <div class="metric-card">
-                    <div class="metric-label">CLI</div>
-                    <div class="metric-value"><code>efsdb.php</code></div>
-                    <div class="metric-copy">Use <code>tenant-admin-key</code>, <code>create-user</code>, and <code>list-roles</code> for recovery and provisioning.</div>
+                <?php if (!$isGuest): ?>
+                <?php
+                    $liveHref = PublicWorkspace::previewUrlForLogicalPath("site/$env/routes/index.php")
+                        ?? ($env === 'production' ? '/' : '/staging');
+                    $explorerEnvHref = efsdb_control_plane_path('explorer') . '?mode=natural&path=' . urlencode("site/$env");
+                ?>
+                <div class="mt-6 flex flex-wrap gap-3 justify-end">
+                    <a class="pill-button" href="<?php echo htmlspecialchars($liveHref); ?>" target="_blank" rel="noopener noreferrer" title="Browse live site">
+                        Open Live Site
+                    </a>
+                    <a class="pill-button" href="<?php echo efsdb_control_plane_path('builder'); ?>?path=site/<?php echo urlencode($env); ?>">
+                        Edit in Builder
+                    </a>
+                    <a class="ghost-button p-2" href="<?php echo $explorerEnvHref; ?>" title="Inspect in Explorer" aria-label="Inspect in Explorer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-70"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </a>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-label">Session model</div>
-                    <div class="metric-value">Shared</div>
-                    <div class="metric-copy">PHP views and shipped web components coordinate through one refresh path.</div>
-                </div>
-            </div>
-        </aside>
-    </section>
+                <?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+    </div>
 
-    <section class="table-card" id="runtime-snapshot">
-        <div class="section-label">Runtime Snapshot</div>
-        <h2 class="mt-4 page-title text-[clamp(1.6rem,2.8vw,2.35rem)] max-w-[14ch]">Current control-plane state</h2>
-        <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <?php foreach ($runtimeCards as $card): ?>
-                <div class="metric-card">
-                    <div class="metric-label"><?php echo htmlspecialchars($card['label']); ?></div>
-                    <div class="metric-value"><?php echo htmlspecialchars($card['value']); ?></div>
-                    <div class="metric-copy"><?php echo htmlspecialchars($card['copy']); ?></div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-
-        <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,0.58fr)_minmax(0,0.42fr)]">
-            <div class="surface-panel">
-                <div class="metric-label">Tenant settings</div>
-                <pre class="surface-pre"><?php echo htmlspecialchars(json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></pre>
-            </div>
-            <div class="space-y-4">
-                <div class="metric-card">
-                    <div class="metric-label">Data root</div>
-                    <div class="shell-strong mt-4 break-all text-sm font-semibold leading-7">
-                        <?php echo htmlspecialchars($app->getStore()->getDataDir()); ?>
+    <section class="grid gap-6">
+        <div class="section-label px-2">Quick Links</div>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <?php foreach ($dashboardCards as $card): ?>
+                <a href="<?php echo htmlspecialchars($card['link']); ?>" class="shell-panel flex flex-col p-6 hover:bg-[var(--shell-hover-bg)] transition-colors group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-[var(--shell-muted)]">
+                                <?php echo htmlspecialchars($card['label']); ?>
+                            </p>
+                            <h3 class="mt-2 text-2xl font-semibold text-[var(--shell-text-strong)]">
+                                <?php echo htmlspecialchars($card['value']); ?>
+                            </h3>
+                        </div>
+                        <div class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--shell-inset-bg)] text-[var(--shell-text)] group-hover:scale-110 transition-transform">
+                            <?php echo $card['icon']; ?>
+                        </div>
                     </div>
-                    <div class="metric-copy">Encrypted manifests, chunks, and secure lookups for the control plane.</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Manifest model</div>
-                    <div class="metric-value">Canonical</div>
-                    <div class="metric-copy">Documents and files share one manifest contract, with decoded delivery and raw inspection layered on top.</div>
-                </div>
-            </div>
+                    <p class="mt-4 text-[0.85rem] font-medium text-[var(--accent,#2563eb)] group-hover:opacity-100 opacity-80 transition-opacity">
+                        <?php echo htmlspecialchars($card['trend']); ?>
+                    </p>
+                </a>
+            <?php endforeach; ?>
         </div>
     </section>
 </section>

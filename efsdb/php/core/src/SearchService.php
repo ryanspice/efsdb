@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/EntityExposurePolicy.php';
 require_once __DIR__ . '/IndexManager.php';
 require_once __DIR__ . '/Permissions.php';
+require_once __DIR__ . '/PublicWorkspace.php';
 require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/Store.php';
 require_once __DIR__ . '/User.php';
@@ -268,7 +269,7 @@ final class SearchService
             }
         }
 
-        return $summary;
+        return $this->augmentSummary($entity, $summary, $record, null);
     }
 
     /**
@@ -298,6 +299,58 @@ final class SearchService
 
         if ($summary === [] && isset($document['id'])) {
             $summary['id'] = $document['id'];
+        }
+
+        return $this->augmentSummary($entity, $summary, null, $document);
+    }
+
+    /**
+     * @param array<string,mixed> $summary
+     * @param array<string,mixed>|null $record
+     * @param array<string,mixed>|null $document
+     * @return array<string,mixed>
+     */
+    private function augmentSummary(string $entity, array $summary, ?array $record, ?array $document): array
+    {
+        if (!isset($summary['logicalPath']) || !is_string($summary['logicalPath']) || $summary['logicalPath'] === '') {
+            $logicalPath = null;
+            if (is_array($document)) {
+                $logicalPath = $this->schema->buildLogicalPath($entity, $document);
+            }
+
+            if (
+                (!is_string($logicalPath) || $logicalPath === '')
+                && is_array($record)
+                && isset($record['fields']['logicalPath'])
+                && is_string($record['fields']['logicalPath'])
+            ) {
+                $logicalPath = $record['fields']['logicalPath'];
+            }
+
+            if (is_string($logicalPath) && $logicalPath !== '') {
+                $summary['logicalPath'] = $logicalPath;
+            }
+        }
+
+        if ($entity === PublicWorkspace::FILE_ENTITY) {
+            $logicalPath = isset($summary['logicalPath']) && is_string($summary['logicalPath'])
+                ? $summary['logicalPath']
+                : null;
+            $publicPath = isset($summary['publicPath']) && is_string($summary['publicPath'])
+                ? $summary['publicPath']
+                : null;
+            $sitePath = $logicalPath !== null ? PublicWorkspace::parseSiteLogicalPath($logicalPath) : null;
+            $relativePath = $sitePath['relativePath'] ?? null;
+            if (!is_string($relativePath) || $relativePath === '') {
+                $relativePath = $publicPath !== null && $publicPath !== ''
+                    ? PublicWorkspace::canonicalSiteRelativePath($publicPath)
+                    : null;
+            }
+
+            if ($relativePath !== null && $relativePath !== '') {
+                $summary['workspaceArea'] = PublicWorkspace::workspaceAreaForSiteRelativePath($relativePath) ?? 'site';
+                $summary['resourceKind'] = PublicWorkspace::resourceKindForSiteRelativePath($relativePath);
+            }
         }
 
         return $summary;

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase0-render-compat';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase0-render-compat';
 $bootstrapSecret = 'phase0-render-compat-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -12,14 +12,14 @@ $tenantUser = $app->getIdentity()->authenticateKey($bootstrapSecret);
 
 $failures = [];
 
-$home = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=home');
+$home = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=home');
 phase0_assert(
-    $home['status'] === 200 && str_contains($home['body'], 'Control Center'),
+    $home['status'] === 200 && str_contains($home['body'], 'EFSDB Control'),
     'Home compatibility route renders the current control-plane shell',
     $failures
 );
 
-$login = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=login');
+$login = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=login');
 phase0_assert(
     $login['status'] === 200
         && str_contains($login['body'], '<script type="application/json" id="efsdb-bootstrap">')
@@ -28,7 +28,7 @@ phase0_assert(
     $failures
 );
 
-$guestExplorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=explorer');
+$guestExplorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=explorer');
 phase0_assert(
     $guestExplorer['status'] === 200 && str_contains($guestExplorer['body'], '<efsdb-login'),
     'Guest access to explorer compatibility route falls back to the login host',
@@ -43,7 +43,7 @@ if ($tenantUser === null) {
 $session = $app->getIdentity()->createRefreshSession($tenantUser);
 $cookies = ['efsdb_refresh_token' => $session['token']];
 
-$explorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=explorer', 'GET', [
+$explorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=explorer', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -54,7 +54,7 @@ phase0_assert(
     $failures
 );
 
-$admin = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin', 'GET', [
+$admin = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=admin', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -65,7 +65,7 @@ phase0_assert(
     $failures
 );
 
-$adminLegacy = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin&ui=legacy', 'GET', [
+$adminLegacy = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=admin&ui=legacy', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -76,7 +76,7 @@ phase0_assert(
     $failures
 );
 
-$system = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=system', 'GET', [
+$system = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=system', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -85,7 +85,7 @@ phase0_assert(
     $failures
 );
 
-$products = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=products', 'GET', [
+$products = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=products', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -94,7 +94,7 @@ phase0_assert(
     $failures
 );
 
-$preview = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=preview', 'GET', [
+$preview = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=preview', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -103,7 +103,7 @@ phase0_assert(
     $failures
 );
 
-$badFallbackLogin = Phase0Harness::request($dataDir, $bootstrapSecret, '/?action=admin', 'POST', [
+$badFallbackLogin = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=admin', 'POST', [
     'post' => ['login_key' => 'wrong-secret'],
 ]);
 phase0_assert(
@@ -112,7 +112,7 @@ phase0_assert(
     $failures
 );
 
-$logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/?logout=1', 'GET', [
+$logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?logout=1', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(

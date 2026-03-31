@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-public-workspace';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase1-public-workspace';
 $bootstrapSecret = 'phase1-public-workspace-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -53,6 +53,14 @@ $lookupDir = $dataDir . '/idx/lookup/public_workspace_files';
 phase0_assert(
     !is_dir($lookupDir),
     'Public workspace file resolution does not depend on generic lookup files',
+    $failures
+);
+
+phase0_assert(
+    PublicWorkspace::previewUrlForLogicalPath('site/staging/routes/users/[id].php') === '/staging/users/preview'
+        && PublicWorkspace::previewUrlForLogicalPath('site/production/routes/index.php') === '/'
+        && PublicWorkspace::previewUrlForLogicalPath('site/staging/routes/404.php') === null,
+    'Public workspace preview URLs normalize root routes, dynamic route params, and non-previewable 404 routes consistently',
     $failures
 );
 

@@ -1,20 +1,18 @@
-# Facets Contract (Draft)
-
-Status:
-- draft for Phase 2 implementation
-- finalize after characterization is green
+# Facets Contract
 
 Route family:
 - `GET /api/facets`
+
+Typed payloads:
+- `web/contracts/facets.ts`
 
 Auth and exposure:
 - bearer token required
 - entity exposure is allowlist-driven
 - schema presence does not imply endpoint exposure
 
-Planned request shape:
-- `entity` required in the draft contract
-- temporary compatibility may default missing `entity` to `products` during Phase 2 rollout
+Request shape:
+- `entity` required
 - one or more `field`
 - optional:
   - `q`
@@ -24,7 +22,7 @@ Behavior:
 - only schema-marked facet fields are valid
 - filtered facets are computed against the current result set
 
-Planned response shape:
+Representative response shape:
 ```json
 {
   "results": {

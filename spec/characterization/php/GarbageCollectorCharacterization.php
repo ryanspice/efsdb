@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-garbage-collector';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase1-garbage-collector';
 $bootstrapSecret = 'phase1-garbage-collector-secret';
 
 Phase0Harness::resetDir($dataDir);
@@ -26,8 +26,10 @@ $app->uploadFile('phase1_assets', $sharedPayload, [
 ]);
 
 $asset1Manifest = $store->getManifest('phase1_assets', 'asset1');
+$asset1StorageId = (string)($asset1Manifest['storageId'] ?? '');
+$bucketId = $store->bucketIdForEntity('phase1_assets');
 $sharedChunkHash = (string)($asset1Manifest['chunks'][0]['hash'] ?? '');
-$chunkPath = $dataDir . '/phase1_assets/chunks/' . substr($sharedChunkHash, 0, 2) . '/' . substr($sharedChunkHash, 2, 2) . '/' . $sharedChunkHash . '.c';
+$chunkPath = $dataDir . '/obj/' . $bucketId . '/chunks/' . substr($sharedChunkHash, 0, 2) . '/' . substr($sharedChunkHash, 2, 2) . '/' . $sharedChunkHash . '.c';
 
 $store->tombstone('phase1_assets', 'asset1', [
     'actorId' => 'phase1-admin',
@@ -38,7 +40,7 @@ $firstRun = $gc->collectExpired();
 
 phase0_assert(
     ($firstRun['purgedManifests'] ?? null) === 1
-        && !is_file($dataDir . '/phase1_assets/manifests/manifest_asset1.m')
+        && !is_file($dataDir . '/obj/' . $bucketId . '/manifests/' . $asset1StorageId . '.m')
         && is_file($chunkPath),
     'GC purges expired tombstoned manifests while retaining shared chunks that are still referenced',
     $failures

@@ -20,7 +20,7 @@
     "defaultDisplayMode": { "source": "settings.defaultDisplayMode", "kind": "keyword", "filterable": true, "facet": true },
     "accent": { "source": "settings.accent", "kind": "keyword", "filterable": true },
     "tenantKey": { "source": "settings.tenantKey", "kind": "keyword", "filterable": true },
-    "publishedDeliveryMode": { "source": "settings.publicWorkspace.published.deliveryMode", "kind": "keyword", "filterable": true, "facet": true },
+    "productionDeliveryMode": { "source": "settings.publicWorkspace.production.deliveryMode", "kind": "keyword", "filterable": true, "facet": true },
     "stagingDeliveryMode": { "source": "settings.publicWorkspace.staging.deliveryMode", "kind": "keyword", "filterable": true, "facet": true },
     "updatedAt": { "source": "updatedAt", "kind": "datetime", "sortable": true }
   },

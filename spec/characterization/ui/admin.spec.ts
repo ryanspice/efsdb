@@ -11,8 +11,8 @@ test('default admin route boots the admin ce host', async ({ page }) => {
     app: 'admin',
     tag: 'efsdb-admin',
     assetFile: adminBundlePath,
-    apiBase: '/api/admin',
-    authBase: '/api/auth'
+    apiBase: '/_efsdb/api/admin',
+    authBase: '/_efsdb/api/auth'
   });
 });
 
@@ -22,12 +22,11 @@ test('legacy admin rollback path remains explicit and non-default', async ({ pag
   await expect(page.locator('efsdb-admin')).toHaveCount(0);
 });
 
-test('admin ce consumes users roles settings products search and facets contracts', async ({ page }) => {
+test('admin ce consumes users roles settings search and facets contracts', async ({ page }) => {
   const seen = {
     users: false,
     roles: false,
     settings: false,
-    products: false,
     search: false,
     facets: false
   };
@@ -38,12 +37,11 @@ test('admin ce consumes users roles settings products search and facets contract
       return;
     }
 
-    if (url.includes('/api/admin/users')) seen.users = true;
-    if (url.includes('/api/admin/roles')) seen.roles = true;
-    if (url.includes('/api/admin/settings')) seen.settings = true;
-    if (url.includes('/api/products')) seen.products = true;
-    if (url.includes('/api/search')) seen.search = true;
-    if (url.includes('/api/facets')) seen.facets = true;
+    if (url.includes('/_efsdb/api/admin/users')) seen.users = true;
+    if (url.includes('/_efsdb/api/admin/roles')) seen.roles = true;
+    if (url.includes('/_efsdb/api/admin/settings')) seen.settings = true;
+    if (url.includes('/_efsdb/api/search')) seen.search = true;
+    if (url.includes('/_efsdb/api/facets')) seen.facets = true;
   });
 
   await openAdminCe(page);

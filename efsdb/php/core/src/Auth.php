@@ -103,6 +103,15 @@ class Auth
         $this->currentUser = User::guest();
     }
 
+    public function verifyCurrentKey(User $user, string $key): bool
+    {
+        if ($user->isGuest()) {
+            return false;
+        }
+
+        return $this->app->getIdentity()->verifyUserKey($user->id, $key);
+    }
+
     /**
      * @return array{ticket: string, expiresIn: int, url: string}
      */
@@ -125,7 +134,7 @@ class Auth
         return [
             'ticket' => $ticket,
             'expiresIn' => self::EXPLORER_TICKET_TTL,
-            'url' => '/api/explorer/download?path=' . rawurlencode($path) . '&mode=' . rawurlencode($mode) . '&ticket=' . rawurlencode($ticket),
+            'url' => '/_efsdb/api/explorer/download?path=' . rawurlencode($path) . '&mode=' . rawurlencode($mode) . '&ticket=' . rawurlencode($ticket),
         ];
     }
 

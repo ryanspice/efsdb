@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Phase0Harness.php';
 
-$dataDir = 'B:/Dev/PHPFS/efsdb/php/core/.cache/phase1-delete-lifecycle';
+$dataDir = __DIR__ . '/../../../.cache/efsdb/tests/core/phase1-delete-lifecycle';
 $bootstrapSecret = 'phase1-delete-lifecycle-secret';
 
 Phase0Harness::resetDir($dataDir);

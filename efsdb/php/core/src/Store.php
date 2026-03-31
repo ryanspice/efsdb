@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/Crypto.php';
 require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/IndexManager.php';
+require_once __DIR__ . '/RequestTiming.php';
 
 final class Store
 {
@@ -71,10 +72,46 @@ final class Store
         return bin2hex(hash_hmac('sha256', $namespace . "\0" . $value, $this->deriveKey('index', 4), true));
     }
 
+    public function bucketIdForEntity(string $entity): string
+    {
+        return 'b_' . substr($this->fingerprint('bucket', $entity), 0, 24);
+    }
+
+    public function fieldTokenForEntityField(string $entity, string $field): string
+    {
+        return 'f_' . substr($this->fingerprint('field:' . $this->bucketIdForEntity($entity), $field), 0, 24);
+    }
+
+    public function rawManifestFilePath(string $entity, string $storageId): string
+    {
+        return $this->manifestPath($entity, $storageId, null);
+    }
+
+    public function rawChunksRoot(string $entity): string
+    {
+        return $this->bucketChunksRoot($this->bucketIdForEntity($entity));
+    }
+
+    public function storageIdForLogicalId(string $entity, string $id): ?string
+    {
+        $catalog = $this->readCatalogRecordByLogicalKey($entity, $id);
+        if ($catalog === null) {
+            return null;
+        }
+
+        $storageId = trim((string)($catalog['storageId'] ?? ''));
+        return $storageId === '' ? null : $storageId;
+    }
+
     public function verifyMasterKey(string $b64): bool
     {
         $real = trim((string)@file_get_contents($this->dir . '/master.key'));
         return $real !== '' && hash_equals($real, $b64);
+    }
+
+    public function generateId(): string
+    {
+        return $this->newId();
     }
 
     /**
@@ -182,7 +219,7 @@ final class Store
             $manifest['lifecycle'] = $meta['lifecycle'];
         }
 
-        $this->writeManifest($entity, $id, $manifest);
+        $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->writeLookups($entity, $id, $lookupSource, $lookupFields);
         $this->getIndexManager()->update($entity, $manifest, $schema['indexes'] ?? []);
         return $manifest;
@@ -228,33 +265,59 @@ final class Store
     public function getManifest(string $entity, string $id): array
     {
         $this->loadKey();
-        $path = $this->findManifestPath($entity, $id);
-        if (!file_exists($path)) {
+        $catalog = $this->readCatalogRecordByLogicalKey($entity, $id);
+        if ($catalog === null) {
             throw new RuntimeException("Manifest missing for $entity:$id");
         }
 
-        $blob = file_get_contents($path);
-        if ($blob === false) {
+        $manifest = $this->readRawManifestFromCatalog($catalog);
+        if ($manifest === null) {
             throw new RuntimeException("Read error for $entity:$id");
         }
 
-        $plain = Crypto::aeadDecrypt($blob, $this->deriveKey('manifest', 2), "manifest:$id");
-        $manifest = json_decode($plain, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($manifest)) {
-            throw new RuntimeException("Bad manifest format");
-        }
-
-        return $manifest;
+        return $this->hydrateManifest($manifest, $catalog);
     }
 
     public function hasManifest(string $entity, string $id): bool
     {
-        return is_file($this->manifestPath($entity, $id, null));
+        $catalog = $this->readCatalogRecordByLogicalKey($entity, $id);
+        if ($catalog === null) {
+            return false;
+        }
+
+        $storageId = trim((string)($catalog['storageId'] ?? ''));
+        return $storageId !== '' && is_file($this->manifestPath($entity, $storageId, null));
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public function getManifestByStorageId(string $entity, string $storageId): ?array
+    {
+        $catalog = $this->readV2CatalogRecord($storageId);
+        if ($catalog === null || (string)($catalog['entity'] ?? '') !== $entity) {
+            return null;
+        }
+
+        $manifest = $this->readRawManifestFromCatalog($catalog);
+        if ($manifest === null) {
+            return null;
+        }
+
+        return $this->hydrateManifest($manifest, $catalog);
     }
 
     public function readContent(string $entity, string $id): string
     {
         $manifest = $this->getManifest($entity, $id);
+        return $this->readContentFromManifest($entity, $manifest);
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     */
+    public function readContentFromManifest(string $entity, array $manifest): string
+    {
         return $this->reconstructContent($entity, $manifest);
     }
 
@@ -311,7 +374,7 @@ final class Store
             return null;
         }
 
-        $id = (string)($entry['id'] ?? '');
+        $id = (string)($entry['logicalId'] ?? '');
         if ($id === '' || !$this->hasManifest($entity, $id)) {
             return null;
         }
@@ -403,7 +466,7 @@ final class Store
         ];
         $manifest['mtime'] = gmdate('c');
 
-        $this->writeManifest($entity, $id, $manifest);
+        $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
         return $manifest;
     }
@@ -430,17 +493,28 @@ final class Store
         }
         $manifest['mtime'] = gmdate('c');
 
-        $this->writeManifest($entity, $id, $manifest);
+        $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
         return $manifest;
     }
 
     public function deleteManifest(string $entity, string $id): bool
     {
-        $path = $this->findManifestPath($entity, $id);
+        $manifest = $this->getDocumentManifest($entity, $id);
+        if ($manifest === null) {
+            return false;
+        }
+
+        $storageId = trim((string)($manifest['storageId'] ?? ''));
+        if ($storageId === '') {
+            return false;
+        }
+
+        $path = $this->manifestPath($entity, $storageId, null);
         $deleted = is_file($path) ? unlink($path) : false;
         if ($deleted) {
             $this->getIndexManager()->remove($entity, $id, $this->schemaLoader->getIndexDefinitions($entity));
+            $this->deleteV2CatalogSidecars($entity, $manifest);
         }
         return $deleted;
     }
@@ -525,13 +599,13 @@ final class Store
     public function findManifestByLogicalPath(string $entity, string $logicalPath): ?array
     {
         $normalized = $this->normalizeLogicalPath($logicalPath);
-        foreach ($this->scanAllManifests($entity) as $manifest) {
-            if (($manifest['logicalPath'] ?? null) === $normalized) {
-                return $manifest;
-            }
+        $catalog = $this->readCatalogRecordByLogicalPath($entity, $normalized);
+        if ($catalog === null) {
+            return null;
         }
 
-        return null;
+        $manifest = $this->readRawManifestFromCatalog($catalog);
+        return $manifest === null ? null : $this->hydrateManifest($manifest, $catalog);
     }
 
     /**
@@ -540,30 +614,22 @@ final class Store
     public function listEntities(bool $includeSystem = false): array
     {
         $entries = [];
-        $scanned = @scandir($this->dir);
-        if (!$scanned) {
-            return [];
+        foreach ($this->scanV2CatalogRecords() as $record) {
+            $entity = trim((string)($record['entity'] ?? ''));
+            if ($entity === '') {
+                continue;
+            }
+
+            if (!$includeSystem && str_starts_with($entity, 'system_')) {
+                continue;
+            }
+
+            $entries[$entity] = true;
         }
 
-        foreach ($scanned as $entry) {
-            if ($entry === '.' || $entry === '..' || $entry === 'idx') {
-                continue;
-            }
-
-            $path = $this->dir . '/' . $entry;
-            if (!is_dir($path) || !is_dir($path . '/manifests')) {
-                continue;
-            }
-
-            if (!$includeSystem && str_starts_with($entry, 'system_')) {
-                continue;
-            }
-
-            $entries[] = $entry;
-        }
-
-        sort($entries, SORT_STRING);
-        return $entries;
+        $names = array_keys($entries);
+        sort($names, SORT_STRING);
+        return $names;
     }
 
     /**
@@ -571,45 +637,61 @@ final class Store
      */
     public function scanManifests(string $entity, int $limit = 50, ?string $cursor = null): array
     {
-        $this->loadKey();
-        $dir = $this->dir . "/$entity/manifests";
-        if (!is_dir($dir)) {
-            return ['results' => [], 'nextCursor' => null];
+        return RequestTiming::current()?->measure(
+            'manifest_scan',
+            fn(): array => $this->scanManifestsInternal($entity, $limit, $cursor)
+        ) ?? $this->scanManifestsInternal($entity, $limit, $cursor);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function scanManifestsInternal(string $entity, int $limit = 50, ?string $cursor = null): array
+    {
+        $records = [];
+        foreach ($this->scanV2CatalogRecords() as $record) {
+            if ((string)($record['entity'] ?? '') !== $entity) {
+                continue;
+            }
+
+            $records[] = $record;
         }
 
-        $files = scandir($dir);
-        if (!$files) {
-            return ['results' => [], 'nextCursor' => null];
-        }
+        usort($records, static function (array $left, array $right): int {
+            $leftKey = (string)($left['logicalPath'] ?? $left['logicalId'] ?? $left['storageId'] ?? '');
+            $rightKey = (string)($right['logicalPath'] ?? $right['logicalId'] ?? $right['storageId'] ?? '');
+            return strcmp($leftKey, $rightKey);
+        });
 
         $results = [];
         $count = 0;
-        $start = $cursor ? false : true;
+        $start = $cursor === null || $cursor === '';
 
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-            if (!str_ends_with($file, '.m')) {
+        foreach ($records as $record) {
+            $storageId = trim((string)($record['storageId'] ?? ''));
+            if ($storageId === '') {
                 continue;
             }
 
             if (!$start) {
-                if ($file === $cursor) {
+                if ($storageId === $cursor) {
                     $start = true;
                 }
                 continue;
             }
 
             if ($count >= $limit) {
-                return ['results' => $results, 'nextCursor' => $file];
+                return ['results' => $results, 'nextCursor' => $storageId];
             }
 
             try {
-                if (preg_match('/^manifest_(.+)\.m$/', $file, $matches)) {
-                    $results[] = $this->getManifest($entity, $matches[1]);
-                    $count++;
+                $manifest = $this->readRawManifestFromCatalog($record);
+                if ($manifest === null) {
+                    continue;
                 }
+
+                $results[] = $this->hydrateManifest($manifest, $record);
+                $count++;
             } catch (Throwable) {
             }
         }
@@ -648,22 +730,39 @@ final class Store
         return bin2hex(random_bytes(16));
     }
 
+    private function newStorageId(): string
+    {
+        return 'm_' . bin2hex(random_bytes(16));
+    }
+
     private function deriveKey(string $type, int $id): string
     {
         return Crypto::kdf($this->masterKey32, str_pad($type, 8, "\0"), $id);
     }
 
-    private function writeManifest(string $entity, string $id, array $manifest): void
+    /**
+     * @param array<string,mixed> $manifest
+     * @return array<string,mixed>
+     */
+    private function writeManifest(string $entity, string $id, array $manifest): array
     {
+        $previousManifest = $this->existingManifestForWrite($entity, $id);
+        $manifest['id'] = $id;
+        $manifest['entity'] = $entity;
+        $manifest['storageId'] = $this->resolveStorageId($manifest, $previousManifest);
+        $manifest['bucketId'] = $this->bucketIdForEntity($entity);
         $this->ensureEntityDirs($entity);
 
-        $path = $this->manifestPath($entity, $id, null);
-        $plain = json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-        $blob = Crypto::aeadEncrypt($plain, $this->deriveKey('manifest', 2), "manifest:$id");
+        $path = $this->manifestPath($entity, (string)$manifest['storageId'], null);
+        $plain = json_encode($this->rawManifestPayload($manifest), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $blob = Crypto::aeadEncrypt($plain, $this->deriveKey('manifest', 2), 'manifest:' . (string)$manifest['storageId']);
 
         $tmp = $path . '.tmp';
         file_put_contents($tmp, $blob, LOCK_EX);
         rename($tmp, $path);
+
+        $this->syncV2CatalogSidecars($entity, $manifest, $previousManifest);
+        return $manifest;
     }
 
     /**
@@ -671,23 +770,42 @@ final class Store
      */
     private function reconstructContent(string $entity, array $manifest): string
     {
+        $storageLabel = (string)($manifest['storageId'] ?? $manifest['id'] ?? 'manifest');
+        $mtime = (string)($manifest['mtime'] ?? '');
+        $cacheDir = $this->dir . '/.ghost/' . $entity;
+        $cachePath = $cacheDir . '/' . md5($storageLabel . $mtime) . '.decodedfile';
+
+        if (is_file($cachePath)) {
+            $cached = file_get_contents($cachePath);
+            if ($cached !== false) {
+                return $cached;
+            }
+        }
+
         $out = '';
         foreach ($manifest['chunks'] as $chunk) {
             $chunkId = (string)$chunk['hash'];
             $path = $this->chunkPath($entity, $chunkId);
             $blob = file_get_contents($path);
             if ($blob === false) {
-                throw new RuntimeException("Chunk missing for {$manifest['id']}: $chunkId");
+                throw new RuntimeException("Chunk missing for $storageLabel: $chunkId");
             }
 
+            $startedAt = microtime(true);
             $plain = Crypto::aeadDecrypt($blob, $this->deriveKey('chunk', 3), "chunk:$chunkId");
+            RequestTiming::current()?->addDuration('decrypt', (microtime(true) - $startedAt) * 1000);
             $hash = bin2hex(sodium_crypto_generichash($plain));
             if (!hash_equals($chunkId, $hash)) {
-                throw new RuntimeException("Chunk hash mismatch for {$manifest['id']}: $chunkId");
+                throw new RuntimeException("Chunk hash mismatch for $storageLabel: $chunkId");
             }
 
             $out .= $plain;
         }
+
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0777, true);
+        }
+        @file_put_contents($cachePath, $out, LOCK_EX);
 
         return $out;
     }
@@ -696,47 +814,58 @@ final class Store
     {
         $p1 = substr($chunkId, 0, 2);
         $p2 = substr($chunkId, 2, 2);
-        return $this->dir . "/$entity/chunks/$p1/$p2/$chunkId.c";
+        return $this->rawChunksRoot($entity) . "/$p1/$p2/$chunkId.c";
     }
 
     private function ensureChunkDir(string $entity, string $chunkId): void
     {
         $p1 = substr($chunkId, 0, 2);
         $p2 = substr($chunkId, 2, 2);
-        $this->mkdir($this->dir . "/$entity/chunks/$p1/$p2");
+        $this->mkdir($this->rawChunksRoot($entity) . "/$p1/$p2");
     }
 
     private function lookupPath(string $entity, string $field, string $value): string
     {
-        $digest = $this->fingerprint("lookup:$entity:$field", $value);
+        $bucketId = $this->bucketIdForEntity($entity);
+        $fieldToken = $this->fieldTokenForEntityField($entity, $field);
+        $digest = $this->fingerprint("lookup:$bucketId:$fieldToken", $value);
         $p1 = substr($digest, 0, 2);
         $p2 = substr($digest, 2, 2);
-        return $this->dir . "/idx/lookup/$entity/$p1/$p2/$digest.lk";
+        return $this->dir . "/idx/v2/lookup/$bucketId/$fieldToken/$p1/$p2/$digest.lk";
     }
 
     private function ensureLookupDir(string $entity, string $field, string $value): void
     {
-        $digest = $this->fingerprint("lookup:$entity:$field", $value);
+        $bucketId = $this->bucketIdForEntity($entity);
+        $fieldToken = $this->fieldTokenForEntityField($entity, $field);
+        $digest = $this->fingerprint("lookup:$bucketId:$fieldToken", $value);
         $p1 = substr($digest, 0, 2);
         $p2 = substr($digest, 2, 2);
-        $this->mkdir($this->dir . "/idx/lookup/$entity/$p1/$p2");
+        $this->mkdir($this->dir . "/idx/v2/lookup/$bucketId/$fieldToken/$p1/$p2");
     }
 
-    private function manifestPath(string $entity, string $id, ?string $shard): string
+    private function manifestPath(string $entity, string $storageId, ?string $shard): string
     {
-        return $this->dir . "/$entity/manifests/" . ($shard ? "$shard/" : '') . "manifest_$id.m";
+        return $this->bucketManifestsRoot($this->bucketIdForEntity($entity)) . '/' . ($shard ? "$shard/" : '') . $storageId . '.m';
     }
 
     private function ensureEntityDirs(string $entity): void
     {
-        $this->mkdir($this->dir . "/$entity/manifests");
-        $this->mkdir($this->dir . "/$entity/chunks");
+        $bucketId = $this->bucketIdForEntity($entity);
+        $this->mkdir($this->bucketManifestsRoot($bucketId));
+        $this->mkdir($this->bucketChunksRoot($bucketId));
         $this->mkdir($this->dir . "/idx");
     }
 
     private function findManifestPath(string $entity, string $id): string
     {
-        return $this->manifestPath($entity, $id, null);
+        $catalog = $this->readCatalogRecordByLogicalKey($entity, $id);
+        if ($catalog === null) {
+            return $this->manifestPath($entity, $id, null);
+        }
+
+        $storageId = trim((string)($catalog['storageId'] ?? ''));
+        return $this->manifestPath($entity, $storageId !== '' ? $storageId : $id, null);
     }
 
     /**
@@ -749,6 +878,9 @@ final class Store
         if ($fields === []) {
             return;
         }
+
+        $currentManifest = $this->getDocumentManifest($entity, $id);
+        $storageId = is_array($currentManifest) ? (string)($currentManifest['storageId'] ?? '') : '';
 
         foreach ($fields as $field) {
             if (!array_key_exists($field, $source)) {
@@ -763,13 +895,16 @@ final class Store
             $value = (string)$value;
             $this->ensureLookupDir($entity, $field, $value);
 
-            $digest = $this->fingerprint("lookup:$entity:$field", $value);
-            $aad = "lookup:$entity:$field:$digest";
+            $bucketId = $this->bucketIdForEntity($entity);
+            $fieldToken = $this->fieldTokenForEntityField($entity, $field);
+            $digest = $this->fingerprint("lookup:$bucketId:$fieldToken", $value);
+            $aad = "lookup:$bucketId:$fieldToken:$digest";
             $payload = [
                 'entity' => $entity,
                 'field' => $field,
                 'value' => $value,
-                'id' => $id,
+                'logicalId' => $id,
+                'storageId' => $storageId,
                 'updatedAt' => gmdate('c'),
             ];
 
@@ -814,20 +949,28 @@ final class Store
      */
     private function readLookupEntry(string $entity, string $field, string $value): ?array
     {
-        $path = $this->lookupPath($entity, $field, $value);
-        if (!is_file($path)) {
-            return null;
-        }
+        $loader = function () use ($entity, $field, $value): ?array {
+            $path = $this->lookupPath($entity, $field, $value);
+            if (!is_file($path)) {
+                return null;
+            }
 
-        $digest = $this->fingerprint("lookup:$entity:$field", $value);
-        $blob = file_get_contents($path);
-        if ($blob === false) {
-            return null;
-        }
+            $bucketId = $this->bucketIdForEntity($entity);
+            $fieldToken = $this->fieldTokenForEntityField($entity, $field);
+            $digest = $this->fingerprint("lookup:$bucketId:$fieldToken", $value);
+            $blob = file_get_contents($path);
+            if ($blob === false) {
+                return null;
+            }
 
-        $plain = Crypto::aeadDecrypt($blob, $this->deriveKey('index', 4), "lookup:$entity:$field:$digest");
-        $entry = json_decode($plain, true, 512, JSON_THROW_ON_ERROR);
-        return is_array($entry) ? $entry : null;
+            $startedAt = microtime(true);
+            $plain = Crypto::aeadDecrypt($blob, $this->deriveKey('index', 4), "lookup:$bucketId:$fieldToken:$digest");
+            RequestTiming::current()?->addDuration('decrypt', (microtime(true) - $startedAt) * 1000);
+            $entry = json_decode($plain, true, 512, JSON_THROW_ON_ERROR);
+            return is_array($entry) ? $entry : null;
+        };
+
+        return RequestTiming::current()?->measure('index_lookup', $loader) ?? $loader();
     }
 
     /**
@@ -859,6 +1002,474 @@ final class Store
         }
 
         return $indexes;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function existingManifestForWrite(string $entity, string $id): ?array
+    {
+        if (!$this->hasManifest($entity, $id)) {
+            return null;
+        }
+
+        try {
+            return $this->getManifest($entity, $id);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     * @param array<string,mixed>|null $previousManifest
+     */
+    private function resolveStorageId(array $manifest, ?array $previousManifest): string
+    {
+        $candidate = trim((string)($manifest['storageId'] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+
+        $previous = trim((string)($previousManifest['storageId'] ?? ''));
+        if ($previous !== '') {
+            return $previous;
+        }
+
+        return $this->newStorageId();
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     * @param array<string,mixed>|null $previousManifest
+     */
+    private function syncV2CatalogSidecars(string $entity, array $manifest, ?array $previousManifest): void
+    {
+        $this->writeV2CatalogRecord($entity, $manifest);
+        $this->writeV2CatalogLookup('path', $entity, $this->catalogLogicalPath($manifest), $manifest);
+        $this->writeV2CatalogLookup('key', $entity, $this->catalogLogicalKey($manifest), $manifest);
+
+        if ($previousManifest === null) {
+            return;
+        }
+
+        $previousStorageId = trim((string)($previousManifest['storageId'] ?? ''));
+        $currentStorageId = trim((string)($manifest['storageId'] ?? ''));
+        if ($previousStorageId !== '' && $previousStorageId !== $currentStorageId) {
+            $this->deleteV2CatalogRecordByStorageId($previousStorageId);
+        }
+
+        $previousPath = $this->catalogLogicalPath($previousManifest);
+        $currentPath = $this->catalogLogicalPath($manifest);
+        if ($previousPath !== null && $previousPath !== $currentPath) {
+            $this->deleteV2CatalogLookup('path', $entity, $previousPath);
+        }
+
+        $previousKey = $this->catalogLogicalKey($previousManifest);
+        $currentKey = $this->catalogLogicalKey($manifest);
+        if ($previousKey !== null && $previousKey !== $currentKey) {
+            $this->deleteV2CatalogLookup('key', $entity, $previousKey);
+        }
+    }
+
+    /**
+     * @param array<string,mixed>|null $manifest
+     */
+    private function deleteV2CatalogSidecars(string $entity, ?array $manifest): void
+    {
+        if (!is_array($manifest)) {
+            return;
+        }
+
+        $storageId = trim((string)($manifest['storageId'] ?? ''));
+        if ($storageId !== '') {
+            $this->deleteV2CatalogRecordByStorageId($storageId);
+        }
+
+        $this->deleteV2CatalogLookup('path', $entity, $this->catalogLogicalPath($manifest));
+        $this->deleteV2CatalogLookup('key', $entity, $this->catalogLogicalKey($manifest));
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     */
+    private function writeV2CatalogRecord(string $entity, array $manifest): void
+    {
+        $storageId = trim((string)($manifest['storageId'] ?? ''));
+        if ($storageId === '') {
+            return;
+        }
+
+        $payload = [
+            'v' => 2,
+            'storageId' => $storageId,
+            'bucketId' => (string)($manifest['bucketId'] ?? $this->bucketIdForEntity($entity)),
+            'entity' => $entity,
+            'logicalId' => (string)($manifest['id'] ?? ''),
+            'logicalPath' => $this->catalogLogicalPath($manifest),
+            'logicalKey' => $this->catalogLogicalKey($manifest),
+            'mime' => (string)($manifest['mime'] ?? 'application/octet-stream'),
+            'size' => (int)($manifest['size'] ?? 0),
+            'updatedAt' => (string)($manifest['mtime'] ?? gmdate('c')),
+            'indexes' => is_array($manifest['indexes'] ?? null) ? $manifest['indexes'] : [],
+            'lookupValues' => is_array($manifest['lookupValues'] ?? null) ? $manifest['lookupValues'] : [],
+            'tombstoned' => $this->isTombstonedManifest($manifest),
+        ];
+
+        $this->writeEncryptedV2CatalogPayload(
+            $this->v2CatalogRecordPath($storageId),
+            "v2catalog:record:$storageId",
+            $payload
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     */
+    private function writeV2CatalogLookup(string $type, string $entity, ?string $value, array $manifest): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        $digest = $this->fingerprint("v2:catalog:$type:$entity", $value);
+        $payload = [
+            'v' => 2,
+            'type' => $type,
+            'entity' => $entity,
+            'bucketId' => (string)($manifest['bucketId'] ?? $this->bucketIdForEntity($entity)),
+            'storageId' => (string)($manifest['storageId'] ?? ''),
+            'logicalId' => (string)($manifest['id'] ?? ''),
+            'logicalPath' => $this->catalogLogicalPath($manifest),
+            'logicalKey' => $this->catalogLogicalKey($manifest),
+            'updatedAt' => (string)($manifest['mtime'] ?? gmdate('c')),
+        ];
+
+        $this->writeEncryptedV2CatalogPayload(
+            $this->v2CatalogLookupPath($type, $entity, $value),
+            "v2catalog:$type:$entity:$digest",
+            $payload
+        );
+    }
+
+    private function deleteV2CatalogRecordByStorageId(string $storageId): void
+    {
+        if ($storageId === '') {
+            return;
+        }
+
+        $path = $this->v2CatalogRecordPath($storageId);
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
+    private function deleteV2CatalogLookup(string $type, string $entity, ?string $value): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        $path = $this->v2CatalogLookupPath($type, $entity, $value);
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function writeEncryptedV2CatalogPayload(string $path, string $aad, array $payload): void
+    {
+        $this->mkdir(dirname($path));
+        $plain = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $blob = Crypto::aeadEncrypt($plain, $this->deriveKey('catalog', 5), $aad);
+        $tmp = $path . '.tmp';
+        file_put_contents($tmp, $blob, LOCK_EX);
+        rename($tmp, $path);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function getDocumentManifest(string $entity, string $id): ?array
+    {
+        if (!$this->hasManifest($entity, $id)) {
+            return null;
+        }
+
+        try {
+            return $this->getManifest($entity, $id);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $catalog
+     * @return array<string,mixed>|null
+     */
+    private function readRawManifestFromCatalog(array $catalog): ?array
+    {
+        $this->loadKey();
+        $storageId = trim((string)($catalog['storageId'] ?? ''));
+        $bucketId = trim((string)($catalog['bucketId'] ?? ''));
+        if ($storageId === '' || $bucketId === '') {
+            return null;
+        }
+
+        $path = $this->bucketManifestsRoot($bucketId) . '/' . $storageId . '.m';
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $decode = function () use ($path, $storageId): ?array {
+            $blob = file_get_contents($path);
+            if ($blob === false) {
+                return null;
+            }
+
+            $plain = Crypto::aeadDecrypt($blob, $this->deriveKey('manifest', 2), "manifest:$storageId");
+            $manifest = json_decode($plain, true, 512, JSON_THROW_ON_ERROR);
+            return is_array($manifest) ? $manifest : null;
+        };
+
+        return RequestTiming::current()?->measure('decrypt', $decode) ?? $decode();
+    }
+
+    /**
+     * @param array<string,mixed> $rawManifest
+     * @param array<string,mixed> $catalog
+     * @return array<string,mixed>
+     */
+    private function hydrateManifest(array $rawManifest, array $catalog): array
+    {
+        $hydrated = $rawManifest;
+        $hydrated['entity'] = (string)($catalog['entity'] ?? '');
+        $hydrated['id'] = (string)($catalog['logicalId'] ?? $catalog['logicalKey'] ?? '');
+        $hydrated['logicalPath'] = $catalog['logicalPath'] ?? null;
+        $hydrated['indexes'] = is_array($catalog['indexes'] ?? null) ? $catalog['indexes'] : [];
+        $hydrated['lookupValues'] = is_array($catalog['lookupValues'] ?? null) ? $catalog['lookupValues'] : [];
+        $hydrated['bucketId'] = (string)($catalog['bucketId'] ?? $rawManifest['bucketId'] ?? '');
+        return $hydrated;
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     * @return array<string,mixed>
+     */
+    private function rawManifestPayload(array $manifest): array
+    {
+        $payload = [
+            'v' => 2,
+            'storageId' => (string)($manifest['storageId'] ?? ''),
+            'bucketId' => (string)($manifest['bucketId'] ?? ''),
+            'size' => (int)($manifest['size'] ?? 0),
+            'mime' => (string)($manifest['mime'] ?? 'application/octet-stream'),
+            'mtime' => (string)($manifest['mtime'] ?? gmdate('c')),
+            'chunking' => is_array($manifest['chunking'] ?? null) ? $manifest['chunking'] : [
+                'mode' => 'fixed',
+                'size' => 65536,
+            ],
+            'hash' => is_array($manifest['hash'] ?? null) ? $manifest['hash'] : ['algo' => 'blake2b'],
+            'chunks' => is_array($manifest['chunks'] ?? null) ? $manifest['chunks'] : [],
+        ];
+
+        if (isset($manifest['lifecycle']) && is_array($manifest['lifecycle']) && $manifest['lifecycle'] !== []) {
+            $payload['lifecycle'] = $manifest['lifecycle'];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function readCatalogRecordByLogicalKey(string $entity, string $id): ?array
+    {
+        $candidate = trim($id);
+        if ($candidate === '') {
+            return null;
+        }
+
+        $record = $this->readV2CatalogLookup('key', $entity, $candidate);
+        if ($record === null) {
+            return null;
+        }
+
+        $storageId = trim((string)($record['storageId'] ?? ''));
+        if ($storageId === '') {
+            return null;
+        }
+
+        return $this->readV2CatalogRecord($storageId);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function readCatalogRecordByLogicalPath(string $entity, string $logicalPath): ?array
+    {
+        $candidate = trim($logicalPath);
+        if ($candidate === '') {
+            return null;
+        }
+
+        $record = $this->readV2CatalogLookup('path', $entity, $candidate);
+        if ($record === null) {
+            return null;
+        }
+
+        $storageId = trim((string)($record['storageId'] ?? ''));
+        if ($storageId === '') {
+            return null;
+        }
+
+        return $this->readV2CatalogRecord($storageId);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function readV2CatalogRecord(string $storageId): ?array
+    {
+        if ($storageId === '') {
+            return null;
+        }
+
+        return $this->readEncryptedCatalogPayload(
+            $this->v2CatalogRecordPath($storageId),
+            "v2catalog:record:$storageId"
+        );
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function readV2CatalogLookup(string $type, string $entity, string $value): ?array
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        $digest = $this->fingerprint("v2:catalog:$type:$entity", $value);
+        return $this->readEncryptedCatalogPayload(
+            $this->v2CatalogLookupPath($type, $entity, $value),
+            "v2catalog:$type:$entity:$digest"
+        );
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function readEncryptedCatalogPayload(string $path, string $aad): ?array
+    {
+        $this->loadKey();
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $blob = file_get_contents($path);
+        if ($blob === false) {
+            return null;
+        }
+
+        $decode = function () use ($blob, $aad): ?array {
+            $plain = Crypto::aeadDecrypt($blob, $this->deriveKey('catalog', 5), $aad);
+            $payload = json_decode($plain, true, 512, JSON_THROW_ON_ERROR);
+            return is_array($payload) ? $payload : null;
+        };
+
+        return RequestTiming::current()?->measure('decrypt', $decode) ?? $decode();
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function scanV2CatalogRecords(): array
+    {
+        $root = $this->dir . '/idx/v2/catalog/records';
+        if (!is_dir($root)) {
+            return [];
+        }
+
+        $records = [];
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $item) {
+            if (!$item->isFile() || !str_ends_with($item->getFilename(), '.cat')) {
+                continue;
+            }
+
+            $storageId = basename($item->getFilename(), '.cat');
+            $record = $this->readV2CatalogRecord($storageId);
+            if (is_array($record)) {
+                $records[] = $record;
+            }
+        }
+
+        return $records;
+    }
+
+    private function bucketRoot(string $bucketId): string
+    {
+        return $this->dir . '/obj/' . $bucketId;
+    }
+
+    private function bucketManifestsRoot(string $bucketId): string
+    {
+        return $this->bucketRoot($bucketId) . '/manifests';
+    }
+
+    private function bucketChunksRoot(string $bucketId): string
+    {
+        return $this->bucketRoot($bucketId) . '/chunks';
+    }
+
+    private function v2CatalogRecordPath(string $storageId): string
+    {
+        $digest = $this->fingerprint('v2:catalog:record', $storageId);
+        $p1 = substr($digest, 0, 2);
+        $p2 = substr($digest, 2, 2);
+        return $this->dir . "/idx/v2/catalog/records/$p1/$p2/$storageId.cat";
+    }
+
+    private function v2CatalogLookupPath(string $type, string $entity, string $value): string
+    {
+        $digest = $this->fingerprint("v2:catalog:$type:$entity", $value);
+        $p1 = substr($digest, 0, 2);
+        $p2 = substr($digest, 2, 2);
+        return $this->dir . "/idx/v2/catalog/$type/$p1/$p2/$digest.cat";
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     */
+    private function catalogLogicalPath(array $manifest): ?string
+    {
+        $logicalPath = trim((string)($manifest['logicalPath'] ?? ''));
+        if ($logicalPath === '') {
+            return null;
+        }
+
+        return $this->normalizeLogicalPath($logicalPath);
+    }
+
+    /**
+     * @param array<string,mixed> $manifest
+     */
+    private function catalogLogicalKey(array $manifest): ?string
+    {
+        $indexes = is_array($manifest['indexes'] ?? null) ? $manifest['indexes'] : [];
+        $candidate = $indexes['id'] ?? ($manifest['id'] ?? null);
+        if (!is_scalar($candidate)) {
+            return null;
+        }
+
+        $candidate = trim((string)$candidate);
+        return $candidate === '' ? null : $candidate;
     }
 
 }
