@@ -50,7 +50,7 @@ php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public
 Useful overrides:
 
 ```powershell
-$env:EFSDB_DATA_DIR = "B:/Dev/PHPFS/efsdb-data"
+$env:EFSDB_DATA_DIR = "./efsdb-data"
 $env:EFSDB_BOOTSTRAP_SECRET = "replace-with-a-real-secret"
 $env:EFSDB_DEBUG = "1"
 ```

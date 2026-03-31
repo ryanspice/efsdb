@@ -15,7 +15,7 @@ bun install
 bun run build:css
 ```
 
-The PHP shell views use Tailwind-generated [style.css](B:/Dev/PHPFS/efsdb/php/core/public/css/style.css). Rebuild it after editing `public/views/*.php` or `src/input.css`.
+The PHP shell views use Tailwind-generated [style.css](./public/css/style.css). Rebuild it after editing `public/views/*.php` or `src/input.css`.
 
 From the repo root you can also run:
 
@@ -24,7 +24,7 @@ bun install
 bun run build:css
 ```
 
-The root workspace also exposes `bun run build:web`, which rebuilds the PHP shell CSS plus the shipped control-plane bundles directly into [public/js](B:/Dev/PHPFS/efsdb/php/core/public/js).
+The root workspace also exposes `bun run build:web`, which rebuilds the PHP shell CSS plus the shipped control-plane bundles directly into [public/js](./public/js).
 
 ### 2. Start the built-in PHP server
 From the repo root:
@@ -73,8 +73,8 @@ php efsdb/php/core/bin/efsdb.php rotate-user-key tenant-admin
 
 ## Notes
 
-- Development defaults to [/.cache/efsdb/live/data](B:/Dev/PHPFS/.cache/efsdb/live/data) unless `EFSDB_DATA_DIR` is set.
-- First-run workspace files are sourced from [install-seed](B:/Dev/PHPFS/install-seed) when present.
-- Manual maintenance helpers live under [scripts/manual](B:/Dev/PHPFS/scripts/manual).
+- Development defaults to [/.cache/efsdb/live/data](../../../.cache/efsdb/live/data) unless `EFSDB_DATA_DIR` is set.
+- First-run workspace files are sourced from [install-seed](../../../install-seed) when present.
+- Manual maintenance helpers live under [scripts/manual](../../../scripts/manual).
 - Production fails closed if `EFSDB_BOOTSTRAP_SECRET` is missing during first bootstrap.
 - The shipped `login`, `explorer`, `builder`, and `admin` web components are separate bundles; the PHP shell provides the surrounding page chrome and bootstrapping guidance.
