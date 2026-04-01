@@ -8,41 +8,49 @@
     let inspectResult: any = $state(null);
     let error: string | null = $state(null);
     let worker: Worker | null = null;
+    let isWorkerReady = $state(false);
     let isVerifying = $state(false);
     let verifyResult = $state(null);
     let t0 = 0;
 
     onMount(() => {
-        if (envelopeUrl) {
-            try {
-                worker = new Worker(new URL('../workers/explorer.worker.ts', import.meta.url), { type: 'module' });
-                
-                worker.onmessage = (e) => {
-                    const { type, payload, metrics } = e.data;
-                    if (type === 'INSPECT_RESULT') {
-                        inspectResult = payload;
-                        if (metrics && t0 > 0) {
-                            const envelopeInspectMs = Math.round(performance.now() - t0);
-                            const fullMetrics = { ...metrics, envelopeInspectMs };
-                            
-                            // Emit a custom event for the showcase page telemetry
-                            if (typeof window !== 'undefined') {
-                                window.dispatchEvent(new CustomEvent('efsdb:inspector-metrics', { 
-                                    detail: fullMetrics
-                                }));
-                            }
+        try {
+            worker = new Worker(new URL('../workers/explorer.worker.ts', import.meta.url), { type: 'module' });
+            
+            worker.onmessage = (e) => {
+                const { type, payload, metrics } = e.data;
+                if (type === 'INSPECT_RESULT') {
+                    inspectResult = payload;
+                    if (metrics && t0 > 0) {
+                        const envelopeInspectMs = Math.round(performance.now() - t0);
+                        const fullMetrics = { ...metrics, envelopeInspectMs };
+                        
+                        // Emit a custom event for the showcase page telemetry
+                        if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('efsdb:inspector-metrics', { 
+                                detail: fullMetrics
+                            }));
                         }
-                    } else if (type === 'ERROR') {
-                        error = payload;
-                        inspectResult = { ok: false, error };
-                    } else if (type === 'READY') {
-                        t0 = performance.now();
-                        worker?.postMessage({ type: 'INSPECT', url: envelopeUrl, id: 1 });
                     }
-                };
-            } catch (err: any) {
-                error = err.message;
-            }
+                } else if (type === 'ERROR') {
+                    error = payload;
+                    inspectResult = { ok: false, error };
+                } else if (type === 'READY') {
+                    isWorkerReady = true;
+                }
+            };
+        } catch (err: any) {
+            error = err.message;
+        }
+    });
+
+    $effect(() => {
+        if (worker && isWorkerReady && envelopeUrl) {
+            inspectResult = null;
+            error = null;
+            verifyResult = null;
+            t0 = performance.now();
+            worker.postMessage({ type: 'INSPECT', url: envelopeUrl, id: 1 });
         }
     });
 
