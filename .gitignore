@@ -13,7 +13,16 @@ diff_miller.txt
 explorer_diff.txt
 data_test/
 web/test-results/
+playwright-report/
+blob-report/
 spec/fixtures/_gen_tmp/
+
+# Rust / WASM / Generated Assets
+efsdb-core/target/
+efsdb/php/core/public/js/assets/
+ui/test-results/
+web/ui/lib/wasm/
+coverage/
 
 # Secrets / runtime data / backups
 efsdb/php/core/data/
