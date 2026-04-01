@@ -974,6 +974,18 @@
               </div>
             {/if}
           </dl>
+
+          {#if rawStorageKind(displayItem) === 'manifest' || rawStorageKind(displayItem) === 'chunk'}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              {#await client.getDownloadUrl(displayItem.rawPath || '', mode)}
+                <div style="color: var(--muted); font-size: 0.85rem;">Generating storage ticket...</div>
+              {:then url}
+                <efsdb-envelope-inspector {url}></efsdb-envelope-inspector>
+              {:catch err}
+                <div style="color: var(--danger); font-size: 0.85rem;">Could not inspect envelope: {err.message}</div>
+              {/await}
+            </div>
+          {/if}
         </section>
       {:else if isImage(displayItem) && imageUrl}
         <div class="imgWrap">
