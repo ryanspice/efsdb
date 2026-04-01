@@ -141,14 +141,22 @@ final class PublicSiteRouter
     /**
      * @return array{status:int,headers:array<string,string>,body:string}|null
      */
-    public function handle(string $uriPath, string $method, User $user, array $requestHeaders = []): ?array
+    public function handle(string $uriPath, string $method, User|callable $userResolver, array $requestHeaders = []): ?array
     {
+        $resolvedUser = null;
+        $getUser = function() use (&$resolvedUser, $userResolver): User {
+            if ($resolvedUser === null) {
+                $resolvedUser = is_callable($userResolver) ? $userResolver() : $userResolver;
+            }
+            return $resolvedUser;
+        };
+
         [$root, $relativePath] = $this->selectRoot($uriPath);
         if (!$this->workspace->isRootEnabled($root)) {
             return null;
         }
 
-        if (!$this->workspace->canReadRoot($root, $user)) {
+        if (!$this->workspace->canReadRoot($root, $getUser)) {
             return $this->notFound($method);
         }
 
@@ -168,12 +176,12 @@ final class PublicSiteRouter
                 return $staticResponse;
             }
 
-            $routeResponse = $this->renderCanonicalRoute($root, $method, $request, $requestHeaders, $user);
+            $routeResponse = $this->renderCanonicalRoute($root, $method, $request, $requestHeaders, $getUser());
             if ($routeResponse !== null) {
                 return $routeResponse;
             }
 
-            $missingRoute = $this->renderMissingPhpRoute($root, $method, $request, $requestHeaders, $user);
+            $missingRoute = $this->renderMissingPhpRoute($root, $method, $request, $requestHeaders, $getUser());
 
             return $missingRoute ?? $this->notFound($method);
         }

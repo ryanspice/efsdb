@@ -53,7 +53,10 @@ if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fast
                             }
                             header('X-EFSDB-Fast-Path: true');
                             readfile($targetPath);
-                            exit;
+                            if (!defined('EFSDB_TEST_MODE')) {
+                                exit;
+                            }
+                            return;
                         }
                     }
                 }
@@ -77,12 +80,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !str_starts_with($fastPath, '/_efsdb
         header('Content-Encoding: gzip');
         header('X-EFSDB-Ghost: fast');
         readfile($ghostFile . '.gz');
-        exit;
+        if (!defined('EFSDB_TEST_MODE')) {
+            exit;
+        }
+        return;
     } elseif (is_file($ghostFile)) {
         header('Content-Type: text/html; charset=utf-8');
         header('X-EFSDB-Ghost: fast');
         readfile($ghostFile);
-        exit;
+        if (!defined('EFSDB_TEST_MODE')) {
+            exit;
+        }
+        return;
     }
 }
 
@@ -1892,7 +1901,7 @@ if (isset($_GET['action']) && is_string($_GET['action'])) {
 if (!$isControlPlane) {
     // The fast path should have handled the Ghost HTML already, but if it fell through for some reason
     // we still let the router handle it
-    $publicResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, $auth->authenticate());
+    $publicResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, fn() => $auth->authenticate());
     if ($publicResponse !== null) {
         $isRootPath = $uriPath === '/' || $uriPath === '' || $uriPath === '/staging' || $uriPath === '/staging/';
         if ($publicResponse['status'] === 404 && $isRootPath && trim((string)($publicResponse['body'] ?? '')) === '404 Not Found (EFSDB)') {

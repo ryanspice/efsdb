@@ -163,9 +163,11 @@ $formatSize = function ($bytes) {
                         <option value="production" <?php echo $env === 'production' ? 'selected' : ''; ?>>Production</option>
                     </select>
                 </div>
-                <button type="button" onclick="window.dispatchEvent(new CustomEvent('efsdb:create-component', { detail: { path: '<?php echo $componentsPath; ?>' } }))" class="pill-button">
-                    Create Component
-                </button>
+                <?php if ($env !== 'production' || $perms->canManageSettings($user)): ?>
+                    <button type="button" onclick="window.dispatchEvent(new CustomEvent('efsdb:create-component', { detail: { path: '<?php echo $componentsPath; ?>' } }))" class="pill-button">
+                        Create Component
+                    </button>
+                <?php endif; ?>
                 <a class="ghost-button" href="<?php echo efsdb_control_plane_path('explorer'); ?>?mode=natural&path=<?php echo urlencode($componentsPath); ?>" title="Inspect raw files in Explorer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-70">
                         <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
@@ -235,13 +237,11 @@ $formatSize = function ($bytes) {
                     <div class="flex flex-col gap-3">
                         <!-- Desktop Header -->
                         <div class="hidden sm:flex items-center px-4 pb-2 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">
-                            <div class="flex-1">Filename</div>
-                            <div class="flex items-center gap-4 sm:w-auto">
-                                <div class="w-24 sm:px-4">Type</div>
-                                <div class="w-24 sm:px-4">Size</div>
-                                <div class="w-32 sm:px-4">Backing</div>
-                            </div>
-                            <div class="w-auto pl-4 text-right" style="min-width: 160px;">Actions</div>
+                            <div class="flex-1">Component</div>
+                            <div class="w-48 px-4">Backing</div>
+                            <div class="w-24 px-4">Type</div>
+                            <div class="w-24 px-4">Size</div>
+                            <div class="w-auto pl-4 text-right">Actions</div>
                         </div>
 
                         <!-- Rows -->
@@ -260,7 +260,7 @@ $formatSize = function ($bytes) {
                                 $fullPath = $componentsPath . '/' . $name;
                                 $backed = $backingRoutes[$name] ?? [];
                                 ?>
-                                <div id="row-<?php echo md5($fullPath); ?>" class="group flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-panel-bg)] p-4 hover:border-[var(--shell-border-strong)] transition-colors">
+                                <div id="row-<?php echo md5($fullPath); ?>" class="group/row flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-panel-bg)] p-4 hover:border-[var(--shell-border-strong)] transition-colors">
 
                                     <!-- Filename Column -->
                                     <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -287,9 +287,11 @@ $formatSize = function ($bytes) {
                                                     <path d="M125 30L200 170H160L145 130H105L90 170H50L125 30Z" fill="white" stroke="none" />
                                                     <path d="M125 60L105 110H145L125 60Z" fill="#dd0031" stroke="none" />
                                                 </svg>
-                                            <?php elseif ($type === 'dir'): ?>
+                                            <?php elseif ($type === 'dir' || $isSynthetic): ?>
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                                    <line x1="12" y1="22.08" x2="12" y2="12" />
                                                 </svg>
                                             <?php else: ?>
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -306,19 +308,7 @@ $formatSize = function ($bytes) {
                                     <!-- Details & Actions -->
                                     <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:w-auto">
                                         <div class="flex items-center gap-4 sm:w-auto text-sm">
-                                            <div class="w-24 sm:px-4">
-                                                <?php if ($type === 'dir'): ?>
-                                                    <span class="text-xs text-[var(--shell-muted)]">Directory</span>
-                                                <?php else: ?>
-                                                    <span class="tag text-[10px] py-0.5 px-1.5 <?php echo $isSvelte ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : ''; ?>">
-                                                        <?php echo htmlspecialchars(strtoupper($ext ?: 'file')); ?>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="w-24 sm:px-4 text-xs font-mono text-[var(--shell-muted)]">
-                                                <?php echo $type === 'dir' ? '-' : $size; ?>
-                                            </div>
-                                            <div class="w-32 sm:px-4 text-xs text-[var(--shell-muted)]">
+                                            <div class="w-48 sm:px-4 text-xs text-[var(--shell-muted)]">
                                                 <?php if (!empty($backed)): ?>
                                                     <div class="flex flex-col gap-1">
                                                         <?php foreach ($backed as $bRoute): ?>
@@ -331,19 +321,22 @@ $formatSize = function ($bytes) {
                                                     -
                                                 <?php endif; ?>
                                             </div>
+                                            <div class="w-24 sm:px-4">
+                                                <?php if ($type === 'dir' || $isSynthetic): ?>
+                                                    <span class="text-xs text-[var(--shell-muted)]">Package</span>
+                                                <?php else: ?>
+                                                    <span class="tag text-[10px] py-0.5 px-1.5 <?php echo $isSvelte ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : ''; ?>">
+                                                        <?php echo htmlspecialchars(strtoupper($ext ?: 'file')); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="w-24 sm:px-4 text-xs font-mono text-[var(--shell-muted)]">
+                                                <?php echo $type === 'dir' ? '-' : $size; ?>
+                                            </div>
                                         </div>
 
-                                        <div class="flex flex-wrap sm:flex-nowrap items-center gap-1 opacity-100 sm:opacity-70 group-hover:opacity-100 transition-opacity sm:pl-4 mt-2 sm:mt-0 justify-end" style="min-width: 160px;">
-                                            <?php if ($env !== 'production'): ?>
-                                                <?php if ($type === 'file'): ?>
-                                                    <a href="<?php echo efsdb_control_plane_path('builder'); ?>?path=<?php echo urlencode($component['logicalPath'] ?? $fullPath); ?>" class="pill-button py-1 px-3 text-xs shrink-0" data-tooltip="Edit in Builder">
-                                                        Edit
-                                                    </a>
-                                                <?php else: ?>
-                                                    <a href="<?php echo efsdb_control_plane_path('builder'); ?>?path=<?php echo urlencode($component['logicalPath'] ?? $fullPath); ?>" class="pill-button py-1 px-3 text-xs shrink-0">
-                                                        Open Directory
-                                                    </a>
-                                                <?php endif; ?>
+                                        <div class="flex flex-wrap items-center gap-1 opacity-100 sm:opacity-70 group-hover/row:opacity-100 transition-opacity sm:pl-4 mt-2 sm:mt-0 justify-end">
+                                            <?php if ($env !== 'production' || $perms->canManageSettings($user)): ?>
 
                                                 <button onclick="componentAction('duplicate', '<?php echo urlencode($component['logicalPath'] ?? $fullPath); ?>', this)" class="ghost-button py-1 px-2 text-xs group/btn flex items-center shrink-0 transition-all" data-tooltip="Duplicate">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-70">
@@ -376,6 +369,8 @@ $formatSize = function ($bytes) {
                                                         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                                                     </svg>
                                                 </button>
+                                            <?php else: ?>
+                                                <span class="text-xs text-[var(--shell-muted)] italic px-2">Read-only mode</span>
                                             <?php endif; ?>
                                             <a href="<?php echo efsdb_control_plane_path('explorer'); ?>?mode=natural&path=<?php echo urlencode($component['logicalPath'] ?? $fullPath); ?>" class="ghost-button py-1 px-2 text-xs group/btn flex items-center shrink-0 transition-all" data-tooltip="Inspect">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-70">
@@ -383,6 +378,12 @@ $formatSize = function ($bytes) {
                                                     <polyline points="14 2 14 8 20 8" />
                                                 </svg>
                                             </a>
+
+                                            <?php if ($env !== 'production' || $perms->canManageSettings($user)): ?>
+                                                <a href="<?php echo efsdb_control_plane_path('builder'); ?>?path=<?php echo urlencode($component['logicalPath'] ?? $fullPath); ?>" class="pill-button py-1 px-3 text-xs shrink-0 ml-1" data-tooltip="Edit in Builder">
+                                                    Edit
+                                                </a>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -401,39 +402,29 @@ $formatSize = function ($bytes) {
                     </div>
                 </div>
 
-                <div id="deps-framework" class="overflow-x-auto h-[300px] border border-[var(--shell-border)] border-opacity-50 rounded-lg relative hidden">
-                    <table class="w-full text-left bg-[var(--shell-panel-bg)] z-10 sticky top-0 shadow-sm">
-                        <thead>
-                            <tr>
-                                <th class="pb-3 pt-3 pl-4 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Package</th>
-                                <th class="pb-3 pt-3 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Size</th>
-                                <th class="pb-3 pt-3 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Usage</th>
-                            </tr>
-                        </thead>
-                    </table>
-                    <div class="w-full relative" id="deps-framework-container">
-                        <table class="w-full text-left absolute top-0 left-0">
-                            <tbody class="divide-y divide-[var(--shell-border)] divide-opacity-50" id="deps-framework-tbody">
-                            </tbody>
-                        </table>
+                <div id="deps-framework" class="flex flex-col h-[300px] border border-[var(--shell-border)] border-opacity-50 rounded-lg relative hidden overflow-hidden">
+                    <div class="flex items-center px-4 py-3 bg-[var(--shell-panel-bg)] z-10 border-b border-[var(--shell-border)] border-opacity-50">
+                        <div class="flex-1 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Package</div>
+                        <div class="w-24 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Size</div>
+                        <div class="w-24 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Usage</div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto relative w-full" id="deps-framework-container">
+                        <div id="deps-framework-scroll" class="w-full"></div>
+                        <div class="w-full absolute top-0 left-0 flex flex-col" id="deps-framework-tbody">
+                        </div>
                     </div>
                 </div>
 
-                <div id="deps-all" class="overflow-x-auto h-[300px] border border-[var(--shell-border)] border-opacity-50 rounded-lg relative hidden">
-                    <table class="w-full text-left bg-[var(--shell-panel-bg)] z-10 sticky top-0 shadow-sm">
-                        <thead>
-                            <tr>
-                                <th class="pb-3 pt-3 pl-4 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Package</th>
-                                <th class="pb-3 pt-3 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Size</th>
-                                <th class="pb-3 pt-3 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Usage</th>
-                            </tr>
-                        </thead>
-                    </table>
-                    <div class="w-full relative" id="deps-all-container">
-                        <table class="w-full text-left absolute top-0 left-0">
-                            <tbody class="divide-y divide-[var(--shell-border)] divide-opacity-50" id="deps-all-tbody">
-                            </tbody>
-                        </table>
+                <div id="deps-all" class="flex flex-col h-[300px] border border-[var(--shell-border)] border-opacity-50 rounded-lg relative hidden overflow-hidden">
+                    <div class="flex items-center px-4 py-3 bg-[var(--shell-panel-bg)] z-10 border-b border-[var(--shell-border)] border-opacity-50">
+                        <div class="flex-1 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Package</div>
+                        <div class="w-24 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Size</div>
+                        <div class="w-24 text-[0.72rem] font-semibold uppercase tracking-wider text-[var(--shell-muted)]">Usage</div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto relative w-full" id="deps-all-container">
+                        <div id="deps-all-scroll" class="w-full"></div>
+                        <div class="w-full absolute top-0 left-0 flex flex-col" id="deps-all-tbody">
+                        </div>
                     </div>
                 </div>
             </article>
@@ -531,15 +522,14 @@ $formatSize = function ($bytes) {
 
     class VirtualList {
         constructor(containerId, data, rowHeight = 44) {
-            this.container = document.getElementById(containerId);
+            this.container = document.getElementById(containerId + '-container');
+            this.scrollEl = document.getElementById(containerId + '-scroll');
             this.tbody = document.getElementById(containerId + '-tbody');
-            this.innerContainer = document.getElementById(containerId + '-container');
             this.data = data;
             this.rowHeight = rowHeight;
             this.visibleCount = Math.ceil(this.container.clientHeight / rowHeight) + 4;
 
-            this.innerContainer.style.height = (data.length * rowHeight) + 'px';
-            this.table = this.innerContainer.querySelector('table');
+            this.scrollEl.style.height = (data.length * rowHeight) + 'px';
 
             this.container.addEventListener('scroll', () => {
                 requestAnimationFrame(() => this.render());
@@ -552,16 +542,16 @@ $formatSize = function ($bytes) {
             let startIndex = Math.floor(scrollTop / this.rowHeight);
             let endIndex = Math.min(startIndex + this.visibleCount, this.data.length);
 
-            this.table.style.transform = `translateY(${startIndex * this.rowHeight}px)`;
+            this.tbody.style.transform = `translateY(${startIndex * this.rowHeight}px)`;
 
             let html = '';
             for (let i = startIndex; i < endIndex; i++) {
                 const item = this.data[i];
-                html += `<tr class="hover:bg-[var(--shell-hover-bg)] transition-colors h-[44px]">
-                    <td class="py-2.5 pl-4 pr-4 text-sm font-medium text-[var(--shell-text-strong)]">${item.pkg}</td>
-                    <td class="py-2.5 pr-4 text-xs font-mono text-[var(--shell-muted)]">${item.size}</td>
-                    <td class="py-2.5 pr-4 text-xs font-mono text-[var(--shell-muted)]">${item.count} projects</td>
-                </tr>`;
+                html += `<div class="flex items-center hover:bg-[var(--shell-hover-bg)] transition-colors h-[44px] border-b border-[var(--shell-border)] border-opacity-50 px-4">
+                    <div class="flex-1 text-sm font-medium text-[var(--shell-text-strong)] truncate pr-4" title="${item.pkg}">${item.pkg}</div>
+                    <div class="w-24 text-xs font-mono text-[var(--shell-muted)] px-4">${item.size}</div>
+                    <div class="w-24 text-xs font-mono text-[var(--shell-muted)] px-4">${item.count} projects</div>
+                </div>`;
             }
             this.tbody.innerHTML = html;
         }

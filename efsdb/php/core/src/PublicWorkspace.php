@@ -290,13 +290,14 @@ final class PublicWorkspace
         return $this->persistRoot($doc);
     }
 
-    public function canReadRoot(string $root, User $user): bool
+    public function canReadRoot(string $root, User|callable $userResolver): bool
     {
         $doc = $this->getRoot($root, false) ?? $this->defaultRootDocument($this->tenantKey(), $this->normalizeRoot($root));
         if (($doc['visibility'] ?? 'restricted') === 'public') {
             return true;
         }
 
+        $user = is_callable($userResolver) ? $userResolver() : $userResolver;
         if ($user->isGuest()) {
             return false;
         }
