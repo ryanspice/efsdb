@@ -4,7 +4,6 @@ $app = new App(Config::getDataDir(), Config::getSchemaDir());
 $ws = $app->getPublicWorkspace();
 $rc = new ReflectionClass($ws);
 $m = $rc->getMethod('materializedWorkspaceBaseDir');
-$m->setAccessible(true);
 $dir = $m->invoke($ws, 'staging');
 $cache = $dir . '/.fingerprint-cache';
 if (is_file($cache)) {
