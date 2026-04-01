@@ -25,9 +25,9 @@ self.onmessage = async (event: MessageEvent) => {
         try {
             console.log("Worker: received INSPECT", url);
             // Use the two-step fetcher mapped to the WASM method
-            const result = await fetchAndInspectEnvelope(url, wasm_inspect_envelope);
-            console.log("Worker: inspect result", result);
-            self.postMessage({ type: 'INSPECT_RESULT', id, payload: result });
+            const response = await fetchAndInspectEnvelope(url, wasm_inspect_envelope);
+            console.log("Worker: inspect result", response.result);
+            self.postMessage({ type: 'INSPECT_RESULT', id, payload: response.result, metrics: response.metrics });
         } catch (error: any) {
             console.error("Worker: inspect error", error);
             self.postMessage({ type: 'ERROR', id, payload: error.message });

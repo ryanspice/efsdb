@@ -22,6 +22,7 @@ export type CustomElementBuildOptions = {
 
 export function createCustomElementConfig(options: CustomElementBuildOptions): UserConfig {
   return {
+    base: '/js/',
     resolve: {
       alias: {
         '@contracts': webContractsDir,

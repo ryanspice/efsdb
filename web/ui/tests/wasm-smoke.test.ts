@@ -51,7 +51,7 @@ test('fetchAndInspectEnvelope handles the two-step variable header fetch against
     };
 
     try {
-        const result = await fetchAndInspectEnvelope('http://localhost/fixture.bin', wasm_inspect_envelope);
+        const { result, metrics } = await fetchAndInspectEnvelope('http://localhost/fixture.bin', wasm_inspect_envelope);
 
         // Verify the two steps
         expect(firstFetchRange).toBe('bytes=0-15');
@@ -66,6 +66,10 @@ test('fetchAndInspectEnvelope handles the two-step variable header fetch against
         expect(result.suite).toBe(1);
         expect(result.header_length).toBe(16);
         expect(result.payload_length).toBe(13);
+
+        // Verify metrics
+        expect(metrics).toBeDefined();
+        expect(metrics?.totalBytesFetched).toBe(16 + (H + 8));
 
     } finally {
         global.fetch = globalFetch;

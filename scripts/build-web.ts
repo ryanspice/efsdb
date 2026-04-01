@@ -25,7 +25,8 @@ const tasks: BuildTask[] = [
   { cwd: resolve(rootDir, 'web'), name: 'login', script: 'build:login' },
   { cwd: resolve(rootDir, 'web'), name: 'explorer', script: 'build:explorer' },
   { cwd: resolve(rootDir, 'web'), name: 'builder', script: 'build:builder' },
-  { cwd: resolve(rootDir, 'web'), name: 'admin', script: 'build:admin' }
+  { cwd: resolve(rootDir, 'web'), name: 'admin', script: 'build:admin' },
+  { cwd: resolve(rootDir, 'web'), name: 'theme', script: 'build:theme' }
 ];
 
 const runningChildren = new Map<string, ChildProcess>();

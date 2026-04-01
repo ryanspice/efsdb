@@ -80,7 +80,7 @@ $navLinks = [
                 </button>
             <?php endif; ?>
 
-            <button class="theme-button" style="padding: 0.4rem; border-radius: 50%;" type="button" data-theme-toggle data-theme-current="light" aria-label="Toggle color theme" title="Toggle theme">
+            <button class="theme-button" style="padding: 0.4rem; border-radius: 50%;" type="button" data-theme-toggle data-theme-current="auto" aria-label="Toggle color theme" title="Toggle theme">
                 <svg class="theme-light w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="4" />
                     <path d="M12 2v2" />
@@ -95,17 +95,17 @@ $navLinks = [
                 <svg class="theme-dark w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
                 </svg>
-                <svg class="theme-green w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m2 22 1-1h3l9-9" />
-                    <path d="M3 21v-3l9-9" />
-                    <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" />
+                <svg class="theme-auto w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
                 </svg>
             </button>
             <?php if ($isGuest): ?>
                 <a class="pill-button hidden lg:inline-flex" href="<?php echo efsdb_control_plane_path('login'); ?>">Unlock</a>
             <?php else: ?>
                 <?php if ($canAdmin): ?>
-                    <button id="toolbar-theme-trigger" type="button" class="ghost-button" style="padding: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="document.dispatchEvent(new CustomEvent('efsdb:theme-studio:toggle', { detail: { source: 'toolbar' } }))" title="Settings" aria-label="Settings">
+                    <button type="button" class="ghost-button" style="padding: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;" onclick="openSettingsWindow()" title="Settings" aria-label="Settings">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                             <circle cx="12" cy="12" r="3" />
@@ -125,6 +125,37 @@ $navLinks = [
 </nav>
 
 <?php if (!$isGuest && $canAdmin): ?>
-    <script type="module" src="/js/efsdb-theme-studio.js"></script>
-    <efsdb-theme-studio></efsdb-theme-studio>
+    <script type="module" src="/js/efsdb-window-shell.js"></script>
+    <efsdb-window-shell id="settings-window" title="Settings" width="500" height="500" hidden>
+        <iframe src="/_efsdb/settings?popup=1" style="flex: 1; border: none; width: 100%; height: 100%; display: block; background: var(--shell-panel-bg);"></iframe>
+    </efsdb-window-shell>
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.data === 'close-settings') {
+                const el = document.getElementById('settings-window');
+                if (el) {
+                    el.hidden = true;
+                    el.setAttribute('hidden', '');
+                    el.open = false;
+                    el.removeAttribute('open');
+                }
+            }
+        });
+
+        function openSettingsWindow() {
+            const el = document.getElementById('settings-window');
+            if (el) {
+                el.hidden = false;
+                el.removeAttribute('hidden');
+                customElements.whenDefined('efsdb-window-shell').then(() => {
+                    el.open = true;
+                    el.setAttribute('open', 'true');
+                    el.x = Math.round((window.innerWidth - 500) / 2);
+                    el.y = Math.round((window.innerHeight - 500) / 2);
+                });
+            } else {
+                console.error('Settings window element not found.');
+            }
+        }
+    </script>
 <?php endif; ?>

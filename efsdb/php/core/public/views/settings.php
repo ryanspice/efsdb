@@ -59,6 +59,51 @@ $currentAccent = $tenantSettings['settings']['accent'] ?? 'default';
     
     <form method="post" action="/_efsdb/settings" class="space-y-6">
         <div class="field-stack">
+            <label>Theme Mode</label>
+            <div class="flex items-center gap-3 p-1 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface)] w-fit" id="theme-mode-group">
+                <button type="button" class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-mode="light" onclick="setThemeMode('light')">Light</button>
+                <button type="button" class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-mode="dark" onclick="setThemeMode('dark')">Dark</button>
+                <button type="button" class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-mode="auto" onclick="setThemeMode('auto')">Auto</button>
+            </div>
+            <p class="shell-copy text-xs mt-1">Choose your preferred appearance or sync with your system.</p>
+        </div>
+
+        <script>
+            function updateThemeButtons(mode) {
+                const buttons = document.querySelectorAll('#theme-mode-group button');
+                buttons.forEach(btn => {
+                    if (btn.dataset.mode === mode) {
+                        btn.style.background = 'var(--accent)';
+                        btn.style.color = 'var(--shell-pill-text)';
+                    } else {
+                        btn.style.background = 'transparent';
+                        btn.style.color = 'var(--shell-text)';
+                    }
+                });
+            }
+
+            function setThemeMode(mode) {
+                if (window.parent && window.parent.setEfsdbTheme) {
+                    window.parent.setEfsdbTheme(mode);
+                } else if (window.setEfsdbTheme) {
+                    window.setEfsdbTheme(mode);
+                }
+                updateThemeButtons(mode);
+            }
+
+            // Initialize button states
+            document.addEventListener('DOMContentLoaded', () => {
+                let currentMode = 'auto';
+                if (window.parent && window.parent.getEfsdbThemeSetting) {
+                    currentMode = window.parent.getEfsdbThemeSetting();
+                } else if (window.getEfsdbThemeSetting) {
+                    currentMode = window.getEfsdbThemeSetting();
+                }
+                updateThemeButtons(currentMode);
+            });
+        </script>
+
+        <div class="field-stack mt-6">
             <label for="accent">Accent Color</label>
             <div class="flex items-center gap-2">
                 <input type="color" id="accent-picker" value="<?php echo $currentAccent === 'default' ? '#5b8cff' : htmlspecialchars($currentAccent); ?>" class="h-[2.7rem] w-12 p-0.5 rounded cursor-pointer border border-[var(--shell-border)] bg-[var(--shell-surface)]" oninput="document.getElementById('accent').value = this.value">

@@ -13,9 +13,16 @@ $fastPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fastPath, $matches)) {
     $env = $matches[1] === '' ? 'production' : $matches[1];
     $relPath = ltrim($matches[2], '/');
-    if ($relPath !== '' && preg_match('#\.(css|js|mjs|woff2?|png|jpe?g|gif|svg|ico|json|map|txt|xml|wasm)$#i', $relPath)) {
-        // We only attempt this if it's not a control plane request
-        if (!str_starts_with($relPath, '_efsdb/')) {
+    if ($relPath !== '' && !str_contains($relPath, '..') && preg_match('#\.(css|js|mjs|woff2?|png|jpe?g|gif|svg|ico|json|map|txt|xml|wasm|bin)$#i', $relPath)) {
+        // FAST-FAIL for missing admin assets to prevent framework boot and 302 redirect cascade
+        if (str_starts_with($relPath, '_efsdb/')) {
+            if (!is_file(__DIR__ . '/' . $relPath)) {
+                http_response_code(404);
+                if (!defined('EFSDB_TEST_MODE')) exit;
+                return;
+            }
+        } else {
+            // Public site asset handling
             $repoRoot = dirname(__DIR__, 4);
             $tenantHash = substr(sha1('tenant'), 0, 16);
             $cacheFile = $repoRoot . '/.cache/efsdb/workspaces/materialized/' . $tenantHash . '/' . $env . '/.fingerprint-cache';
@@ -43,6 +50,7 @@ if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fast
                             'txt' => 'text/plain; charset=utf-8',
                             'xml' => 'application/xml; charset=utf-8',
                             'wasm' => 'application/wasm',
+                            'bin' => 'application/octet-stream',
                         ];
                         if (isset($mimes[$ext])) {
                             header('Content-Type: ' . $mimes[$ext]);
@@ -52,6 +60,39 @@ if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fast
                                 header('Cache-Control: public, max-age=0, must-revalidate');
                             }
                             header('X-EFSDB-Fast-Path: true');
+
+                            $fileSize = filesize($targetPath);
+                            header("Accept-Ranges: bytes");
+
+                            if (isset($_SERVER['HTTP_RANGE'])) {
+                                if (preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
+                                    $start = (int)$matches[1];
+                                    $end = $matches[2] === '' ? $fileSize - 1 : (int)$matches[2];
+
+                                    if ($start > $end || $start >= $fileSize) {
+                                        http_response_code(416);
+                                        header("Content-Range: bytes */$fileSize");
+                                        if (!defined('EFSDB_TEST_MODE')) exit;
+                                        return;
+                                    }
+
+                                    $length = $end - $start + 1;
+                                    http_response_code(206);
+                                    header("Content-Range: bytes $start-$end/$fileSize");
+                                    header("Content-Length: $length");
+
+                                    $fp = fopen($targetPath, 'rb');
+                                    if ($fp) {
+                                        fseek($fp, $start);
+                                        echo fread($fp, $length);
+                                        fclose($fp);
+                                    }
+                                    if (!defined('EFSDB_TEST_MODE')) exit;
+                                    return;
+                                }
+                            }
+
+                            header("Content-Length: $fileSize");
                             readfile($targetPath);
                             if (!defined('EFSDB_TEST_MODE')) {
                                 exit;
@@ -120,6 +161,12 @@ register_shutdown_function(function () use ($startTime, $dataDir, $requestTiming
     $method = $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN';
     $uri = $_SERVER['REQUEST_URI'] ?? '/';
 
+    // Release the HTTP connection immediately so the admin panel UI isn't blocked by disk I/O
+    if (function_exists('fastcgi_finish_request')) {
+        session_write_close();
+        fastcgi_finish_request();
+    }
+
     try {
         $requestTiming->emit();
         $analytics = new Analytics($dataDir);
@@ -164,18 +211,26 @@ if (!function_exists('efsdb_json_body')) {
      */
     function efsdb_json_body(): array
     {
+        static $decodedCache = null;
+        if ($decodedCache !== null) {
+            return $decodedCache;
+        }
+
         if (isset($GLOBALS['EFSDB_TEST_JSON_BODY']) && is_string($GLOBALS['EFSDB_TEST_JSON_BODY'])) {
             $decoded = json_decode($GLOBALS['EFSDB_TEST_JSON_BODY'], true);
-            return is_array($decoded) ? $decoded : [];
+            $decodedCache = is_array($decoded) ? $decoded : [];
+            return $decodedCache;
         }
 
         $json = file_get_contents('php://input');
         if ($json === false || trim($json) === '') {
-            return [];
+            $decodedCache = [];
+            return $decodedCache;
         }
 
         $decoded = json_decode($json, true);
-        return is_array($decoded) ? $decoded : [];
+        $decodedCache = is_array($decoded) ? $decoded : [];
+        return $decodedCache;
     }
 }
 
@@ -401,7 +456,7 @@ if (!function_exists('efsdb_guest_overlay_context')) {
     }
 }
 
-$uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$uriPath = (is_string($fastPath) ? $fastPath : '/') ?: '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if (str_starts_with($uriPath, '/_efsdb/api/')) {
@@ -849,7 +904,7 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $payload = efsdb_json_body();
                 try {
                     $result = $app->getEnvironmentOperations()->promote($user->id, $payload['reason'] ?? null);
-                    $app->getGhostPreloadService()->preloadEnvironment('production');
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment('production'));
                     efsdb_json_response($result);
                 } catch (Throwable $e) {
                     efsdb_json_response(efsdb_error('invalid_promote_request', $e->getMessage()), 400);
@@ -871,7 +926,7 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $root = (string)($payload['root'] ?? 'production');
                 try {
                     $result = $app->getEnvironmentOperations()->rollback($root, $user->id, $payload['reason'] ?? null);
-                    $app->getGhostPreloadService()->preloadEnvironment($root);
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment($root));
                     efsdb_json_response($result);
                 } catch (Throwable $e) {
                     efsdb_json_response(efsdb_error('invalid_rollback_request', $e->getMessage()), 400);
@@ -894,7 +949,7 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $targetRoot = (string)($payload['targetRoot'] ?? '');
                 try {
                     $result = $app->getEnvironmentOperations()->copy($sourceRoot, $targetRoot, 'copy', $user->id, $payload['reason'] ?? null);
-                    $app->getGhostPreloadService()->preloadEnvironment($targetRoot);
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment($targetRoot));
                     efsdb_json_response($result);
                 } catch (Throwable $e) {
                     efsdb_json_response(efsdb_error('invalid_copy_request', $e->getMessage()), 400);
@@ -1397,6 +1452,11 @@ ANGULAR;
                         throw new InvalidArgumentException('GitHub URL is required');
                     }
 
+                    $parsedUrl = parse_url($githubUrl);
+                    if (($parsedUrl['host'] ?? '') !== 'github.com' || ($parsedUrl['scheme'] ?? '') !== 'https') {
+                        throw new InvalidArgumentException('Invalid GitHub URL');
+                    }
+
                     // Basic GitHub repo URL to zip download (assuming main branch)
                     // e.g. https://github.com/user/repo -> https://github.com/user/repo/archive/refs/heads/main.zip
                     $downloadUrl = $githubUrl . '/archive/refs/heads/main.zip';
@@ -1552,6 +1612,12 @@ ANGULAR;
             if (count($segments) >= 4 && $segments[0] === 'site' && $segments[2] === 'components') {
                 $env = $segments[1];
                 $componentName = implode('/', array_slice($segments, 3));
+
+                if (preg_match('/[^a-zA-Z0-9_.\/-]/', $componentName) || str_contains($componentName, '..')) {
+                    efsdb_json_response(efsdb_error('invalid_path', 'Component path contains invalid characters'), 400);
+                    if (!defined('EFSDB_TEST_MODE')) exit;
+                    return;
+                }
 
                 $routeFile = trim($routePath, '/');
                 if ($routeFile === '') {
@@ -1709,7 +1775,7 @@ PHP;
                     $result = $app->getExplorer()->put($user, $routeLogicalPath, $phpContent, 'application/x-httpd-php');
                     // Inform the site build service about the new route
                     $app->getSiteBuildService()->handleSave($routeLogicalPath, 'natural');
-                    $app->getGhostPreloadService()->preloadEnvironment($env);
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment($env));
 
                     $app->getAudit()->record('component.nominated_route', [
                         'actor' => $user->id,

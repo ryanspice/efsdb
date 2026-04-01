@@ -3655,6 +3655,11 @@ if ($showcasePage === 'hub') {
                 </p>
             </div>
 
+            <!-- Mount the inspector to a known test fixture for telemetry generation -->
+            <div class="surface-panel mt-6" style="padding: 0; overflow: hidden; border: 1px solid var(--shell-border);">
+                <efsdb-envelope-inspector url="/_efsdb/api/admin/public-workspace/file?path=%2Ftests%2Ffixtures%2F01_valid_blake3.bin&raw=true"></efsdb-envelope-inspector>
+            </div>
+
             <div class="surface-panel mt-6">
                 <div class="section-label">Telemetry & Benchmarks</div>
                 <p class="shell-copy mt-3">
@@ -3664,32 +3669,32 @@ if ($showcasePage === 'hub') {
                 <div class="showcase-metrics mt-5">
                     <div class="showcase-metric">
                         <div class="showcase-metric__label">Envelope Inspect Path</div>
-                        <div class="showcase-metric__value">TODO ms</div>
+                        <div class="showcase-metric__value" id="metric-inspect-path">-- ms</div>
                         <div class="text-xs text-[var(--shell-muted)] mt-1">Time from click to decoded JSON</div>
                     </div>
                     <div class="showcase-metric">
                         <div class="showcase-metric__label">Probe Fetch</div>
-                        <div class="showcase-metric__value">TODO ms</div>
+                        <div class="showcase-metric__value" id="metric-probe-fetch">-- ms</div>
                         <div class="text-xs text-[var(--shell-muted)] mt-1">First 16 bytes</div>
                     </div>
                     <div class="showcase-metric">
                         <div class="showcase-metric__label">Header Fetch</div>
-                        <div class="showcase-metric__value">TODO ms</div>
+                        <div class="showcase-metric__value" id="metric-header-fetch">-- ms</div>
                         <div class="text-xs text-[var(--shell-muted)] mt-1">Full header range</div>
                     </div>
                     <div class="showcase-metric">
                         <div class="showcase-metric__label">Worker Parse</div>
-                        <div class="showcase-metric__value">TODO ms</div>
+                        <div class="showcase-metric__value" id="metric-worker-parse">-- ms</div>
                         <div class="text-xs text-[var(--shell-muted)] mt-1">WASM execution</div>
                     </div>
                     <div class="showcase-metric">
                         <div class="showcase-metric__label">Total Bytes Fetched</div>
-                        <div class="showcase-metric__value">TODO bytes</div>
+                        <div class="showcase-metric__value" id="metric-bytes-fetched">-- bytes</div>
                         <div class="text-xs text-[var(--shell-muted)] mt-1">Header + Exts</div>
                     </div>
                     <div class="showcase-metric">
                         <div class="showcase-metric__label">Payload Fetched</div>
-                        <div class="showcase-metric__value">No</div>
+                        <div class="showcase-metric__value" id="metric-payload-fetched">No</div>
                         <div class="text-xs text-[var(--shell-muted)] mt-1">Isolated metadata</div>
                     </div>
                 </div>
@@ -3704,5 +3709,20 @@ if ($showcasePage === 'hub') {
                 </div>
             </div>
         </section>
+
+        <script type="module" src="/js/efsdb-explorer.js"></script>
+        <script>
+            window.addEventListener('efsdb:inspector-metrics', (e) => {
+                const m = e.detail;
+                if (!m) return;
+                const el = (id) => document.getElementById(id);
+                if (el('metric-inspect-path')) el('metric-inspect-path').textContent = m.envelopeInspectMs + ' ms';
+                if (el('metric-probe-fetch')) el('metric-probe-fetch').textContent = m.probeFetchMs + ' ms';
+                if (el('metric-header-fetch')) el('metric-header-fetch').textContent = m.headerFetchMs + ' ms';
+                if (el('metric-worker-parse')) el('metric-worker-parse').textContent = m.wasmParseMs + ' ms';
+                if (el('metric-bytes-fetched')) el('metric-bytes-fetched').textContent = m.totalBytesFetched + ' bytes';
+                // Payload fetched stays "No" statically, verifying the two-step architecture.
+            });
+        </script>
     <?php endif; ?>
 </section>

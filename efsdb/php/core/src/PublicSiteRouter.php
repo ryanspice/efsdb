@@ -904,9 +904,35 @@ final class PublicSiteRouter
      */
     private function success(string $method, array $manifest, string $bytes, array $headers): array
     {
+        $fileSize = (int)($manifest['size'] ?? strlen($bytes));
+        $headers['Accept-Ranges'] = 'bytes';
+        
+        if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
+            $start = (int)$matches[1];
+            $end = $matches[2] === '' ? $fileSize - 1 : (int)$matches[2];
+            
+            if ($start > $end || $start >= $fileSize) {
+                return [
+                    'status' => 416,
+                    'headers' => $headers + ['Content-Range' => "bytes */$fileSize"],
+                    'body' => ''
+                ];
+            }
+            
+            $length = $end - $start + 1;
+            return [
+                'status' => 206,
+                'headers' => $headers + [
+                    'Content-Range' => "bytes $start-$end/$fileSize",
+                    'Content-Length' => (string)$length
+                ],
+                'body' => $method === 'HEAD' ? '' : substr($bytes, $start, $length),
+            ];
+        }
+
         return [
             'status' => 200,
-            'headers' => $headers + ['Content-Length' => (string)($method === 'HEAD' ? (int)($manifest['size'] ?? strlen($bytes)) : strlen($bytes))],
+            'headers' => $headers + ['Content-Length' => (string)$fileSize],
             'body' => $method === 'HEAD' ? '' : $bytes,
         ];
     }
