@@ -3650,7 +3650,7 @@ if ($showcasePage === 'hub') {
 
             <!-- A. Hero / Milestone -->
             <div class="showcase-section-head">
-                <div class="section-label" style="color: var(--shell-primary); font-weight: bold;">Track C: Browser-side envelope verification</div>
+                <div class="section-label" style="color: var(--shell-primary); font-weight: bold;">Browser-side envelope verification</div>
                 <h2 class="page-title" style="font-size: 2rem; margin-top: 0.5rem; margin-bottom: 1rem;">Live Inspector Demo</h2>
                 <p class="shell-copy" style="font-size: 1.1rem; line-height: 1.6; max-width: 600px;">
                     We proved browser-side envelope inspection with PHP/Rust parity, range-based partial fetches, and worker-isolated WASM parsing.
@@ -3658,27 +3658,105 @@ if ($showcasePage === 'hub') {
                 </p>
 
                 <div class="mt-4 flex gap-3 flex-wrap">
-                    <span class="tag" style="background: color-mix(in srgb, var(--shell-primary), transparent 85%); color: var(--shell-text); padding: 0.5rem 1rem; border-radius: 999px;">PHP ↔ Rust parity: <strong>11/11</strong></span>
-                    <span class="tag" style="background: color-mix(in srgb, #22c55e, transparent 85%); color: #16a34a; padding: 0.5rem 1rem; border-radius: 999px;">Canonical JSON parity: <strong>PASS</strong></span>
-                    <span class="tag" style="background: color-mix(in srgb, #3b82f6, transparent 85%); color: #2563eb; padding: 0.5rem 1rem; border-radius: 999px;">Payload fetched: <strong>No</strong></span>
-                    <span class="tag" style="background: color-mix(in srgb, #8b5cf6, transparent 85%); color: #7c3aed; padding: 0.5rem 1rem; border-radius: 999px;">Worker isolated: <strong>Yes</strong></span>
+                    <span class="tag" style="background: color-mix(in srgb, #22c55e, transparent 85%); color: #15803d; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #22c55e, transparent 50%); font-weight: 500;">Parity Verified</span>
+                    <span class="tag" style="background: color-mix(in srgb, #3b82f6, transparent 85%); color: #1d4ed8; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #3b82f6, transparent 50%); font-weight: 500;">Worker Active</span>
+                    <span class="tag" style="background: color-mix(in srgb, #8b5cf6, transparent 85%); color: #6d28d9; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #8b5cf6, transparent 50%); font-weight: 500;">Header-Only Fetch</span>
+                    <span class="tag" style="background: color-mix(in srgb, var(--shell-primary), transparent 85%); color: var(--shell-text); padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--shell-primary), transparent 50%); font-weight: 500;">Ready for Merge</span>
                 </div>
             </div>
 
             <!-- Architecture Strip -->
-            <div class="surface-panel" style="padding: 1.5rem; background: var(--shell-surface); border-radius: 12px; border: 1px solid var(--shell-border); text-align: center;">
-                <div class="section-label" style="margin-bottom: 1rem;">Architecture Flow</div>
-                <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; font-family: ui-monospace, monospace; font-size: 0.85rem; color: var(--shell-muted);">
-                    <span style="color: var(--shell-text);">PHP baseline</span>
-                    <span>→</span>
-                    <span style="color: var(--shell-text);">fixture parity</span>
-                    <span>→</span>
-                    <span style="color: var(--shell-text);">Rust core</span>
-                    <span>→</span>
-                    <span style="color: var(--shell-text);">WASM worker</span>
-                    <span>→</span>
-                    <span style="color: var(--shell-primary); font-weight: bold;">Svelte UI</span>
-                </div>
+            <div class="surface-panel" style="padding: 2.5rem; background: var(--shell-surface); border-radius: 12px; border: 1px solid var(--shell-border); text-align: center; overflow: hidden;">
+                <div class="section-label" style="margin-bottom: 2rem;">Zero-Download Architecture Flow</div>
+
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" style="width: 100%; max-width: 800px; height: auto; margin: 0 auto; display: block; font-family: ui-sans-serif, system-ui, sans-serif;">
+                    <defs>
+                        <!-- Gradients -->
+                        <linearGradient id="gradSource" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.8" />
+                            <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.9" />
+                        </linearGradient>
+                        <linearGradient id="gradExtract" x1="0%" y1="100%" x2="0%" y2="0%">
+                            <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.6" />
+                            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.9" />
+                        </linearGradient>
+                        <linearGradient id="gradProcess" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.8" />
+                            <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.9" />
+                        </linearGradient>
+                        <linearGradient id="gradRender" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#22c55e" stop-opacity="0.8" />
+                            <stop offset="100%" stop-color="#15803d" stop-opacity="0.9" />
+                        </linearGradient>
+
+                        <!-- Filters -->
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    <!-- Background subtle lines -->
+                    <path d="M 120 180 Q 250 180 300 120 T 400 60 T 550 60 T 680 120" fill="none" stroke="var(--shell-border)" stroke-width="2" stroke-dasharray="4,4" />
+
+                    <!-- 1. The Source (Ocean) -->
+                    <g transform="translate(120, 180)">
+                        <circle cx="0" cy="0" r="40" fill="url(#gradSource)" />
+                        <path d="M -25 10 Q 0 20 25 10" fill="none" stroke="white" stroke-width="2" opacity="0.5" />
+                        <path d="M -20 0 Q 0 10 20 0" fill="none" stroke="white" stroke-width="2" opacity="0.5" />
+                        <text x="0" y="65" text-anchor="middle" fill="var(--shell-text)" font-weight="bold" font-size="14">Storage Rest</text>
+                        <text x="0" y="85" text-anchor="middle" fill="var(--shell-muted)" font-size="12">PHP Baseline / Binaries</text>
+                    </g>
+
+                    <!-- Arrow 1 to 2 -->
+                    <path d="M 155 160 L 265 95" fill="none" stroke="#0ea5e9" stroke-width="3" marker-end="url(#arrow)" stroke-dasharray="6,4">
+                        <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1s" repeatCount="indefinite" />
+                    </path>
+
+                    <!-- 2. Extraction (Evaporation) -->
+                    <g transform="translate(290, 80)">
+                        <rect x="-45" y="-30" width="90" height="60" rx="12" fill="url(#gradExtract)" />
+                        <path d="M -15 -10 L -15 -25 M 0 -5 L 0 -25 M 15 -10 L 15 -25" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+                        <polygon points="-15,-25 -18,-20 -12,-20" fill="white" />
+                        <polygon points="0,-25 -3,-20 3,-20" fill="white" />
+                        <polygon points="15,-25 12,-20 18,-20" fill="white" />
+                        <text x="0" y="55" text-anchor="middle" fill="var(--shell-text)" font-weight="bold" font-size="14">Range Fetch</text>
+                        <text x="0" y="75" text-anchor="middle" fill="var(--shell-muted)" font-size="12">Targeted Headers Only</text>
+                    </g>
+
+                    <!-- Arrow 2 to 3 -->
+                    <path d="M 345 80 L 465 80" fill="none" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrow)" />
+
+                    <!-- 3. Processing (Clouds) -->
+                    <g transform="translate(520, 80)">
+                        <path d="M -20 10 A 20 20 0 0 1 -10 -20 A 25 25 0 0 1 30 -15 A 20 20 0 0 1 20 20 Z" fill="url(#gradProcess)" filter="url(#glow)" />
+                        <text x="0" y="-2" text-anchor="middle" fill="white" font-weight="bold" font-size="14">WASM</text>
+                        <text x="0" y="55" text-anchor="middle" fill="var(--shell-text)" font-weight="bold" font-size="14">Isolated Parse</text>
+                        <text x="0" y="75" text-anchor="middle" fill="var(--shell-muted)" font-size="12">Rust Worker Engine</text>
+                    </g>
+
+                    <!-- Arrow 3 to 4 -->
+                    <path d="M 555 100 L 645 160" fill="none" stroke="#22c55e" stroke-width="3" marker-end="url(#arrow)" stroke-dasharray="6,4">
+                        <animate attributeName="stroke-dashoffset" from="0" to="20" dur="1s" repeatCount="indefinite" />
+                    </path>
+
+                    <!-- 4. Presentation (Rain / Drops) -->
+                    <g transform="translate(680, 180)">
+                        <rect x="-40" y="-30" width="80" height="60" rx="8" fill="url(#gradRender)" />
+                        <text x="0" y="-5" text-anchor="middle" fill="white" font-weight="bold" font-size="14">{ }</text>
+                        <text x="0" y="15" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-size="10">JSON</text>
+                        <text x="0" y="65" text-anchor="middle" fill="var(--shell-text)" font-weight="bold" font-size="14">Svelte UI</text>
+                        <text x="0" y="85" text-anchor="middle" fill="var(--shell-muted)" font-size="12">Instant Render</text>
+                    </g>
+
+                    <!-- Arrow Head Definition -->
+                    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.6" />
+                    </marker>
+                </svg>
             </div>
 
             <!-- B. Live Inspector -->
@@ -3690,8 +3768,8 @@ if ($showcasePage === 'hub') {
 
                 <div class="flex gap-2 mb-6 flex-wrap">
                     <button class="btn" style="background: var(--shell-primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;" onclick="document.querySelector('efsdb-envelope-inspector').setAttribute('url', '/fixtures/01_valid_blake3.bin')">Valid Envelope</button>
-                    <button class="btn" style="background: transparent; color: var(--shell-text); border: 1px solid var(--shell-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;" onclick="document.querySelector('efsdb-envelope-inspector').setAttribute('url', '/fixtures/02_err_magic.bin')">Invalid Magic</button>
-                    <button class="btn" style="background: transparent; color: var(--shell-text); border: 1px solid var(--shell-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;" onclick="document.querySelector('efsdb-envelope-inspector').setAttribute('url', '/fixtures/03_err_header_too_short.bin')">Truncated Header</button>
+                    <button class="btn" style="background: transparent; color: var(--shell-text); border: 1px solid var(--shell-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;" onclick="document.querySelector('efsdb-envelope-inspector').setAttribute('url', '/fixtures/02_err_invalid_magic.bin')">Invalid Magic</button>
+                    <button class="btn" style="background: transparent; color: var(--shell-text); border: 1px solid var(--shell-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;" onclick="document.querySelector('efsdb-envelope-inspector').setAttribute('url', '/fixtures/04_err_truncated_header.bin')">Truncated Header</button>
                     <button class="btn" style="background: transparent; color: var(--shell-text); border: 1px solid var(--shell-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;" onclick="document.querySelector('efsdb-envelope-inspector').setAttribute('url', '/fixtures/not_found.bin')">404 Network Error</button>
                 </div>
 
@@ -3708,74 +3786,105 @@ if ($showcasePage === 'hub') {
             <div class="surface-panel" style="padding: 2rem; border-radius: 12px; border: 1px solid var(--shell-border);">
                 <div class="section-label" style="margin-bottom: 1.5rem;">Fetch & Parse Timeline</div>
 
-                <div class="showcase-metrics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem;">
-                    <div class="showcase-metric" style="padding: 1rem; background: color-mix(in srgb, var(--shell-surface), transparent 30%); border-radius: 8px;">
-                        <div class="showcase-metric__label" style="font-weight: bold; color: var(--shell-text);">Probe fetch 0-15</div>
-                        <div class="showcase-metric__value" id="metric-probe-fetch" style="font-size: 1.5rem; font-weight: 800; margin-top: 0.5rem; color: var(--shell-primary);">-- ms</div>
-                        <div class="text-xs mt-1" style="color: var(--shell-muted);">First 16 bytes for bounds logic</div>
+                <div class="showcase-waterfall" style="display: flex; flex-direction: column; gap: 0.5rem; position: relative;">
+                    <!-- Track line -->
+                    <div style="position: absolute; left: 120px; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb, var(--shell-border), transparent 50%); z-index: 0;"></div>
+
+                    <!-- Probe -->
+                    <div style="display: grid; grid-template-columns: 100px 1fr; gap: 2rem; align-items: center; position: relative; z-index: 1;">
+                        <div class="text-sm font-bold text-right" style="color: var(--shell-text);">Probe 0-15</div>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid var(--shell-panel-bg); margin-left: -7px;"></div>
+                            <div style="background: color-mix(in srgb, #3b82f6, transparent 85%); border: 1px solid color-mix(in srgb, #3b82f6, transparent 50%); padding: 0.5rem 1rem; border-radius: 6px; flex: 1; display: flex; justify-content: space-between;">
+                                <span class="text-sm" style="color: var(--shell-muted);">First 16 bytes</span>
+                                <span id="metric-probe-fetch" class="font-mono font-bold" style="color: #1d4ed8;">-- ms</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="showcase-metric" style="padding: 1rem; background: color-mix(in srgb, var(--shell-surface), transparent 30%); border-radius: 8px;">
-                        <div class="showcase-metric__label" style="font-weight: bold; color: var(--shell-text);">Header fetch 0-(H+7)</div>
-                        <div class="showcase-metric__value" id="metric-header-fetch" style="font-size: 1.5rem; font-weight: 800; margin-top: 0.5rem; color: var(--shell-primary);">-- ms</div>
-                        <div class="text-xs mt-1" style="color: var(--shell-muted);">Complete variable header</div>
+
+                    <!-- Header -->
+                    <div style="display: grid; grid-template-columns: 100px 1fr; gap: 2rem; align-items: center; position: relative; z-index: 1;">
+                        <div class="text-sm font-bold text-right" style="color: var(--shell-text);">Header 0-(H+7)</div>
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-left: 20px;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #0ea5e9; border: 2px solid var(--shell-panel-bg); margin-left: -27px;"></div>
+                            <div style="background: color-mix(in srgb, #0ea5e9, transparent 85%); border: 1px solid color-mix(in srgb, #0ea5e9, transparent 50%); padding: 0.5rem 1rem; border-radius: 6px; flex: 1; display: flex; justify-content: space-between;">
+                                <span class="text-sm" style="color: var(--shell-muted);">Variable header & extensions <span id="metric-bytes-fetched" style="opacity: 0.7; margin-left: 0.5rem;">(-- bytes)</span></span>
+                                <span id="metric-header-fetch" class="font-mono font-bold" style="color: #0369a1;">-- ms</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="showcase-metric" style="padding: 1rem; background: color-mix(in srgb, var(--shell-surface), transparent 30%); border-radius: 8px;">
-                        <div class="showcase-metric__label" style="font-weight: bold; color: var(--shell-text);">Worker parse</div>
-                        <div class="showcase-metric__value" id="metric-worker-parse" style="font-size: 1.5rem; font-weight: 800; margin-top: 0.5rem; color: var(--shell-primary);">-- ms</div>
-                        <div class="text-xs mt-1" style="color: var(--shell-muted);">WASM execution</div>
+
+                    <!-- Worker -->
+                    <div style="display: grid; grid-template-columns: 100px 1fr; gap: 2rem; align-items: center; position: relative; z-index: 1;">
+                        <div class="text-sm font-bold text-right" style="color: var(--shell-text);">Worker parse</div>
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-left: 40px;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #8b5cf6; border: 2px solid var(--shell-panel-bg); margin-left: -47px;"></div>
+                            <div style="background: color-mix(in srgb, #8b5cf6, transparent 85%); border: 1px solid color-mix(in srgb, #8b5cf6, transparent 50%); padding: 0.5rem 1rem; border-radius: 6px; flex: 1; display: flex; justify-content: space-between;">
+                                <span class="text-sm" style="color: var(--shell-muted);">WASM isolated execution</span>
+                                <span id="metric-worker-parse" class="font-mono font-bold" style="color: #6d28d9;">-- ms</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="showcase-metric" style="padding: 1rem; background: color-mix(in srgb, var(--shell-surface), transparent 30%); border-radius: 8px;">
-                        <div class="showcase-metric__label" style="font-weight: bold; color: var(--shell-text);">Total bytes fetched</div>
-                        <div class="showcase-metric__value" id="metric-bytes-fetched" style="font-size: 1.5rem; font-weight: 800; margin-top: 0.5rem; color: var(--shell-primary);">-- bytes</div>
-                        <div class="text-xs mt-1" style="color: var(--shell-muted);">Header + Extensions</div>
-                    </div>
-                    <div class="showcase-metric" style="padding: 1rem; background: color-mix(in srgb, var(--shell-surface), transparent 30%); border-radius: 8px; grid-column: 1 / -1;">
-                        <div class="showcase-metric__label" style="font-weight: bold; color: var(--shell-text);">Render complete</div>
-                        <div class="showcase-metric__value" id="metric-inspect-path" style="font-size: 2rem; font-weight: 800; margin-top: 0.5rem; color: var(--shell-primary);">-- ms</div>
-                        <div class="text-xs mt-1" style="color: var(--shell-muted);">Total round-trip from click to parsed Canonical JSON</div>
+
+                    <!-- Render -->
+                    <div style="display: grid; grid-template-columns: 100px 1fr; gap: 2rem; align-items: center; position: relative; z-index: 1;">
+                        <div class="text-sm font-bold text-right" style="color: var(--shell-text);">Render</div>
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-left: 60px;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e; border: 2px solid var(--shell-panel-bg); margin-left: -67px;"></div>
+                            <div style="background: color-mix(in srgb, #22c55e, transparent 85%); border: 1px solid color-mix(in srgb, #22c55e, transparent 50%); padding: 0.5rem 1rem; border-radius: 6px; flex: 1; display: flex; justify-content: space-between;">
+                                <span class="text-sm" style="color: var(--shell-muted);">UI painted</span>
+                                <span id="metric-inspect-path" class="font-mono font-bold" style="color: #15803d;">-- ms</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- D. Contract Status & Next Lift -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
-                <div class="surface-panel" style="padding: 2rem; border-radius: 12px; border: 1px solid var(--shell-border);">
-                    <div class="section-label" style="margin-bottom: 1rem;">Parity & Contract Status</div>
-                    <ul class="showcase-list mt-2" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-                        <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 50%); padding-bottom: 0.5rem;">
-                            <span style="color: var(--shell-text);">Envelope inspect/parity</span>
-                            <strong style="color: #16a34a;">Done</strong>
-                        </li>
-                        <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 50%); padding-bottom: 0.5rem;">
-                            <span style="color: var(--shell-text);">WASM inspector</span>
-                            <strong style="color: #16a34a;">Done</strong>
-                        </li>
-                        <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 50%); padding-bottom: 0.5rem;">
-                            <span style="color: var(--shell-text);">Two-step range fetch</span>
-                            <strong style="color: #16a34a;">Done</strong>
-                        </li>
-                        <li style="display: flex; justify-content: space-between; padding-bottom: 0.5rem;">
-                            <span style="color: var(--shell-text);">Web Worker isolation</span>
-                            <strong style="color: #16a34a;">Done</strong>
-                        </li>
-                    </ul>
-                </div>
+            <!-- D. Contract Status -->
+            <div class="surface-panel" style="padding: 2rem; border-radius: 12px; border: 1px solid var(--shell-border);">
+                <div class="section-label" style="margin-bottom: 1rem;">Parity & Contract Status</div>
+                <ul class="showcase-list mt-2" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 50%); padding-bottom: 0.5rem;">
+                        <span style="color: var(--shell-text);">Envelope inspect/parity</span>
+                        <strong style="color: #16a34a;">Done</strong>
+                    </li>
+                    <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 50%); padding-bottom: 0.5rem;">
+                        <span style="color: var(--shell-text);">WASM inspector</span>
+                        <strong style="color: #16a34a;">Done</strong>
+                    </li>
+                    <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, var(--shell-border), transparent 50%); padding-bottom: 0.5rem;">
+                        <span style="color: var(--shell-text);">Two-step range fetch</span>
+                        <strong style="color: #16a34a;">Done</strong>
+                    </li>
+                    <li style="display: flex; justify-content: space-between; padding-bottom: 0.5rem;">
+                        <span style="color: var(--shell-text);">Web Worker isolation</span>
+                        <strong style="color: #16a34a;">Done</strong>
+                    </li>
+                </ul>
+            </div>
 
-                <div class="surface-panel" style="padding: 2rem; border-radius: 12px; border: 1px solid color-mix(in srgb, #ef4444, transparent 60%); background: color-mix(in srgb, #ef4444, transparent 95%);">
-                    <div class="section-label" style="margin-bottom: 1rem; color: #ef4444;">Next Heavy Lift</div>
-                    <p class="shell-copy text-sm" style="margin-bottom: 1rem; line-height: 1.5;">
-                        Implementation of AEAD and extension parsing is strictly paused. Recent sub-specs drifted from the frozen envelope contract.
-                    </p>
-                    <ul class="showcase-list mt-2" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-                        <li style="display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in srgb, #ef4444, transparent 80%); padding-bottom: 0.5rem;">
-                            <span style="color: var(--shell-text);">AEAD sub-spec</span>
-                            <strong style="color: #ef4444;">Paused pending reconciliation</strong>
-                        </li>
-                        <li style="display: flex; justify-content: space-between; padding-bottom: 0.5rem;">
-                            <span style="color: var(--shell-text);">Extension sub-spec</span>
-                            <strong style="color: #ef4444;">Paused pending reconciliation</strong>
-                        </li>
-                    </ul>
+            <!-- E. Next Heavy Lift (Paused Lane) -->
+            <div class="surface-panel" style="padding: 2rem; border-radius: 12px; border: 1px dashed color-mix(in srgb, #f59e0b, transparent 30%); background: color-mix(in srgb, #f59e0b, transparent 95%); margin-top: -0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <div class="section-label" style="color: #d97706; margin: 0;">Next Heavy Lift</div>
+                </div>
+                <p class="shell-copy text-sm" style="margin-bottom: 1.5rem; line-height: 1.5; color: color-mix(in srgb, var(--shell-text), #d97706 20%); max-width: 600px;">
+                    Implementation of AEAD and extension parsing is strictly paused. Recent sub-specs drifted from the frozen envelope contract.
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                    <div style="background: var(--shell-bg); border: 1px solid color-mix(in srgb, #f59e0b, transparent 50%); padding: 1rem; border-radius: 8px;">
+                        <div style="font-weight: bold; color: var(--shell-text); margin-bottom: 0.25rem;">AEAD sub-spec</div>
+                        <div style="font-size: 0.85rem; color: #d97706; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Blocked on spec reconciliation</div>
+                    </div>
+                    <div style="background: var(--shell-bg); border: 1px solid color-mix(in srgb, #f59e0b, transparent 50%); padding: 1rem; border-radius: 8px;">
+                        <div style="font-weight: bold; color: var(--shell-text); margin-bottom: 0.25rem;">Extension sub-spec</div>
+                        <div style="font-size: 0.85rem; color: #d97706; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Blocked on spec reconciliation</div>
+                    </div>
                 </div>
             </div>
 

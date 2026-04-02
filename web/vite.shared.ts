@@ -18,6 +18,7 @@ export type CustomElementBuildOptions = {
   entry: string;
   name: string;
   fileName: string;
+  workerFileName?: string;
 };
 
 export function createCustomElementConfig(options: CustomElementBuildOptions): UserConfig {
@@ -37,6 +38,18 @@ export function createCustomElementConfig(options: CustomElementBuildOptions): U
         }
       })
     ],
+    worker: options.workerFileName
+      ? {
+          format: 'es',
+          rollupOptions: {
+            output: {
+              entryFileNames: `assets/${options.workerFileName}`,
+              chunkFileNames: 'assets/[name].js',
+              assetFileNames: 'assets/[name][extname]'
+            }
+          }
+        }
+      : undefined,
     build: {
       emptyOutDir: false,
       outDir: phpPublicJsDir,

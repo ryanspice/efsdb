@@ -71,35 +71,61 @@
     }
 </script>
 
-<div class="inspector-panel p-4 border rounded bg-surface">
-    <h3 class="text-lg font-bold mb-2">Envelope Inspector</h3>
+<div class="inspector-panel p-4 border rounded" style="background: var(--shell-bg); border-color: var(--shell-border);">
+    <h3 class="text-lg font-bold mb-2" style="color: var(--shell-text);">Envelope Inspector</h3>
     
     {#if !inspectResult}
         {#if error}
-            <div class="error-box p-3 bg-red-100 text-red-800 rounded">
+            <div class="error-box p-3 rounded" style="background: color-mix(in srgb, #ef4444, transparent 85%); color: #b91c1c;">
                 <strong class="block">Initialization Failed</strong>
                 <code>{error}</code>
             </div>
         {:else}
-            <p class="text-sm text-gray-500">Loading metadata via WASM worker...</p>
+            <p class="text-sm" style="color: var(--shell-muted);">Loading metadata via WASM worker...</p>
         {/if}
     {:else if !inspectResult.ok}
-        <div class="error-box p-3 bg-red-100 text-red-800 rounded">
+        <div class="error-box p-3 rounded" style="background: color-mix(in srgb, #ef4444, transparent 85%); color: #b91c1c;">
             <strong class="block">Inspection Failed</strong>
             <code>{inspectResult.error}</code>
         </div>
     {:else}
-        <ul class="text-sm space-y-1 mb-4" data-testid="envelope-metadata">
-            <li><strong>Type:</strong> 0x{inspectResult.type.toString(16).padStart(2, '0')}</li>
-            <li><strong>Flags:</strong> 0x{inspectResult.flags.toString(16).padStart(2, '0')}</li>
-            <li><strong>Suite:</strong> 0x{inspectResult.suite.toString(16).padStart(2, '0')}</li>
-            <li><strong>Header Length:</strong> {inspectResult.header_length} bytes</li>
-            <li><strong>Payload Length:</strong> {inspectResult.payload_length} bytes</li>
-            <li><strong>Extensions:</strong> {inspectResult.extensions?.length ?? 0}</li>
-        </ul>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4" data-testid="envelope-metadata">
+            <div class="p-2 rounded" style="background: var(--shell-surface); border: 1px solid var(--shell-border);">
+                <div class="text-xs uppercase tracking-wider" style="color: var(--shell-muted);">Type</div>
+                <div class="font-mono text-sm" style="color: var(--shell-text);">0x{inspectResult.type.toString(16).padStart(2, '0')}</div>
+            </div>
+            <div class="p-2 rounded" style="background: var(--shell-surface); border: 1px solid var(--shell-border);">
+                <div class="text-xs uppercase tracking-wider" style="color: var(--shell-muted);">Flags</div>
+                <div class="font-mono text-sm" style="color: var(--shell-text);">0x{inspectResult.flags.toString(16).padStart(2, '0')}</div>
+            </div>
+            <div class="p-2 rounded" style="background: var(--shell-surface); border: 1px solid var(--shell-border);">
+                <div class="text-xs uppercase tracking-wider" style="color: var(--shell-muted);">Suite</div>
+                <div class="font-mono text-sm" style="color: var(--shell-text);">0x{inspectResult.suite.toString(16).padStart(2, '0')}</div>
+            </div>
+            <div class="p-2 rounded" style="background: var(--shell-surface); border: 1px solid var(--shell-border);">
+                <div class="text-xs uppercase tracking-wider" style="color: var(--shell-muted);">Header Length</div>
+                <div class="font-mono text-sm" style="color: var(--shell-text);">{inspectResult.header_length} bytes</div>
+            </div>
+            <div class="p-2 rounded" style="background: var(--shell-surface); border: 1px solid var(--shell-border);">
+                <div class="text-xs uppercase tracking-wider" style="color: var(--shell-muted);">Payload Length</div>
+                <div class="font-mono text-sm" style="color: var(--shell-text);">{inspectResult.payload_length} bytes</div>
+            </div>
+            <div class="p-2 rounded" style="background: var(--shell-surface); border: 1px solid var(--shell-border);">
+                <div class="text-xs uppercase tracking-wider" style="color: var(--shell-muted);">Extensions</div>
+                <div class="font-mono text-sm" style="color: var(--shell-text);">{inspectResult.extensions?.length ?? 0}</div>
+            </div>
+        </div>
+
+        <details class="mb-4">
+            <summary class="text-sm cursor-pointer select-none" style="color: var(--shell-primary);">View Raw JSON Output</summary>
+            <div class="mt-2 p-3 rounded text-xs font-mono overflow-auto" style="background: color-mix(in srgb, var(--shell-surface), transparent 50%); border: 1px solid var(--shell-border); color: var(--shell-muted); max-height: 200px;">
+                <pre>{JSON.stringify(inspectResult, null, 2)}</pre>
+            </div>
+        </details>
 
         <button 
-            class="px-3 py-1 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+            class="px-4 py-2 rounded text-sm font-bold disabled:opacity-50 transition-colors"
+            style="background: var(--shell-primary); color: white; border: none; cursor: pointer;"
             onclick={handleVerify}
             disabled={isVerifying}
         >
@@ -107,7 +133,7 @@
         </button>
 
         {#if verifyResult}
-            <div class="mt-3 p-2 bg-gray-100 rounded text-xs">
+            <div class="mt-3 p-3 rounded text-xs font-mono" style="background: color-mix(in srgb, var(--shell-surface), transparent 30%); border: 1px solid var(--shell-border); color: var(--shell-text);">
                 <code>{JSON.stringify(verifyResult)}</code>
             </div>
         {/if}

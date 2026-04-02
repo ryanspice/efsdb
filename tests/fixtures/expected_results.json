@@ -1,25 +1,50 @@
 {
     "01_valid_blake3.bin": {
-        "ok": false,
-        "error": "ERR_INVALID_HEADER"
+        "ok": true,
+        "type": 1,
+        "flags": 0,
+        "suite": 1,
+        "header_length": 16,
+        "payload_length": 13,
+        "extensions": []
     },
-    "02_err_magic.bin": {
+    "02_err_invalid_magic.bin": {
         "ok": false,
         "error": "ERR_INVALID_MAGIC"
     },
-    "03_err_header_too_short.bin": {
+    "03_err_unsupported_version.bin": {
+        "ok": false,
+        "error": "ERR_UNSUPPORTED_VERSION"
+    },
+    "04_err_truncated_header.bin": {
         "ok": false,
         "error": "ERR_TRUNCATED_HEADER"
     },
-    "04_err_unsupported_suite.bin": {
+    "05_err_unsupported_suite.bin": {
+        "ok": false,
+        "error": "ERR_UNSUPPORTED_SUITE"
+    },
+    "06_err_checksum_mismatch.bin": {
+        "ok": false,
+        "error": "ERR_CHECKSUM_MISMATCH"
+    },
+    "07_err_truncated_payload.bin": {
+        "ok": false,
+        "error": "ERR_TRUNCATED_PAYLOAD"
+    },
+    "08_err_invalid_header_alignment.bin": {
         "ok": false,
         "error": "ERR_INVALID_HEADER"
     },
-    "05_err_checksum_mismatch.bin": {
+    "09_err_trailing_garbage.bin": {
         "ok": false,
-        "error": "ERR_INVALID_HEADER"
+        "error": "ERR_TRAILING_GARBAGE"
     },
-    "06_err_payload_too_short.bin": {
+    "10_err_unsupported_critical_ext.bin": {
+        "ok": false,
+        "error": "ERR_UNSUPPORTED_CRITICAL_EXTENSION"
+    },
+    "11_err_invalid_header_malformed_ext.bin": {
         "ok": false,
         "error": "ERR_INVALID_HEADER"
     }
