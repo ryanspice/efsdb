@@ -3,9 +3,10 @@
 This registry defines the canonical `Extension Type` identifiers for the EFSDB Envelope Header.
 Extensions are critical if their MSB is 1, and advisory if their MSB is 0.
 
-| ID     | Hex    | Critical? | Name       | Description                                              | Status         |
-| :----- | :----- | :-------- | :--------- | :------------------------------------------------------- | :------------- |
-| `1`    | `0x01` | No        | Tenant-ID  | Advisory tenant isolation marker.                        | Draft (Blocked)|
-| `129`  | `0x81` | Yes       | Commit-Ref | Critical commit dependency pointer.                      | Draft (Blocked)|
+| Wire ID | Critical? | Name        | Description                                   | Status |
+| :------ | :-------- | :---------- | :-------------------------------------------- | :----- |
+| `0x01`  | No        | Key-ID      | Advisory key selector for AEAD suites.        | Draft |
+| `0x02`  | No        | Timestamp   | Advisory creation timestamp as `u64 LE`.      | Draft |
+| `0x81`  | Yes       | Compression | Critical payload transform marker.            | Reserved, unsupported |
 
-*Note: Extensions are blocked pending the [Extension Model Sub-spec](../envelope-extensions-subspec.md) detailing encoding rules, passthrough behavior, and rewrite semantics.*
+*Note: Extension wire IDs are one byte wide. Criticality is encoded in the high bit of the wire ID, and unsupported critical extensions must fail with `ERR_UNSUPPORTED_CRITICAL_EXTENSION`.*

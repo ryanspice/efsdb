@@ -27,6 +27,14 @@ interface EngineAdapter {
      */
     public function verifyEnvelope(string $envelopeBytes): array;
 
+    /**
+     * Verifies the envelope's authenticity and integrity from a readable stream.
+     * 
+     * @param mixed $stream
+     * @return array Canonical Result Schema
+     */
+    public function verifyEnvelopeStream($stream): array;
+
     // Future Daemon Method Scaffolding (Track E)
     // public function chunkFile(string $filePath): array;
     // public function packTree(array $manifest): array;

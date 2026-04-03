@@ -1,41 +1,80 @@
-# AEAD Encrypted Payload Sub-spec (Implementation-Ready)
+# AEAD Encrypted Payload Sub-spec
 
-This document finalizes the semantics required to unblock the `0x02 ChaCha20-Poly1305` protection suite and future AEAD suites in the EFSDB Envelope.
+This document reconciles AEAD suite semantics with the frozen envelope contract already enforced by the parser, inspector fetch flow, and canonical result schema.
 
-## Finalized Decisions
+## Authoritative Envelope Framing
 
-**1. Nonce Placement & Length**
-- **Length**: The nonce for ChaCha20-Poly1305 is exactly 12 bytes (96 bits).
-- **Placement**: The nonce is prepended directly to the ciphertext within the payload body. It is NOT stored in the header as an extension. This ensures the header length remains predictable and decoupled from the cipher's specific nonce requirements.
-- **Generation**: Nonces MUST be generated using a cryptographically secure pseudo-random number generator (CSPRNG) for every encryption operation. Never reuse a nonce with the same key.
+The authoritative envelope layout is:
 
-**2. AAD (Additional Authenticated Data) Contract**
-- The AAD MUST include the exact, immutable portion of the header to prevent header-malleability attacks.
-- **Byte Range**: The AAD consists of bytes `0..H` of the envelope. This includes the Magic, Object Type, Flags, Protection Suite, Payload Length, Header Length, Checksum (which is set to all zeros during AEAD signature generation, see below), and all Extensions.
-- **Checksum Zeroing**: Because the checksum field (`bytes 12..15`) is part of the header but cannot contain the final tag, it MUST be set to `0x00000000` during both encryption (when constructing the AAD) and decryption (when verifying the AAD). The actual authentication is handled by the AEAD tag.
+`[0..15 fixed header] [16..H-1 extension TLVs] [H..H+7 payload_length:u64 LE] [H+8.. body]`
 
-**3. Tag Semantics**
-- **Length**: The Poly1305 tag is 16 bytes (128 bits).
-- **Placement**: The tag is appended directly to the end of the ciphertext within the payload body.
-- **Payload Layout**: `[12-byte Nonce] [Ciphertext] [16-byte Tag]`
-- The `Payload Length` field in the header (`bytes 4..11`) MUST reflect the total length of this combined structure (Nonce Length + Ciphertext Length + Tag Length).
+- bytes `0..2` are ASCII magic `EFS`
+- byte `3` is the envelope version field, and the active parser currently accepts version `0x00`
+- `H` is stored at bytes `4..5` as a little-endian `u16`
+- `type` is byte `6`
+- `flags` is byte `7`
+- `suite` is byte `8`
+- bytes `9..15` remain reserved by the frozen contract
+- the payload-length field is not inside the fixed header; it begins exactly at offset `H`
 
-**4. Key Input Contract**
-- **Length**: The ChaCha20 key is 32 bytes (256 bits).
-- **Source**: The decrypting party acquires the key from the Environment context (e.g., `EFSDB_WORKSPACE_KEY`).
-- **Key Rotation**: A Key-ID MAY be provided via an advisory header extension (e.g., Extension ID `0x01`). If the Key-ID extension is present, the engine uses the corresponding key. If absent, the engine MUST use the default active key for the environment.
+## Reconciled AEAD Rules
 
-**5. Encrypted Fixture Schema**
-- To prove PHP/Rust parity, we define deterministic `0x02` fixtures:
-  - **Key**: 32 bytes of `0xAA`
-  - **Nonce**: 12 bytes of `0xBB`
-  - **Plaintext**: The string `"efsdb_aead_test_payload"`
-  - **AAD**: The constructed header with a zeroed checksum field.
+**1. Protection Suite**
+- `0x02` is reserved for `ChaCha20-Poly1305 IETF`
+- key length is 32 bytes
+- nonce length is 12 bytes
+- tag length is 16 bytes
+- the suite remains blocked for production rollout until Rust implementation, fixtures, and parity coverage land together
 
-## Implementation Checklist
+**2. Nonce Placement**
+- the nonce is part of the payload span `N`, not the header and not an extension
+- for suite `0x02`, the payload bytes are:
+  - `[12-byte nonce] [ciphertext bytes]`
 
-- [ ] Rust Engine: Implement `0x02 ChaCha20-Poly1305` encryption/decryption using the `chacha20poly1305` crate.
-- [ ] Rust Engine: Construct AAD from `0..H` with zeroed checksum.
-- [ ] PHP Engine: Implement `0x02` using `sodium_crypto_aead_chacha20poly1305_ietf_encrypt`/`decrypt`.
-- [ ] Fixtures: Generate `07_valid_chacha20.bin` using the deterministic schema.
-- [ ] Tests: Add test cases for tampered AAD (modifying header bytes should fail AEAD decryption).
+**3. Payload-Length Semantics**
+- the frozen contract remains `H + 8 + N + C`
+- `payload_length` is the payload span `N` only
+- for suite `0x02`, `payload_length = nonce_len + ciphertext_len`
+- parsers continue to treat `payload_length` as the single source of truth for the payload span, and suite metadata defines trailer length `C`
+
+**4. AAD Coverage**
+- the AAD is the exact immutable pre-body envelope bytes `0..H+7`
+- this includes:
+  - fixed header bytes `0..15`
+  - extension TLVs `16..H-1`
+  - payload-length field `H..H+7`
+- there is no checksum field in the frozen envelope contract, so no zeroing step exists
+
+**5. Tag Placement**
+- the AEAD tag occupies the suite trailer `C` after the payload span
+- for suite `0x02`, the trailer is a 16-byte Poly1305 tag
+- the tag is not stored in reserved header bytes
+- the tag is not stored as an extension
+
+**6. Key Selection**
+- key selection is external to envelope framing
+- advisory extensions may carry a key selector such as `Key-ID`, but suite verification semantics do not depend on extension parsing order changing the body layout
+- if no recognized key selector is present, the runtime uses the active default key for the current environment
+
+**7. Failure Semantics**
+- unsupported suite ID returns `ERR_UNSUPPORTED_SUITE`
+- malformed body sizing returns `ERR_TRUNCATED_PAYLOAD` or `ERR_TRAILING_GARBAGE` using the frozen `H + 8 + N + C` length discipline
+- tag verification failure returns `ERR_CHECKSUM_MISMATCH` in the canonical error surface for parity consistency
+
+## Deterministic Fixture Contract
+
+When suite `0x02` fixtures are introduced, the deterministic fixture contract is:
+
+- key: 32 bytes of `0xAA`
+- nonce: 12 bytes of `0xBB`
+- plaintext: `efsdb_aead_test_payload`
+- AAD: exact bytes `0..H+7`
+- trailer `C`: 16-byte Poly1305 tag stored after the payload span
+
+## Rust-First Checklist
+
+- [ ] Add suite metadata helpers for `0x01` and `0x02`
+- [ ] Add body-splitting logic for payload span `N` and trailer `C` without changing the inspector surface
+- [ ] Add `0x02` fixture generation after the Rust contract is implemented
+- [ ] Add parity tests for tampered AAD, tampered tag, and malformed body lengths
+- [ ] Keep PHP blocked on parity implementation until the Rust contract and fixtures are stable

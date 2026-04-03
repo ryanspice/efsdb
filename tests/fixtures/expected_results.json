@@ -47,5 +47,30 @@
     "11_err_invalid_header_malformed_ext.bin": {
         "ok": false,
         "error": "ERR_INVALID_HEADER"
+    },
+    "12_valid_chacha20_poly1305.bin": {
+        "ok": true,
+        "type": 1,
+        "flags": 0,
+        "suite": 2,
+        "header_length": 16,
+        "payload_length": 35,
+        "extensions": []
+    },
+    "13_err_aead_aad_mismatch.bin": {
+        "ok": false,
+        "error": "ERR_CHECKSUM_MISMATCH"
+    },
+    "14_err_aead_tag_mismatch.bin": {
+        "ok": false,
+        "error": "ERR_CHECKSUM_MISMATCH"
+    },
+    "15_err_aead_truncated_payload.bin": {
+        "ok": false,
+        "error": "ERR_TRUNCATED_PAYLOAD"
+    },
+    "16_err_aead_trailing_garbage.bin": {
+        "ok": false,
+        "error": "ERR_TRAILING_GARBAGE"
     }
 }

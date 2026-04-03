@@ -39,20 +39,21 @@ All subkeys are derived from the Master Key.
 *Note: Context strings are right-padded with null bytes to reach 8 bytes.*
 
 ### 2.4. Envelope (Framing)
-All encrypted files on disk follow this framing:
+Envelope framing is suite-driven and follows the frozen header contract:
 
 ```
-[Tag: 4 bytes] || [Nonce: N bytes] || [Ciphertext: Variable]
+[0..15 fixed header] || [16..H-1 extension TLVs] || [H..H+7 payload_length:u64 LE] || [suite body]
 ```
 
--   **Tag:**
-    -   `AEG1`: AEGIS-256 (Nonce: 32 bytes). Used if hardware support detected (`SODIUM_CRYPTO_AEAD_AEGIS256_NPUBBYTES`).
-    -   `XCH1`: XChaCha20-Poly1305 (Nonce: 24 bytes). Fallback if AEGIS unavailable.
--   **Nonce:** Generated randomly for each write.
--   **Ciphertext:** Result of AEAD encryption.
+-   bytes `0..2` are ASCII magic `EFS`
+-   byte `3` is the envelope version field, and the active parser currently accepts version `0x00`
+-   `H` is the little-endian header length at bytes `4..5`
+-   suite `0x01` uses payload span `N = plaintext` and trailer `C = 32-byte blake3 tag`
+-   suite `0x02` uses payload span `N = [12-byte nonce] [ciphertext]` and trailer `C = 16-byte Poly1305 tag`
+-   suite semantics are defined by `spec/enums/protection-suites.md` and `spec/envelope-aead-subspec.md`
 
 ### 2.5. Additional Authenticated Data (AAD)
-Encryption MUST bind the ciphertext to its location/identity using AAD.
+Location/identity AAD for storage objects remains part of higher-level storage encryption. For envelope suite `0x02`, framing AAD is the exact pre-body bytes `0..H+7`.
 
 | File Type | AAD Format | Example |
 | :--- | :--- | :--- |
