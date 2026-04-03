@@ -72,6 +72,9 @@
 {/if}
 
 <style>
+  @import '../../../styles/win7.css';
+  @import '../../../styles/win7-overrides.css';
+
   :host {
     display: contents;
   }
@@ -90,9 +93,9 @@
 
   .window-layer :global(.window-shell) {
     pointer-events: auto;
-    --window-panel: var(--shell-panel-solid, var(--shell-panel-bg, #ffffff));
-    --window-surface: var(--shell-panel-solid-subtle, var(--shell-soft-bg, #f8fafc));
-    --window-border: var(--shell-border, #e2e8f0);
+    --window-panel: var(--efs-window-theme-panel, var(--shell-panel-solid, var(--shell-panel-bg, #ffffff)));
+    --window-surface: var(--efs-window-theme-surface, var(--shell-panel-solid-subtle, var(--shell-soft-bg, #f8fafc)));
+    --window-border: var(--efs-window-theme-border, var(--shell-border, #e2e8f0));
   }
 
   .window-content {

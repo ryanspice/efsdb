@@ -141,14 +141,22 @@ final class PublicSiteRouter
     /**
      * @return array{status:int,headers:array<string,string>,body:string}|null
      */
-    public function handle(string $uriPath, string $method, User $user, array $requestHeaders = []): ?array
+    public function handle(string $uriPath, string $method, User|callable $userResolver, array $requestHeaders = []): ?array
     {
+        $resolvedUser = null;
+        $getUser = function() use (&$resolvedUser, $userResolver): User {
+            if ($resolvedUser === null) {
+                $resolvedUser = is_callable($userResolver) ? $userResolver() : $userResolver;
+            }
+            return $resolvedUser;
+        };
+
         [$root, $relativePath] = $this->selectRoot($uriPath);
         if (!$this->workspace->isRootEnabled($root)) {
             return null;
         }
 
-        if (!$this->workspace->canReadRoot($root, $user)) {
+        if (!$this->workspace->canReadRoot($root, $getUser)) {
             return $this->notFound($method);
         }
 
@@ -168,12 +176,12 @@ final class PublicSiteRouter
                 return $staticResponse;
             }
 
-            $routeResponse = $this->renderCanonicalRoute($root, $method, $request, $requestHeaders, $user);
+            $routeResponse = $this->renderCanonicalRoute($root, $method, $request, $requestHeaders, $getUser());
             if ($routeResponse !== null) {
                 return $routeResponse;
             }
 
-            $missingRoute = $this->renderMissingPhpRoute($root, $method, $request, $requestHeaders, $user);
+            $missingRoute = $this->renderMissingPhpRoute($root, $method, $request, $requestHeaders, $getUser());
 
             return $missingRoute ?? $this->notFound($method);
         }
@@ -896,9 +904,35 @@ final class PublicSiteRouter
      */
     private function success(string $method, array $manifest, string $bytes, array $headers): array
     {
+        $fileSize = (int)($manifest['size'] ?? strlen($bytes));
+        $headers['Accept-Ranges'] = 'bytes';
+        
+        if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
+            $start = (int)$matches[1];
+            $end = $matches[2] === '' ? $fileSize - 1 : (int)$matches[2];
+            
+            if ($start > $end || $start >= $fileSize) {
+                return [
+                    'status' => 416,
+                    'headers' => $headers + ['Content-Range' => "bytes */$fileSize"],
+                    'body' => ''
+                ];
+            }
+            
+            $length = $end - $start + 1;
+            return [
+                'status' => 206,
+                'headers' => $headers + [
+                    'Content-Range' => "bytes $start-$end/$fileSize",
+                    'Content-Length' => (string)$length
+                ],
+                'body' => $method === 'HEAD' ? '' : substr($bytes, $start, $length),
+            ];
+        }
+
         return [
             'status' => 200,
-            'headers' => $headers + ['Content-Length' => (string)($method === 'HEAD' ? (int)($manifest['size'] ?? strlen($bytes)) : strlen($bytes))],
+            'headers' => $headers + ['Content-Length' => (string)$fileSize],
             'body' => $method === 'HEAD' ? '' : $bytes,
         ];
     }

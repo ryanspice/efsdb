@@ -1,13 +1,26 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { onMount, tick } from 'svelte';
-  import WindowShell, { type WindowState } from '@ui/components/shell/WindowShell.svelte';
+  import WindowShell, {
+    type WindowFrame,
+    type WindowSnapTarget,
+    type WindowState
+  } from '@ui/components/shell/WindowShell.svelte';
+  import {
+    DEFAULT_WINDOW_SETTINGS,
+    subscribeWindowSettings
+  } from '@ui/components/shell/windowSettings';
 
   type Props = {
     title: string;
+    helpText?: string;
+    helpPlacement?: 'auto' | 'before' | 'after';
     pinned: boolean;
     windowState?: WindowState;
     dragSeed?: { pointerId: number; clientX: number; clientY: number } | null;
+    frame?: WindowFrame | null;
+    restoreFrame?: WindowFrame | null;
+    snapTarget?: WindowSnapTarget | null;
     defaultWidth: number;
     defaultHeight: number;
     defaultX: number;
@@ -26,9 +39,14 @@
 
   let {
     title,
+    helpText = '',
+    helpPlacement = 'auto',
     pinned,
     windowState = $bindable<WindowState>('normal'),
     dragSeed = null,
+    frame = $bindable<WindowFrame | null>(null),
+    restoreFrame = $bindable<WindowFrame | null>(null),
+    snapTarget = $bindable<WindowSnapTarget | null>(null),
     defaultWidth,
     defaultHeight,
     defaultX,
@@ -43,10 +61,16 @@
 
   const getInitialFrame = () => createInitialFrame(defaultX, defaultY, defaultWidth, defaultHeight);
 
-  let frame = $state(getInitialFrame());
   let contentNode = $state<HTMLDivElement | null>(null);
   let hasFittedToContent = $state(false);
   let ready = $state(false);
+  let titleBarHeight = $state(DEFAULT_WINDOW_SETTINGS.titleBarHeight);
+
+  $effect(() => {
+    if (frame == null) {
+      frame = getInitialFrame();
+    }
+  });
 
   async function fitWindowToContent() {
     if (hasFittedToContent || typeof window === 'undefined') {
@@ -66,7 +90,8 @@
       Math.max(contentNode.scrollWidth, contentNode.firstElementChild?.scrollWidth ?? 0) + 6
     );
     const measuredHeight = Math.ceil(
-      Math.max(contentNode.scrollHeight, contentNode.firstElementChild?.scrollHeight ?? 0) + 42
+      Math.max(contentNode.scrollHeight, contentNode.firstElementChild?.scrollHeight ?? 0) +
+        titleBarHeight
     );
     const nextWidth = Math.min(maxWidth, Math.max(420, measuredWidth));
     const nextHeight = Math.min(maxHeight, Math.max(300, measuredHeight));
@@ -89,9 +114,13 @@
       }
       ready = true;
     });
+    const unsubscribeWindowSettings = subscribeWindowSettings((settings) => {
+      titleBarHeight = settings.titleBarHeight ?? DEFAULT_WINDOW_SETTINGS.titleBarHeight;
+    });
 
     return () => {
       cancelAnimationFrame(frameId);
+      unsubscribeWindowSettings();
     };
   });
 </script>
@@ -108,24 +137,30 @@
 {/if}
 
 <div class="widget-window-layer" class:ready role="presentation" onpointerdown={onFocus}>
-  <WindowShell
-    {title}
-    {pinned}
-    bind:state={windowState}
-    bind:x={frame.x}
-    bind:y={frame.y}
-    bind:width={frame.width}
-    bind:height={frame.height}
-    {zIndex}
-    {dragSeed}
-    onClose={onClose}
-    {onConsumeDragSeed}
-    {onPinToggle}
-  >
-    <div bind:this={contentNode} class="widget-window-content">
-      {@render children?.()}
-    </div>
-  </WindowShell>
+  {#if frame}
+    <WindowShell
+      {title}
+      {helpText}
+      {helpPlacement}
+      {pinned}
+      bind:state={windowState}
+      bind:x={frame.x}
+      bind:y={frame.y}
+      bind:width={frame.width}
+      bind:height={frame.height}
+      bind:restoreFrame
+      bind:snapTarget
+      {zIndex}
+      {dragSeed}
+      onClose={onClose}
+      {onConsumeDragSeed}
+      {onPinToggle}
+    >
+      <div bind:this={contentNode} class="widget-window-content">
+        {@render children?.()}
+      </div>
+    </WindowShell>
+  {/if}
 </div>
 
 <style>

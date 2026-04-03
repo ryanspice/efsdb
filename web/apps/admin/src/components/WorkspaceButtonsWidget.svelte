@@ -194,6 +194,7 @@
             <button
               class="row-action"
               class:is-active={item.inWorkspace}
+              class:active={item.inWorkspace}
               type="button"
               aria-pressed={item.inWorkspace}
               aria-label={item.inWorkspace ? `Remove ${item.label} from the workspace canvas` : `Add ${item.label} back to the workspace canvas`}
@@ -205,6 +206,7 @@
             <button
               class="row-action"
               class:is-active={item.edgePinned}
+              class:active={item.edgePinned}
               type="button"
               aria-pressed={item.edgePinned}
               aria-label={item.edgePinned ? `Remove ${item.label} from the browser edge` : `Pin ${item.label} to the browser edge`}
@@ -341,6 +343,7 @@
               <button
                 class="step-toggle"
                 class:is-selected={hasStep(item.id)}
+                class:active={hasStep(item.id)}
                 type="button"
                 aria-pressed={hasStep(item.id)}
                 onclick={() => toggleStep(item.id)}
@@ -352,6 +355,7 @@
               <button
                 class="pin-toggle"
                 class:is-active={hasStep(item.id) && actionForm.steps.find((step) => step.widgetId === item.id)?.pinned}
+                class:active={hasStep(item.id) && actionForm.steps.find((step) => step.widgetId === item.id)?.pinned}
                 type="button"
                 disabled={!hasStep(item.id)}
                 aria-label={`Pin ${item.label} when this custom button runs`}
@@ -701,6 +705,140 @@
   .create-button :global(.app-icon) {
     width: 0.95rem;
     height: 0.95rem;
+  }
+
+  :global(.widget-frame.win7-theme) .manager-summary span,
+  :global(.widget-frame.win7-theme) .row-chip {
+    min-height: 22px;
+    padding: 0 8px;
+    border-color: color-mix(in srgb, var(--w7-el-bd), transparent 14%);
+    border-radius: var(--w7-el-bdr);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--w7-surface), white 20%),
+      color-mix(in srgb, var(--w7-surface), transparent 4%)
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, white, transparent 18%);
+    color: color-mix(in srgb, var(--w7-el-c), transparent 30%);
+    font: var(--w7-font);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  :global(.widget-frame.win7-theme) .section-heading strong {
+    color: var(--w7-el-c);
+    font: var(--w7-font);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  :global(.widget-frame.win7-theme) .section-heading span,
+  :global(.widget-frame.win7-theme) .empty-state,
+  :global(.widget-frame.win7-theme) .field span {
+    color: color-mix(in srgb, var(--w7-el-c), transparent 30%);
+    font: var(--w7-font);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  :global(.widget-frame.win7-theme) .button-row {
+    gap: 0.45rem;
+    padding: 6px;
+    border-color: color-mix(in srgb, var(--w7-w-bd), transparent 14%);
+    border-radius: var(--w7-el-bdr);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--w7-surface), white 14%),
+      var(--w7-surface)
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, white, transparent 16%);
+  }
+
+  :global(.widget-frame.win7-theme) .button-row.is-selected {
+    border-color: var(--w7-li-bd-hl);
+    background: var(--w7-li-bg-hl);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, white, transparent 12%);
+  }
+
+  :global(.widget-frame.win7-theme) .button-row.is-muted {
+    opacity: 0.92;
+  }
+
+  :global(.widget-frame.win7-theme) .button-row-main {
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  :global(.widget-frame.win7-theme) .button-row-icon {
+    width: 23px;
+    height: 23px;
+    border-color: var(--w7-el-bd);
+    border-radius: var(--w7-el-bdr);
+    background: var(--w7-el-grad);
+    color: var(--w7-el-c);
+    box-shadow: var(--w7-el-sd);
+  }
+
+  :global(.widget-frame.win7-theme) .button-row-copy strong {
+    color: var(--w7-el-c);
+    font: var(--w7-font);
+    font-weight: 600;
+  }
+
+  :global(.widget-frame.win7-theme) .button-row-copy span {
+    color: color-mix(in srgb, var(--w7-el-c), transparent 30%);
+    font: var(--w7-font);
+  }
+
+  :global(.widget-frame.win7-theme) .row-action,
+  :global(.widget-frame.win7-theme) .pin-toggle {
+    width: 23px;
+    min-width: 23px;
+    height: 23px;
+    min-height: 23px;
+    padding: 0;
+    transform: none;
+  }
+
+  :global(.widget-frame.win7-theme) .row-action:hover,
+  :global(.widget-frame.win7-theme) .pin-toggle:hover:not(:disabled),
+  :global(.widget-frame.win7-theme) .row-action.is-active,
+  :global(.widget-frame.win7-theme) .pin-toggle.is-active {
+    transform: none;
+    color: var(--w7-el-c);
+  }
+
+  :global(.widget-frame.win7-theme) .row-action.destructive {
+    color: color-mix(in srgb, #7d0d01, var(--w7-el-c) 22%);
+  }
+
+  :global(.widget-frame.win7-theme) .builder {
+    padding-top: 6px;
+    border-top-color: color-mix(in srgb, var(--w7-w-bd), transparent 18%);
+  }
+
+  :global(.widget-frame.win7-theme) .field input,
+  :global(.widget-frame.win7-theme) .field select,
+  :global(.widget-frame.win7-theme) .step-toggle,
+  :global(.widget-frame.win7-theme) .create-button {
+    font: var(--w7-font);
+  }
+
+  :global(.widget-frame.win7-theme) .step-toggle,
+  :global(.widget-frame.win7-theme) .create-button {
+    min-height: 23px;
+    letter-spacing: 0;
+    text-transform: none;
+    transform: none;
+  }
+
+  :global(.widget-frame.win7-theme) .step-toggle {
+    gap: 0.45rem;
+  }
+
+  :global(.widget-frame.win7-theme) .create-button:hover:not(:disabled) {
+    transform: none;
   }
 
   @media (max-width: 47.99rem) {

@@ -52,31 +52,40 @@
       height: '100%',
       fontSize: 'var(--efs-code-font-size, 14px)',
       fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
+      backgroundColor: 'var(--shell-panel, var(--shell-panel-bg, #ffffff))',
+      color: 'var(--shell-text, #0f172a)',
     },
     '.cm-scroller': {
       overflow: 'auto',
       fontFamily: 'inherit',
     },
     '.cm-content': {
-      caretColor: '#007acc',
+      caretColor: 'var(--shell-primary, var(--accent, #007acc))',
+    },
+    '.cm-cursor, .cm-dropCursor': {
+      borderLeftColor: 'var(--shell-primary, var(--accent, #007acc))',
     },
     '.cm-gutters': {
-      backgroundColor: '#f8f8f2',
-      color: '#6e7681',
+      backgroundColor: 'var(--shell-surface, var(--shell-soft-bg, #f8fafc))',
+      color: 'var(--shell-muted, #64748b)',
       border: 'none',
-      borderRight: '1px solid #e0e0e0',
+      borderRight: '1px solid var(--shell-border, #e2e8f0)',
     },
     '.cm-activeLineGutter': {
-      backgroundColor: '#efefef',
+      backgroundColor:
+        'color-mix(in srgb, var(--shell-hover-bg, #f1f5f9), var(--shell-primary, var(--accent, #007acc)) 6%)',
     },
     '.cm-activeLine': {
-      backgroundColor: '#f5f5f5',
+      backgroundColor:
+        'color-mix(in srgb, var(--shell-hover-bg, #f1f5f9), var(--shell-primary, var(--accent, #007acc)) 4%)',
     },
     '.cm-selectionBackground': {
-      backgroundColor: '#add6ff !important',
+      backgroundColor:
+        'color-mix(in srgb, var(--shell-primary, var(--accent, #007acc)), transparent 74%) !important',
     },
     '&.cm-focused .cm-selectionBackground': {
-      backgroundColor: '#add6ff !important',
+      backgroundColor:
+        'color-mix(in srgb, var(--shell-primary, var(--accent, #007acc)), transparent 72%) !important',
     },
   });
 
@@ -200,9 +209,18 @@
     font: var(--efs-font-label, 700 12px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--primary, #0070cc);
-    background: color-mix(in oklab, var(--primary, #0070cc), transparent 92%);
-    border-bottom: 1px solid color-mix(in oklab, var(--border), var(--primary, #0070cc) 15%);
+    color: var(--shell-primary, var(--accent, #0070cc));
+    background: color-mix(
+      in oklab,
+      var(--shell-primary, var(--accent, #0070cc)),
+      transparent 92%
+    );
+    border-bottom: 1px solid
+      color-mix(
+        in oklab,
+        var(--shell-border, #e2e8f0),
+        var(--shell-primary, var(--accent, #0070cc)) 15%
+      );
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../src/App.php';
 require_once __DIR__ . '/../src/Config.php';
 
+Config::assertRepoPhpIniLoaded('bin/efsdb.php');
+
 $cmd = $argv[1] ?? 'help';
 $dataDir = Config::getDataDir();
 $schemaDir = Config::getSchemaDir();

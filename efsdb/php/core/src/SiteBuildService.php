@@ -53,8 +53,9 @@ final class SiteBuildService
             return ['preview' => null, 'build' => null];
         }
 
+        $build = null;
         if (PublicWorkspace::isSiteComponentLogicalPath($logicalPath)) {
-            $this->buildEnvironment($sitePath['environment']);
+            $build = $this->buildEnvironment($sitePath['environment']);
         } else {
             global $app;
             if (isset($app) && method_exists($app, 'getGhostPreloadService')) {
@@ -62,7 +63,12 @@ final class SiteBuildService
             }
         }
 
-        return $this->describePath($logicalPath, $mode);
+        $description = $this->describePath($logicalPath, $mode);
+        if ($build !== null) {
+            $description['build'] = $build;
+        }
+
+        return $description;
     }
 
     /**
@@ -138,9 +144,14 @@ final class SiteBuildService
                             $phpIniPath = dirname(__DIR__) . '/php.ini';
                             $phpIniPath = str_replace('\\', '/', $phpIniPath);
                             $dataDir = $this->store->getDataDir();
+                            $workspaceRoot = Config::getWorkspaceRoot();
+                            $phpExtensionDir = str_replace('\\', '/', (string)ini_get('extension_dir'));
+                            $defaultBlake3Extension = $workspaceRoot . '/efsdb/php/core/ext/' . (PHP_OS_FAMILY === 'Windows' ? 'php_blake3.dll' : 'blake3-src/compiled/blake3.so');
+                            $blake3Extension = str_replace('\\', '/', (string)(getenv('EFSDB_PHP_BLAKE3_EXTENSION') ?: $defaultBlake3Extension));
+                            $errorLog = str_replace('\\', '/', (string)(getenv('EFSDB_PHP_ERROR_LOG') ?: ($workspaceRoot . '/.cache/efsdb/artifacts/logs/php-error.log')));
                             $envVars = PHP_OS_FAMILY === 'Windows'
-                                ? "set EFSDB_DATA_DIR={$dataDir}&& set EFSDB_BUILD_ROOT={$environment}&& set EFSDB_BASE_PATH={$basePath}&& set EFSDB_PHP_INI_PATH={$phpIniPath}&& "
-                                : "EFSDB_DATA_DIR=" . escapeshellarg($dataDir) . " EFSDB_BUILD_ROOT=" . escapeshellarg($environment) . " EFSDB_BASE_PATH=" . escapeshellarg($basePath) . " EFSDB_PHP_INI_PATH=" . escapeshellarg($phpIniPath) . " ";
+                                ? 'set "EFSDB_DATA_DIR=' . $dataDir . '"&& set "EFSDB_BUILD_ROOT=' . $environment . '"&& set "EFSDB_BASE_PATH=' . $basePath . '"&& set "EFSDB_PHP_INI_PATH=' . $phpIniPath . '"&& set "EFSDB_PHP_EXTENSION_DIR=' . $phpExtensionDir . '"&& set "EFSDB_PHP_BLAKE3_EXTENSION=' . $blake3Extension . '"&& set "EFSDB_PHP_ERROR_LOG=' . $errorLog . '"&& '
+                                : "EFSDB_DATA_DIR=" . escapeshellarg($dataDir) . " EFSDB_BUILD_ROOT=" . escapeshellarg($environment) . " EFSDB_BASE_PATH=" . escapeshellarg($basePath) . " EFSDB_PHP_INI_PATH=" . escapeshellarg($phpIniPath) . " EFSDB_PHP_EXTENSION_DIR=" . escapeshellarg($phpExtensionDir) . " EFSDB_PHP_BLAKE3_EXTENSION=" . escapeshellarg($blake3Extension) . " EFSDB_PHP_ERROR_LOG=" . escapeshellarg($errorLog) . " ";
                             exec("cd " . escapeshellarg($dir) . " && {$envVars}bun --efsdb-process-id=site-build-component run build 2>&1", $output, $code);
                             if ($code !== 0) {
                                 throw new RuntimeException("Component build failed for " . basename($dir) . ":\n" . implode("\n", $output));

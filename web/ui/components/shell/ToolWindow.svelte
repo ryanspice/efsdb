@@ -230,7 +230,7 @@
   }
 
   .dialog-wrapper.is-modal {
-    background: rgba(0, 0, 0, 0.45);
+    background: color-mix(in srgb, var(--shell-text-strong, #020617), transparent 72%);
   }
 
   .dialog-wrapper.minimized {
@@ -242,7 +242,7 @@
     position: absolute;
     display: flex;
     flex-direction: column;
-    background: var(--shell-panel-bg, #ffffff);
+    background: var(--shell-panel, var(--shell-panel-bg, #ffffff));
     border: 1px solid var(--shell-border, #e2e8f0);
     border-radius: 12px;
     box-shadow: var(--shell-shadow, 0 16px 48px rgba(0, 0, 0, 0.15));
@@ -260,7 +260,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    background: var(--shell-inset-bg, #f1f5f9);
+    background: var(--shell-surface, var(--shell-inset-bg, #f1f5f9));
     border-bottom: 1px solid var(--shell-border, #e2e8f0);
     cursor: grab;
     user-select: none;
@@ -304,8 +304,8 @@
   }
 
   .ctrl-btn.close:hover {
-    background: #c04040;
-    color: #fff;
+    background: var(--efs-state-danger, #dc2626);
+    color: var(--shell-pill-text, #fff);
   }
 
   .dialog-body {
@@ -328,7 +328,7 @@
     justify-content: flex-end;
     padding: 12px 16px;
     border-top: 1px solid var(--shell-border, #e2e8f0);
-    background: var(--shell-inset-bg, #f1f5f9);
+    background: var(--shell-surface, var(--shell-inset-bg, #f1f5f9));
     flex-shrink: 0;
   }
 

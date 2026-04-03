@@ -19,6 +19,18 @@
 
   type ThemeStudioTriggerSource = 'toolbar' | 'fab';
   type ThemeStudioTab = 'theme' | 'presets' | 'tokens';
+  type ThemeStudioAnchorRect = {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    width: number;
+    height: number;
+  };
+  type ThemeStudioToggleDetail = {
+    source?: string;
+    anchorRect?: ThemeStudioAnchorRect | null;
+  };
 
   const PANEL_WIDTH = 468;
   const PANEL_HEIGHT = 696;
@@ -32,6 +44,7 @@
   let activeTab = $state<ThemeStudioTab>('theme');
   let anchorSource = $state<ThemeStudioTriggerSource>('toolbar');
   let anchor = $state<HTMLElement | null>(null);
+  let anchorRect = $state<ThemeStudioAnchorRect | null>(null);
   let popoverRoot = $state<HTMLDivElement | null>(null);
 
   let windowX = $state(PANEL_GUTTER);
@@ -56,6 +69,114 @@
     return themeStudioStore.preview(seed, mode, vividness, contrast);
   });
 
+  function normalizeAnchorRect(value: unknown): ThemeStudioAnchorRect | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    const rect = value as Partial<ThemeStudioAnchorRect>;
+    const left = Number(rect.left);
+    const top = Number(rect.top);
+    const right = Number(rect.right);
+    const bottom = Number(rect.bottom);
+    const width = Number(rect.width);
+    const height = Number(rect.height);
+
+    if (![left, top, right, bottom, width, height].every(Number.isFinite)) {
+      return null;
+    }
+
+    return {
+      left,
+      top,
+      right,
+      bottom,
+      width,
+      height
+    };
+  }
+
+  function getAnchorBounds(): ThemeStudioAnchorRect | DOMRect | null {
+    if (anchorRect) {
+      return anchorRect;
+    }
+
+    if (anchor) {
+      return anchor.getBoundingClientRect();
+    }
+
+    return null;
+  }
+
+  function collectAccessibleWindows(startWindow: Window | null | undefined): Window[] {
+    if (!startWindow) {
+      return [];
+    }
+
+    const queue: Window[] = [startWindow];
+    const visited = new Set<Window>();
+
+    while (queue.length > 0) {
+      const currentWindow = queue.shift();
+      if (!currentWindow || visited.has(currentWindow)) {
+        continue;
+      }
+
+      visited.add(currentWindow);
+
+      try {
+        const parentWindow = currentWindow.parent;
+        if (parentWindow && parentWindow !== currentWindow && !visited.has(parentWindow)) {
+          queue.push(parentWindow);
+        }
+      } catch {
+        // ignore cross-origin parents
+      }
+
+      try {
+        for (let index = 0; index < currentWindow.frames.length; index += 1) {
+          const frameWindow = currentWindow.frames[index];
+          if (frameWindow && !visited.has(frameWindow)) {
+            queue.push(frameWindow);
+          }
+        }
+      } catch {
+        // ignore cross-origin frames
+      }
+    }
+
+    return [...visited];
+  }
+
+  function broadcastPaletteApplied(palette: typeof previewPalette): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let rootWindow: Window = window;
+    try {
+      rootWindow = window.top ?? window;
+    } catch {
+      rootWindow = window;
+    }
+
+    const targets = collectAccessibleWindows(rootWindow);
+    const rootTarget = targets.find((candidate) => candidate === rootWindow) ?? targets[0] ?? window;
+
+    try {
+      rootTarget.document.dispatchEvent(
+        new rootTarget.CustomEvent('efsdb:theme-studio:applied', {
+          detail: { palette }
+        })
+      );
+      return;
+    } catch {
+      // fall through to local update
+    }
+
+    applyThemePaletteToElement(palette);
+  }
+
   function resolveAnchor(source: ThemeStudioTriggerSource = anchorSource): void {
     const preferredIds =
       source === 'toolbar'
@@ -75,17 +196,19 @@
   }
 
   function updateWindowPosition(): void {
-    if (!anchor || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
-    const anchorRect = anchor.getBoundingClientRect();
+    const anchorBounds = getAnchorBounds();
+    if (!anchorBounds) return;
+
     const nextWidth = Math.min(PANEL_WIDTH, Math.max(360, window.innerWidth - PANEL_GUTTER * 2));
     const nextHeight = Math.min(PANEL_HEIGHT, Math.max(420, window.innerHeight - PANEL_GUTTER * 2));
 
-    let nextX = anchorRect.right - nextWidth;
+    let nextX = anchorBounds.right - nextWidth;
     let nextY =
       anchorSource === 'toolbar'
-        ? anchorRect.bottom + PANEL_OFFSET
-        : anchorRect.top - nextHeight - PANEL_OFFSET;
+        ? anchorBounds.bottom + PANEL_OFFSET
+        : anchorBounds.top - nextHeight - PANEL_OFFSET;
 
     nextX = Math.min(
       Math.max(PANEL_GUTTER, nextX),
@@ -103,14 +226,21 @@
   }
 
   function readTriggerSource(event?: Event): ThemeStudioTriggerSource | null {
-    const source = (event as CustomEvent<{ source?: string }> | undefined)?.detail?.source;
+    const source = (event as CustomEvent<ThemeStudioToggleDetail> | undefined)?.detail?.source;
     return source === 'toolbar' || source === 'fab' ? source : null;
+  }
+
+  function readAnchorRect(event?: Event): ThemeStudioAnchorRect | null {
+    return normalizeAnchorRect(
+      (event as CustomEvent<ThemeStudioToggleDetail> | undefined)?.detail?.anchorRect
+    );
   }
 
   function handleToggle(event?: Event): void {
     const requestedSource = readTriggerSource(event) ?? anchorSource;
     const previousSource = anchorSource;
     anchorSource = requestedSource;
+    anchorRect = readAnchorRect(event);
 
     if (windowState === 'minimized') {
       windowState = 'normal';
@@ -126,7 +256,11 @@
       return;
     }
 
-    resolveAnchor(requestedSource);
+    if (anchorRect) {
+      anchor = null;
+    } else {
+      resolveAnchor(requestedSource);
+    }
     updateWindowPosition();
     isOpen = true;
   }
@@ -147,6 +281,11 @@
       return;
     }
 
+    handleClose();
+  }
+
+  function handleFramePointerDown(): void {
+    if (!isOpen || isPinned) return;
     handleClose();
   }
 
@@ -179,13 +318,7 @@
 
   function handleApply(): void {
     const palette = themeStudioStore.apply(seed, mode, vividness, contrast);
-    applyThemePaletteToElement(palette);
-
-    document.dispatchEvent(
-      new CustomEvent('efsdb:theme-studio:applied', {
-        detail: { palette }
-      })
-    );
+    broadcastPaletteApplied(palette);
 
     statusLine = `Applied ${palette.seed} in ${palette.mode} mode.`;
   }
@@ -198,7 +331,7 @@
     mode = fallback.mode;
     vividness = fallback.vividness;
     contrast = fallback.contrast;
-    applyThemePaletteToElement(fallback);
+    broadcastPaletteApplied(fallback);
     statusLine = 'Theme reset to the default shell palette.';
   }
 
@@ -211,27 +344,67 @@
     statusLine = `${preset.label} loaded.`;
   }
 
-  onMount(() => {
-    document.addEventListener('efsdb:theme-studio:toggle', handleToggle as EventListener);
-    document.addEventListener('pointerdown', handleDocumentPointerDown, true);
-    window.addEventListener('resize', updateWindowPosition);
-
+  function syncStateFromEnvironment(): void {
     themeStudioStore.hydrate();
     const current = get(themeStudioStore);
 
     seed = current.seed;
-    mode = current.mode;
     vividness = current.vividness;
     contrast = current.contrast;
 
+    if (typeof window !== 'undefined' && typeof window.getEfsdbTheme === 'function') {
+      const resolvedMode = window.getEfsdbTheme();
+      mode = resolvedMode === 'dark' ? 'dark' : 'light';
+      return;
+    }
+
+    mode = current.mode;
     applyThemePaletteToElement(current.palette);
+  }
+
+  function handleSharedThemeMutation(event?: StorageEvent): void {
+    if (
+      event &&
+      event.key &&
+      event.key !== 'efsdb-theme' &&
+      event.key !== 'efsdb:theme-studio'
+    ) {
+      return;
+    }
+
+    syncStateFromEnvironment();
+  }
+
+  onMount(() => {
+    document.addEventListener('efsdb:theme-studio:toggle', handleToggle as EventListener);
+    document.addEventListener(
+      'efsdb:theme-studio:frame-pointerdown',
+      handleFramePointerDown as EventListener
+    );
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+    window.addEventListener('resize', updateWindowPosition);
+    window.addEventListener('efsdb-themechange', handleSharedThemeMutation as EventListener);
+    window.addEventListener('efsdb-theme-palettechange', handleSharedThemeMutation as EventListener);
+    window.addEventListener('storage', handleSharedThemeMutation);
+
+    syncStateFromEnvironment();
     resolveAnchor(anchorSource);
     updateWindowPosition();
 
     return () => {
       document.removeEventListener('efsdb:theme-studio:toggle', handleToggle as EventListener);
+      document.removeEventListener(
+        'efsdb:theme-studio:frame-pointerdown',
+        handleFramePointerDown as EventListener
+      );
       document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
       window.removeEventListener('resize', updateWindowPosition);
+      window.removeEventListener('efsdb-themechange', handleSharedThemeMutation as EventListener);
+      window.removeEventListener(
+        'efsdb-theme-palettechange',
+        handleSharedThemeMutation as EventListener
+      );
+      window.removeEventListener('storage', handleSharedThemeMutation);
     };
   });
 </script>
@@ -531,9 +704,9 @@
 
   .theme-studio-window :global(.window-shell) {
     pointer-events: auto;
-    --window-panel: var(--shell-panel-solid, #ffffff);
-    --window-surface: var(--shell-panel-solid-subtle, #f8fafc);
-    --window-border: var(--shell-border, #dbe4f0);
+    --window-panel: var(--efs-window-theme-panel, var(--shell-panel-solid, #ffffff));
+    --window-surface: var(--efs-window-theme-surface, var(--shell-panel-solid-subtle, #f8fafc));
+    --window-border: var(--efs-window-theme-border, var(--shell-border, #dbe4f0));
     --window-control-size: 1.85rem;
     --window-aux-width: 1.92rem;
     --window-system-width: 2rem;

@@ -24076,7 +24076,16 @@ const r5 = /* @__PURE__ */ W.baseTheme({
 var s5 = /* @__PURE__ */ te('<div class="contextBar svelte-1nhx4h8"> </div>'), a5 = /* @__PURE__ */ te('<div class="editor-wrap svelte-1nhx4h8"><!></div>');
 const o5 = {
   hash: "svelte-1nhx4h8",
-  code: `.editor-wrap.svelte-1nhx4h8 {height:100%;width:100%;display:flex;flex-direction:column;--efs-code-font-size: 14px;}.contextBar.svelte-1nhx4h8 {padding:4px 12px;font:var(--efs-font-label, 700 12px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);letter-spacing:0.06em;text-transform:uppercase;color:var(--primary, #0070cc);background:color-mix(in oklab, var(--primary, #0070cc), transparent 92%);border-bottom:1px solid color-mix(in oklab, var(--border), var(--primary, #0070cc) 15%);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.editor-wrap.svelte-1nhx4h8 .cm-editor {height:100%;flex:1;min-height:0;}.editor-wrap.svelte-1nhx4h8 .cm-editor.cm-focused {outline:none;}
+  code: `.editor-wrap.svelte-1nhx4h8 {height:100%;width:100%;display:flex;flex-direction:column;--efs-code-font-size: 14px;}.contextBar.svelte-1nhx4h8 {padding:4px 12px;font:var(--efs-font-label, 700 12px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);letter-spacing:0.06em;text-transform:uppercase;color:var(--shell-primary, var(--accent, #0070cc));background:color-mix(
+      in oklab,
+      var(--shell-primary, var(--accent, #0070cc)),
+      transparent 92%
+    );border-bottom:1px solid
+      color-mix(
+        in oklab,
+        var(--shell-border, #e2e8f0),
+        var(--shell-primary, var(--accent, #0070cc)) 15%
+      );white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.editor-wrap.svelte-1nhx4h8 .cm-editor {height:100%;flex:1;min-height:0;}.editor-wrap.svelte-1nhx4h8 .cm-editor.cm-focused {outline:none;}
 
   @media (min-width: 48rem) {.editor-wrap.svelte-1nhx4h8 {--efs-code-font-size: 15px;}
   }`
@@ -24105,20 +24114,33 @@ function t0(i, e) {
     "&": {
       height: "100%",
       fontSize: "var(--efs-code-font-size, 14px)",
-      fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace'
+      fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
+      backgroundColor: "var(--shell-panel, var(--shell-panel-bg, #ffffff))",
+      color: "var(--shell-text, #0f172a)"
     },
     ".cm-scroller": { overflow: "auto", fontFamily: "inherit" },
-    ".cm-content": { caretColor: "#007acc" },
-    ".cm-gutters": {
-      backgroundColor: "#f8f8f2",
-      color: "#6e7681",
-      border: "none",
-      borderRight: "1px solid #e0e0e0"
+    ".cm-content": { caretColor: "var(--shell-primary, var(--accent, #007acc))" },
+    ".cm-cursor, .cm-dropCursor": {
+      borderLeftColor: "var(--shell-primary, var(--accent, #007acc))"
     },
-    ".cm-activeLineGutter": { backgroundColor: "#efefef" },
-    ".cm-activeLine": { backgroundColor: "#f5f5f5" },
-    ".cm-selectionBackground": { backgroundColor: "#add6ff !important" },
-    "&.cm-focused .cm-selectionBackground": { backgroundColor: "#add6ff !important" }
+    ".cm-gutters": {
+      backgroundColor: "var(--shell-surface, var(--shell-soft-bg, #f8fafc))",
+      color: "var(--shell-muted, #64748b)",
+      border: "none",
+      borderRight: "1px solid var(--shell-border, #e2e8f0)"
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "color-mix(in srgb, var(--shell-hover-bg, #f1f5f9), var(--shell-primary, var(--accent, #007acc)) 6%)"
+    },
+    ".cm-activeLine": {
+      backgroundColor: "color-mix(in srgb, var(--shell-hover-bg, #f1f5f9), var(--shell-primary, var(--accent, #007acc)) 4%)"
+    },
+    ".cm-selectionBackground": {
+      backgroundColor: "color-mix(in srgb, var(--shell-primary, var(--accent, #007acc)), transparent 74%) !important"
+    },
+    "&.cm-focused .cm-selectionBackground": {
+      backgroundColor: "color-mix(in srgb, var(--shell-primary, var(--accent, #007acc)), transparent 72%) !important"
+    }
   });
   function p(P, T) {
     const w = u(P);

@@ -45,7 +45,7 @@ $canPromote = !$isGuest && $perms->canManageEnvironmentActions($user);
                 <div class="absolute top-0 left-0 w-full h-1 bg-amber-400/50"></div>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background: color-mix(in srgb, var(--efs-state-warning,#f0b34a), transparent 84%); color: var(--efs-state-warning,#f0b34a);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/><path d="M2 12h20"/><path d="m5 7-3 5 3 5"/><path d="m19 7 3 5-3 5"/></svg>
                         </div>
                         <div>
@@ -73,7 +73,7 @@ $canPromote = !$isGuest && $perms->canManageEnvironmentActions($user);
                 </div>
 
                 <div class="mt-8 space-y-6 flex-grow">
-                    <div class="surface-panel bg-black/5 dark:bg-white/5 border border-[var(--shell-border)]">
+                    <div class="surface-panel border border-[var(--shell-border)]">
                         <div class="metric-label mb-3">Current State</div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -111,7 +111,7 @@ $canPromote = !$isGuest && $perms->canManageEnvironmentActions($user);
                 <div class="absolute top-0 left-0 w-full h-1 bg-emerald-500/50"></div>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background: color-mix(in srgb, var(--efs-state-success,#48c78e), transparent 84%); color: var(--efs-state-success,#48c78e);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                         </div>
                         <div>
@@ -123,7 +123,7 @@ $canPromote = !$isGuest && $perms->canManageEnvironmentActions($user);
                 </div>
 
                 <div class="mt-8 space-y-6 flex-grow">
-                    <div class="surface-panel bg-black/5 dark:bg-white/5 border border-[var(--shell-border)]">
+                    <div class="surface-panel border border-[var(--shell-border)]">
                         <div class="metric-label mb-3">Current State</div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -154,7 +154,7 @@ $canPromote = !$isGuest && $perms->canManageEnvironmentActions($user);
                         </button>
                     <?php endif; ?>
                     <?php if ($canPromote): ?>
-                        <button class="ghost-button w-full sm:w-auto justify-center text-purple-500 hover:bg-purple-500/10 border-purple-500/20" onclick="handleEnvironmentAction('sync', 'Sync Production to Staging')">
+                        <button class="ghost-button w-full sm:w-auto justify-center hover:bg-[var(--shell-hover-bg)]" style="color: var(--accent-secondary, var(--accent)); border-color: color-mix(in srgb, var(--accent-secondary, var(--accent)), transparent 74%);" onclick="handleEnvironmentAction('sync', 'Sync Production to Staging')">
                             Sync to Staging
                         </button>
                     <?php endif; ?>
@@ -163,7 +163,7 @@ $canPromote = !$isGuest && $perms->canManageEnvironmentActions($user);
         </div>
 
         <aside class="space-y-6">
-            <div class="surface-panel bg-black/5 dark:bg-white/5 border border-[var(--shell-border)]">
+            <div class="surface-panel border border-[var(--shell-border)]">
                 <div class="metric-label mb-2">Environment Architecture</div>
                 <p class="text-sm text-[var(--shell-muted)] leading-relaxed mb-4">
                     Staging isolates draft changes from your live audience. Once validated, promote changes atomically to Production.

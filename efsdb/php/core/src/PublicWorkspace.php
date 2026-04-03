@@ -290,13 +290,14 @@ final class PublicWorkspace
         return $this->persistRoot($doc);
     }
 
-    public function canReadRoot(string $root, User $user): bool
+    public function canReadRoot(string $root, User|callable $userResolver): bool
     {
         $doc = $this->getRoot($root, false) ?? $this->defaultRootDocument($this->tenantKey(), $this->normalizeRoot($root));
         if (($doc['visibility'] ?? 'restricted') === 'public') {
             return true;
         }
 
+        $user = is_callable($userResolver) ? $userResolver() : $userResolver;
         if ($user->isGuest()) {
             return false;
         }
@@ -818,6 +819,11 @@ final class PublicWorkspace
      */
     private function findSiteManifestByRelativePath(string $root, string $relativePath): ?array
     {
+        $canonicalId = $this->fileId($this->tenantKey(), $this->normalizeRoot($root), $relativePath);
+        if ($this->store->hasManifest(self::FILE_ENTITY, $canonicalId)) {
+            return $this->store->getManifest(self::FILE_ENTITY, $canonicalId);
+        }
+
         $logicalPath = $this->siteLogicalPath($root, $relativePath);
         $manifest = $this->store->findManifestByLogicalPath(self::FILE_ENTITY, $logicalPath);
         if ($manifest !== null) {

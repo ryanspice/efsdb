@@ -5,6 +5,9 @@ require_once __DIR__ . '/../core/src/Store.php';
 require_once __DIR__ . '/../core/src/Crypto.php';
 require_once __DIR__ . '/../core/src/Schema.php';
 require_once __DIR__ . '/../core/src/IndexManager.php';
+require_once __DIR__ . '/../core/src/Config.php';
+
+Config::assertRepoPhpIniLoaded('conformance/generate.php');
 
 function resetDir(string $dir): void
 {

@@ -1,0 +1,76 @@
+{
+    "01_valid_blake3.bin": {
+        "ok": true,
+        "type": 1,
+        "flags": 0,
+        "suite": 1,
+        "header_length": 16,
+        "payload_length": 13,
+        "extensions": []
+    },
+    "02_err_invalid_magic.bin": {
+        "ok": false,
+        "error": "ERR_INVALID_MAGIC"
+    },
+    "03_err_unsupported_version.bin": {
+        "ok": false,
+        "error": "ERR_UNSUPPORTED_VERSION"
+    },
+    "04_err_truncated_header.bin": {
+        "ok": false,
+        "error": "ERR_TRUNCATED_HEADER"
+    },
+    "05_err_unsupported_suite.bin": {
+        "ok": false,
+        "error": "ERR_UNSUPPORTED_SUITE"
+    },
+    "06_err_checksum_mismatch.bin": {
+        "ok": false,
+        "error": "ERR_CHECKSUM_MISMATCH"
+    },
+    "07_err_truncated_payload.bin": {
+        "ok": false,
+        "error": "ERR_TRUNCATED_PAYLOAD"
+    },
+    "08_err_invalid_header_alignment.bin": {
+        "ok": false,
+        "error": "ERR_INVALID_HEADER"
+    },
+    "09_err_trailing_garbage.bin": {
+        "ok": false,
+        "error": "ERR_TRAILING_GARBAGE"
+    },
+    "10_err_unsupported_critical_ext.bin": {
+        "ok": false,
+        "error": "ERR_UNSUPPORTED_CRITICAL_EXTENSION"
+    },
+    "11_err_invalid_header_malformed_ext.bin": {
+        "ok": false,
+        "error": "ERR_INVALID_HEADER"
+    },
+    "12_valid_chacha20_poly1305.bin": {
+        "ok": true,
+        "type": 1,
+        "flags": 0,
+        "suite": 2,
+        "header_length": 16,
+        "payload_length": 35,
+        "extensions": []
+    },
+    "13_err_aead_aad_mismatch.bin": {
+        "ok": false,
+        "error": "ERR_CHECKSUM_MISMATCH"
+    },
+    "14_err_aead_tag_mismatch.bin": {
+        "ok": false,
+        "error": "ERR_CHECKSUM_MISMATCH"
+    },
+    "15_err_aead_truncated_payload.bin": {
+        "ok": false,
+        "error": "ERR_TRUNCATED_PAYLOAD"
+    },
+    "16_err_aead_trailing_garbage.bin": {
+        "ok": false,
+        "error": "ERR_TRAILING_GARBAGE"
+    }
+}

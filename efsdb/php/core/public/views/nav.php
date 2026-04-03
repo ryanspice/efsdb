@@ -1,6 +1,7 @@
 <?php
 $canAdmin = !$isGuest && $perms->canManageUsers($user);
 $isImpersonating = !$isGuest && $user->role !== $user->actualRole;
+$showGlobalAdminDock = !$isGuest && $canAdmin && !str_starts_with((string)$action, 'admin');
 $navIdle = 'nav-link';
 $navActive = 'nav-link nav-link-active';
 $navLinks = [
@@ -80,7 +81,7 @@ $navLinks = [
                 </button>
             <?php endif; ?>
 
-            <button class="theme-button" style="padding: 0.4rem; border-radius: 50%;" type="button" data-theme-toggle data-theme-current="light" aria-label="Toggle color theme" title="Toggle theme">
+            <button class="theme-button" style="padding: 0.4rem; border-radius: 50%;" type="button" data-theme-toggle data-theme-current="auto" aria-label="Toggle color theme" title="Toggle theme">
                 <svg class="theme-light w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="4" />
                     <path d="M12 2v2" />
@@ -95,10 +96,10 @@ $navLinks = [
                 <svg class="theme-dark w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
                 </svg>
-                <svg class="theme-green w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m2 22 1-1h3l9-9" />
-                    <path d="M3 21v-3l9-9" />
-                    <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" />
+                <svg class="theme-auto w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
                 </svg>
             </button>
             <?php if ($isGuest): ?>
@@ -126,6 +127,12 @@ $navLinks = [
 
 <?php if (!$isGuest && $canAdmin): ?>
     <script type="module" src="/js/efsdb-window-shell.js"></script>
+    <script type="module" src="/js/efsdb-theme-studio.js"></script>
+    <?php if ($showGlobalAdminDock): ?>
+        <script type="module" src="/js/efsdb-admin-dock.js"></script>
+        <efsdb-admin-dock></efsdb-admin-dock>
+    <?php endif; ?>
+    <efsdb-theme-studio id="global-theme-studio"></efsdb-theme-studio>
     <efsdb-window-shell id="settings-window" title="Settings" width="500" height="500" hidden>
         <iframe src="/_efsdb/settings?popup=1" style="flex: 1; border: none; width: 100%; height: 100%; display: block; background: var(--shell-panel-bg);"></iframe>
     </efsdb-window-shell>
@@ -135,6 +142,8 @@ $navLinks = [
                 const el = document.getElementById('settings-window');
                 if (el) {
                     el.hidden = true;
+                    el.setAttribute('hidden', '');
+                    el.open = false;
                     el.removeAttribute('open');
                 }
             }
@@ -144,11 +153,15 @@ $navLinks = [
             const el = document.getElementById('settings-window');
             if (el) {
                 el.hidden = false;
-                el.setAttribute('open', '');
-                el.setAttribute('x', Math.round((window.innerWidth - 500) / 2));
-                el.setAttribute('y', Math.round((window.innerHeight - 500) / 2));
-                // ensure state is normal so it isn't minimized
-                el.setAttribute('state', 'normal');
+                el.removeAttribute('hidden');
+                customElements.whenDefined('efsdb-window-shell').then(() => {
+                    el.open = true;
+                    el.setAttribute('open', 'true');
+                    el.x = Math.round((window.innerWidth - 500) / 2);
+                    el.y = Math.round((window.innerHeight - 500) / 2);
+                });
+            } else {
+                console.error('Settings window element not found.');
             }
         }
     </script>

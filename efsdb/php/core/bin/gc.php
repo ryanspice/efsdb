@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/App.php';
 
+Config::assertRepoPhpIniLoaded('bin/gc.php');
+
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script must be run from the command line.\n");
     exit(1);
