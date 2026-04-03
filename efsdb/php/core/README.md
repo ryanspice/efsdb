@@ -33,10 +33,10 @@ From the repo root:
 bun run dev
 ```
 
-Or from `efsdb/php/core`:
+Or with the repo PHP wrapper:
 
 ```powershell
-php -c php.ini -S 127.0.0.1:8787 -t public
+bun run ./scripts/php-core.ts -- -d efsdb.process_id=app-server -S 127.0.0.1:8787 -t efsdb/php/core/public efsdb/php/core/public/index.php
 ```
 
 ### 3. Trigger bootstrap
