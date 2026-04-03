@@ -54,7 +54,10 @@ $_SERVER['EFSDB_SCHEMA_DIR'] = $schemaDir;
 $_ENV['EFSDB_SCHEMA_DIR'] = $schemaDir;
 putenv('EFSDB_SCHEMA_DIR=' . $schemaDir);
 
+require_once dirname(__DIR__) . '/src/Config.php';
 require_once dirname(__DIR__) . '/src/App.php';
+
+Config::assertRepoPhpIniLoaded('bin/import.php');
 
 $app = new App($dataDir, $schemaDir);
 $importer = $app->getPublicSiteImport();

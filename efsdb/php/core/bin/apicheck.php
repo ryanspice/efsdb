@@ -119,6 +119,8 @@ require_once __DIR__ . '/../src/App.php';
 require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/Permissions.php';
 
+Config::assertRepoPhpIniLoaded('bin/apicheck.php');
+
 $app = new App(Config::getDataDir(), Config::getSchemaDir());
 $app->getIdentity()->createRole([
     'id' => 'site_editor',

@@ -30,6 +30,8 @@ require_once __DIR__ . '/../src/App.php';
 require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Config.php';
 
+Config::assertRepoPhpIniLoaded('bin/authcheck.php');
+
 $app = new App(Config::getDataDir(), Config::getSchemaDir());
 $auth = new Auth($app);
 $identity = $app->getIdentity();

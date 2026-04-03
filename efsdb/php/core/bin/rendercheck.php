@@ -13,6 +13,9 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 require_once __DIR__ . '/../src/AuthKey.php';
 require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Config.php';
+
+Config::assertRepoPhpIniLoaded('bin/rendercheck.php');
+
 $dataDir = Config::getDataDir();
 $authKeyB64 = AuthKey::get($dataDir);
 

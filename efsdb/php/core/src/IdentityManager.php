@@ -138,9 +138,23 @@ final class IdentityManager
             throw new RuntimeException("Unknown user: $userId");
         }
 
+        $previousManifest = $this->store->getManifest(Store::ENTITY_SYSTEM_USERS, $userId);
+        $previousLoginKeyId = trim((string)($user['loginKeyId'] ?? ''));
         $loginKey ??= $this->newSecret();
-        $user['loginKeyId'] = $this->loginKeyId($loginKey);
+        $nextLoginKeyId = $this->loginKeyId($loginKey);
+        $revokedLoginKeyIds = array_values(array_unique(array_filter(array_map(
+            'strval',
+            is_array($user['revokedLoginKeyIds'] ?? null) ? $user['revokedLoginKeyIds'] : []
+        ))));
+        if ($previousLoginKeyId !== '' && $previousLoginKeyId !== $nextLoginKeyId) {
+            $revokedLoginKeyIds[] = $previousLoginKeyId;
+            $revokedLoginKeyIds = array_values(array_unique($revokedLoginKeyIds));
+        }
+
+        $this->store->deleteLookupEntriesFromManifest($previousManifest);
+        $user['loginKeyId'] = $nextLoginKeyId;
         $user['loginKeyHash'] = password_hash($loginKey, PASSWORD_DEFAULT);
+        $user['revokedLoginKeyIds'] = $revokedLoginKeyIds;
         $user['updatedAt'] = gmdate('c');
         $this->store->upsert(Store::ENTITY_SYSTEM_USERS, $user, ['lookupFields' => ['username', 'loginKeyId']]);
 
@@ -155,10 +169,19 @@ final class IdentityManager
             return null;
         }
 
-        $match = $this->store->findDocumentByLookup(Store::ENTITY_SYSTEM_USERS, 'loginKeyId', $this->loginKeyId($key));
+        $loginKeyId = $this->loginKeyId($key);
+
+        $match = $this->store->findDocumentByLookup(Store::ENTITY_SYSTEM_USERS, 'loginKeyId', $loginKeyId);
         if ($match !== null) {
             $doc = $match['document'];
+            $revokedLoginKeyIds = array_map(
+                'strval',
+                is_array($doc['revokedLoginKeyIds'] ?? null) ? $doc['revokedLoginKeyIds'] : []
+            );
             if (($doc['status'] ?? 'active') === 'active') {
+                if (in_array($loginKeyId, $revokedLoginKeyIds, true)) {
+                    return null;
+                }
                 $hash = (string)($doc['loginKeyHash'] ?? '');
                 if ($hash !== '' && password_verify($key, $hash)) {
                     return $this->hydrateUserFromDocument($doc);
@@ -172,10 +195,23 @@ final class IdentityManager
                 continue;
             }
 
+            $revokedLoginKeyIds = array_map(
+                'strval',
+                is_array($doc['revokedLoginKeyIds'] ?? null) ? $doc['revokedLoginKeyIds'] : []
+            );
+            if (in_array($loginKeyId, $revokedLoginKeyIds, true)) {
+                continue;
+            }
+
+            $storedLoginKeyId = trim((string)($doc['loginKeyId'] ?? ''));
+            if ($storedLoginKeyId !== '' && $storedLoginKeyId !== $loginKeyId) {
+                continue;
+            }
+
             $hash = (string)($doc['loginKeyHash'] ?? '');
             if ($hash !== '' && password_verify($key, $hash)) {
-                if (($doc['loginKeyId'] ?? null) !== $this->loginKeyId($key)) {
-                    $doc['loginKeyId'] = $this->loginKeyId($key);
+                if (($doc['loginKeyId'] ?? null) !== $loginKeyId) {
+                    $doc['loginKeyId'] = $loginKeyId;
                     $doc['updatedAt'] = gmdate('c');
                     $this->store->upsert(Store::ENTITY_SYSTEM_USERS, $doc, ['lookupFields' => ['username', 'loginKeyId']]);
                 }
@@ -204,6 +240,13 @@ final class IdentityManager
         }
 
         $loginKeyId = $this->loginKeyId($key);
+        $revokedLoginKeyIds = array_map(
+            'strval',
+            is_array($doc['revokedLoginKeyIds'] ?? null) ? $doc['revokedLoginKeyIds'] : []
+        );
+        if (in_array($loginKeyId, $revokedLoginKeyIds, true)) {
+            return false;
+        }
         if (($doc['loginKeyId'] ?? null) !== $loginKeyId) {
             $doc['loginKeyId'] = $loginKeyId;
             $doc['updatedAt'] = gmdate('c');

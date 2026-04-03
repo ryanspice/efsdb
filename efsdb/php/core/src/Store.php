@@ -173,7 +173,7 @@ final class Store
             $totalSize += $len;
         }
 
-        $mtime = gmdate('c');
+        $mtime = $this->timestamp();
         $mime = (string)($meta['mime'] ?? 'application/octet-stream');
         $indexSource = $meta['indexesSource'] ?? $meta;
         $lookupSource = is_array($indexSource) ? $indexSource : [];
@@ -454,7 +454,7 @@ final class Store
     {
         $manifest = $this->getManifest($entity, $id);
         $retentionDays = max(0, (int)($options['retentionDays'] ?? 30));
-        $at = (string)($options['at'] ?? gmdate('c'));
+        $at = (string)($options['at'] ?? $this->timestamp());
         $retainUntil = (string)($options['retainUntil'] ?? gmdate('c', strtotime($at) + ($retentionDays * 86400)));
 
         $manifest['lifecycle'] ??= [];
@@ -464,7 +464,7 @@ final class Store
             'reason' => isset($options['reason']) ? (string)$options['reason'] : '',
             'retainUntil' => $retainUntil,
         ];
-        $manifest['mtime'] = gmdate('c');
+        $manifest['mtime'] = $this->timestamp();
 
         $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
@@ -484,14 +484,14 @@ final class Store
 
         $manifest['lifecycle'] ??= [];
         unset($manifest['lifecycle']['tombstone']);
-        $manifest['lifecycle']['restoredAt'] = gmdate('c');
+        $manifest['lifecycle']['restoredAt'] = $this->timestamp();
         if (isset($options['actorId'])) {
             $manifest['lifecycle']['restoredBy'] = (string)$options['actorId'];
         }
         if ($manifest['lifecycle'] === []) {
             unset($manifest['lifecycle']);
         }
-        $manifest['mtime'] = gmdate('c');
+        $manifest['mtime'] = $this->timestamp();
 
         $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
@@ -711,6 +711,11 @@ final class Store
         if (!is_dir($dir)) {
             mkdir($dir, 0777, true);
         }
+    }
+
+    private function timestamp(): string
+    {
+        return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.u\Z');
     }
 
     private function loadKey(): void
