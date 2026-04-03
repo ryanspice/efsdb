@@ -1,6 +1,7 @@
 <?php
 $canAdmin = !$isGuest && $perms->canManageUsers($user);
 $isImpersonating = !$isGuest && $user->role !== $user->actualRole;
+$showGlobalAdminDock = !$isGuest && $canAdmin && !str_starts_with((string)$action, 'admin');
 $navIdle = 'nav-link';
 $navActive = 'nav-link nav-link-active';
 $navLinks = [
@@ -126,6 +127,12 @@ $navLinks = [
 
 <?php if (!$isGuest && $canAdmin): ?>
     <script type="module" src="/js/efsdb-window-shell.js"></script>
+    <script type="module" src="/js/efsdb-theme-studio.js"></script>
+    <?php if ($showGlobalAdminDock): ?>
+        <script type="module" src="/js/efsdb-admin-dock.js"></script>
+        <efsdb-admin-dock></efsdb-admin-dock>
+    <?php endif; ?>
+    <efsdb-theme-studio id="global-theme-studio"></efsdb-theme-studio>
     <efsdb-window-shell id="settings-window" title="Settings" width="500" height="500" hidden>
         <iframe src="/_efsdb/settings?popup=1" style="flex: 1; border: none; width: 100%; height: 100%; display: block; background: var(--shell-panel-bg);"></iframe>
     </efsdb-window-shell>

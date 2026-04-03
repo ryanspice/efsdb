@@ -976,15 +976,20 @@
           </dl>
 
           {#if rawStorageKind(displayItem) === 'manifest' || rawStorageKind(displayItem) === 'chunk'}
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+            <section class="rawInspector">
+              <div class="rawInspectorEyebrow">Envelope verification</div>
+              <div class="rawInspectorTitle">Inspect verification state safely</div>
+              <div class="rawInspectorCopy">
+                Raw preview shows suite, key-resolution hints, and extension metadata only. Payload content and key material stay hidden here.
+              </div>
               {#await client.getDownloadUrl(displayItem.rawPath || '', mode)}
-                <div style="color: var(--muted); font-size: 0.85rem;">Generating storage ticket...</div>
+                <div class="rawInspectorStatus">Generating storage ticket…</div>
               {:then url}
                 <efsdb-envelope-inspector {url}></efsdb-envelope-inspector>
               {:catch err}
-                <div style="color: var(--danger); font-size: 0.85rem;">Could not inspect envelope: {err.message}</div>
+                <div class="rawInspectorError">Could not load verification metadata: {err.message}</div>
               {/await}
-            </div>
+            </section>
           {/if}
         </section>
       {:else if isImage(displayItem) && imageUrl}
@@ -1368,6 +1373,41 @@
   .rawFacts dd {
     margin: calc(4px * var(--preview-scale)) 0 0;
     word-break: break-word;
+  }
+
+  .rawInspector {
+    margin-top: calc(16px * var(--preview-scale));
+    padding-top: calc(16px * var(--preview-scale));
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: calc(10px * var(--preview-scale));
+  }
+
+  .rawInspectorEyebrow {
+    font-size: calc(11px * var(--preview-scale));
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .rawInspectorTitle {
+    font-size: calc(14px * var(--preview-scale));
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .rawInspectorCopy,
+  .rawInspectorStatus {
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: calc(13px * var(--preview-scale));
+  }
+
+  .rawInspectorError {
+    color: var(--danger);
+    line-height: 1.5;
+    font-size: calc(13px * var(--preview-scale));
   }
 
   .mono {

@@ -3652,16 +3652,24 @@ if ($showcasePage === 'hub') {
             <div class="showcase-section-head">
                 <div class="section-label" style="color: var(--shell-primary); font-weight: bold;">Browser-side envelope verification</div>
                 <h2 class="page-title" style="font-size: 2rem; margin-top: 0.5rem; margin-bottom: 1rem;">Live Inspector Demo</h2>
-                <p class="shell-copy" style="font-size: 1.1rem; line-height: 1.6; max-width: 600px;">
+                <p class="shell-copy" style="font-size: 1.1rem; line-height: 1.6; max-width: 700px;">
                     We proved browser-side envelope inspection with PHP/Rust parity, range-based partial fetches, and worker-isolated WASM parsing.
-                    This ensures the UI can read envelope metadata instantly without downloading gigabytes of payload data.
+                    The companion Rust benchmark now shows the practical verification tradeoff honestly: BLAKE3 streaming removes caller prebuffering but stays slower on pure verifier CPU, while ChaCha20-Poly1305 streaming removes caller prebuffering and improves verifier-local throughput in this harness without yet proving an end-to-end memory win.
                 </p>
 
                 <div class="mt-4 flex gap-3 flex-wrap">
                     <span class="tag" style="background: color-mix(in srgb, #22c55e, transparent 85%); color: #15803d; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #22c55e, transparent 50%); font-weight: 500;">Parity Verified</span>
                     <span class="tag" style="background: color-mix(in srgb, #3b82f6, transparent 85%); color: #1d4ed8; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #3b82f6, transparent 50%); font-weight: 500;">Worker Active</span>
                     <span class="tag" style="background: color-mix(in srgb, #8b5cf6, transparent 85%); color: #6d28d9; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #8b5cf6, transparent 50%); font-weight: 500;">Header-Only Fetch</span>
-                    <span class="tag" style="background: color-mix(in srgb, var(--shell-primary), transparent 85%); color: var(--shell-text); padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--shell-primary), transparent 50%); font-weight: 500;">Ready for Merge</span>
+                    <span class="tag" style="background: color-mix(in srgb, var(--shell-primary), transparent 85%); color: var(--shell-text); padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--shell-primary), transparent 50%); font-weight: 500;">Benchmark Verified</span>
+                </div>
+
+                <div class="surface-panel mt-4" style="padding: 1rem 1.25rem; max-width: 760px; border-radius: 12px; border: 1px solid var(--shell-border); background: color-mix(in srgb, var(--shell-surface), transparent 8%);">
+                    <div class="section-label" style="margin-bottom: 0.5rem;">Measured verification results</div>
+                    <p class="shell-copy" style="margin: 0;">
+                        On deterministic 8 MiB fixtures, BLAKE3 streaming saves an 8,388,664-byte caller buffer but averages 4.25 ms versus 1.45 ms in-memory.
+                        ChaCha20-Poly1305 streaming saves an 8,388,668-byte caller buffer and averages 3.01 ms versus 7.11 ms in-memory. The same run reports verifier peak heap at 264 bytes versus 8,388,744 bytes, but both paths still start from the same in-memory envelope buffer, so that result is verifier-local allocation relief rather than a full-process memory claim.
+                    </p>
                 </div>
             </div>
 

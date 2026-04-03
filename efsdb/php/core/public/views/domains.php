@@ -122,7 +122,7 @@ $domains = [
         </article>
 
         <aside class="space-y-6">
-            <div class="surface-panel bg-black/5 dark:bg-white/5 border border-[var(--shell-border)]">
+            <div class="surface-panel border border-[var(--shell-border)]">
                 <div class="metric-label mb-2">Addressing & Routing</div>
                 <p class="text-sm text-[var(--shell-muted)] leading-relaxed mb-4">
                     EFSDB provides built-in environment addressing. Your base hostname serves the <strong>Production</strong> environment by default.
@@ -142,7 +142,7 @@ $domains = [
                 <p class="text-xs text-[var(--shell-muted)] leading-relaxed mb-4">
                     Map external domains (like www.yourcompany.com) to specific EFSDB environments. SSL certificate provisioning and DNS verification will be handled here.
                 </p>
-                <div class="text-xs font-semibold uppercase tracking-wider text-[var(--accent)] mix-blend-plus-lighter dark:mix-blend-normal">
+                <div class="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
                     Coming Soon
                 </div>
             </div>

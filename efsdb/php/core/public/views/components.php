@@ -325,7 +325,7 @@ $formatSize = function ($bytes) {
                                                 <?php if ($type === 'dir' || $isSynthetic): ?>
                                                     <span class="text-xs text-[var(--shell-muted)]">Package</span>
                                                 <?php else: ?>
-                                                    <span class="tag text-[10px] py-0.5 px-1.5 <?php echo $isSvelte ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : ''; ?>">
+                                                    <span class="tag text-[10px] py-0.5 px-1.5" <?php echo $isSvelte ? 'style="background: color-mix(in srgb, #f97316, transparent 86%); color: color-mix(in srgb, #f97316, var(--shell-text) 18%); border-color: color-mix(in srgb, #f97316, transparent 74%);"' : ''; ?>>
                                                         <?php echo htmlspecialchars(strtoupper($ext ?: 'file')); ?>
                                                     </span>
                                                 <?php endif; ?>
@@ -435,20 +435,20 @@ $formatSize = function ($bytes) {
                 <div class="section-label mb-4">Compiler Status</div>
 
                 <?php if ($isBuilding): ?>
-                    <div class="flex items-center gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30">
-                        <div class="animate-spin text-blue-600 dark:text-blue-400">
+                    <div class="flex items-center gap-3 p-4 rounded-xl border" style="background: color-mix(in srgb, var(--accent-secondary, var(--accent)), transparent 90%); border-color: color-mix(in srgb, var(--accent-secondary, var(--accent)), transparent 74%);">
+                        <div class="animate-spin" style="color: var(--accent-secondary, var(--accent));">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                             </svg>
                         </div>
                         <div>
-                            <div class="text-sm font-semibold text-blue-900 dark:text-blue-300">Building components...</div>
-                            <div class="text-xs text-blue-700/70 dark:text-blue-400/70 mt-1">Started <?php echo $formatDate($buildStatus['startedAt'] ?? null); ?></div>
+                            <div class="text-sm font-semibold text-[var(--shell-text-strong)]">Building components...</div>
+                            <div class="text-xs text-[var(--shell-muted)] mt-1">Started <?php echo $formatDate($buildStatus['startedAt'] ?? null); ?></div>
                         </div>
                     </div>
                 <?php elseif ($buildError): ?>
-                    <div class="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30">
-                        <div class="text-red-600 dark:text-red-400 mt-0.5">
+                    <div class="flex items-start gap-3 p-4 rounded-xl border" style="background: color-mix(in srgb, var(--efs-state-danger, #ef4444), transparent 90%); border-color: color-mix(in srgb, var(--efs-state-danger, #ef4444), transparent 74%);">
+                        <div class="mt-0.5" style="color: var(--efs-state-danger, #ef4444);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10" />
                                 <line x1="12" y1="8" x2="12" y2="12" />
@@ -456,10 +456,10 @@ $formatSize = function ($bytes) {
                             </svg>
                         </div>
                         <div>
-                            <div class="text-sm font-semibold text-red-900 dark:text-red-300">Build Failed</div>
-                            <div class="text-xs text-red-700/70 dark:text-red-400/70 mt-1">At <?php echo $formatDate($buildStatus['lastFailureAt'] ?? null); ?></div>
+                            <div class="text-sm font-semibold text-[var(--shell-text-strong)]">Build Failed</div>
+                            <div class="text-xs text-[var(--shell-muted)] mt-1">At <?php echo $formatDate($buildStatus['lastFailureAt'] ?? null); ?></div>
                             <?php if (!empty($buildStatus['error']['message'])): ?>
-                                <div class="mt-2 text-xs font-mono bg-white/50 dark:bg-black/20 p-2 rounded text-red-800 dark:text-red-200 overflow-x-auto overflow-y-auto max-h-64 whitespace-pre-wrap">
+                                <div class="mt-2 text-xs font-mono p-2 rounded overflow-x-auto overflow-y-auto max-h-64 whitespace-pre-wrap" style="background: color-mix(in srgb, var(--shell-pre-bg), var(--efs-state-danger, #ef4444) 10%); color: color-mix(in srgb, var(--shell-text), var(--efs-state-danger, #ef4444) 18%);">
                                     <?php echo htmlspecialchars($buildStatus['error']['message']); ?>
                                 </div>
                             <?php endif; ?>
@@ -492,7 +492,7 @@ $formatSize = function ($bytes) {
                 </div>
             </div>
 
-            <div class="surface-panel bg-black/5 dark:bg-white/5 border border-[var(--shell-border)]">
+            <div class="surface-panel border border-[var(--shell-border)]">
                 <div class="metric-label mb-2">Usage in Routes</div>
                 <p class="text-sm text-[var(--shell-muted)] leading-relaxed">
                     Components are custom elements compiled by Svelte. You can use them in your PHP routes and JSON content like standard HTML tags once the build is successful.

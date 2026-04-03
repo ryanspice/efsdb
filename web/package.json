@@ -9,12 +9,13 @@
     "build:explorer": "vite build --config apps/explorer/vite.config.ts",
     "build:builder": "vite build --config apps/builder/vite.config.ts",
     "build:admin": "vite build --config apps/admin/vite.config.ts",
+    "build:admin-dock": "vite build --config apps/admin-dock/vite.config.ts",
     "build:window-shell": "vite build --config apps/window-shell/vite.config.ts",
     "build:notifications": "vite build --config apps/notifications/vite.config.ts",
     "build:theme": "vite build --config apps/theme/vite.config.ts",
     "build:create": "vite build --config apps/create/vite.config.ts",
     "build:prompt": "vite build --config apps/prompt/vite.config.ts",
-    "build:all": "bun run build:login && bun run build:explorer && bun run build:builder && bun run build:admin && bun run build:window-shell && bun run build:notifications && bun run build:theme && bun run build:create && bun run build:prompt",
+    "build:all": "bun run build:login && bun run build:explorer && bun run build:builder && bun run build:admin && bun run build:admin-dock && bun run build:window-shell && bun run build:notifications && bun run build:theme && bun run build:create && bun run build:prompt",
     "test:ui": "playwright test --config playwright.config.ts"
   },
   "devDependencies": {

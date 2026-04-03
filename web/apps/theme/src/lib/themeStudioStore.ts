@@ -201,6 +201,11 @@ function mixHex(a: string, b: string, weightOfB: number): string {
   );
 }
 
+function rgbaFromHex(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1).toFixed(3)})`;
+}
+
 function luminance(hex: string): number {
   const { r, g, b } = hexToRgb(hex);
   const values = [r, g, b].map(value => {
@@ -365,6 +370,28 @@ export function applyThemePaletteToElement(
   palette: ThemePalette,
   target: HTMLElement = document.documentElement
 ): void {
+  const isDark = palette.mode === 'dark';
+  const shellBodyBg = isDark
+    ? `radial-gradient(circle at top left, ${rgbaFromHex(palette.accent, 0.14)}, transparent 28%), linear-gradient(180deg, ${mixHex(palette.surface, '#08111f', 0.28)} 0%, ${mixHex(palette.surfaceInset, '#020617', 0.46)} 100%)`
+    : `radial-gradient(circle at top left, ${rgbaFromHex(palette.accent, 0.1)}, transparent 26%), linear-gradient(180deg, ${mixHex(palette.surfaceAlt, '#ffffff', 0.34)} 0%, ${mixHex(palette.surface, '#ffffff', 0.14)} 100%)`;
+  const shellOverlay = isDark
+    ? `radial-gradient(circle at 12% 18%, transparent 0 118px, ${rgbaFromHex(palette.accent, 0.08)} 119px 120px, transparent 121px), radial-gradient(circle at 78% 22%, transparent 0 184px, ${rgbaFromHex(palette.accentSecondary, 0.06)} 185px 186px, transparent 187px)`
+    : `radial-gradient(circle at 18% 16%, transparent 0 126px, ${rgbaFromHex(palette.accent, 0.06)} 127px 128px, transparent 129px), radial-gradient(circle at 82% 18%, transparent 0 168px, ${rgbaFromHex(palette.accentSecondary, 0.05)} 169px 170px, transparent 171px)`;
+  const shellPanelBg = isDark ? rgbaFromHex(palette.surface, 0.9) : rgbaFromHex(palette.surface, 0.94);
+  const shellSoftBg = mixHex(palette.surfaceAlt, palette.accentSoft, isDark ? 0.18 : 0.24);
+  const shellInsetBg = mixHex(palette.surfaceInset, palette.accentSoft, isDark ? 0.1 : 0.14);
+  const shellInsetStrongBg = mixHex(shellInsetBg, palette.borderStrong, isDark ? 0.26 : 0.22);
+  const shellNavBg = isDark
+    ? rgbaFromHex(mixHex(palette.surface, palette.accentSoft, 0.12), 0.88)
+    : rgbaFromHex(mixHex(palette.surface, palette.accentSoft, 0.18), 0.94);
+  const shellHoverBg = mixHex(palette.surfaceAlt, palette.accentSoft, isDark ? 0.3 : 0.42);
+  const shellCodeBg = mixHex(palette.surfaceInset, palette.accentSoft, isDark ? 0.14 : 0.18);
+  const shellPreBg = mixHex(palette.surfaceInset, isDark ? '#020617' : '#ffffff', isDark ? 0.28 : 0.2);
+  const shellInputBg = isDark
+    ? rgbaFromHex(mixHex(palette.surface, '#020617', 0.18), 0.86)
+    : rgbaFromHex(mixHex(palette.surface, '#ffffff', 0.2), 0.96);
+  const shellChipBg = mixHex(palette.surfaceAlt, palette.accentSoft, isDark ? 0.24 : 0.28);
+  const shellScrollbar = rgbaFromHex(palette.text, isDark ? 0.2 : 0.16);
   const vars: Record<string, string> = {
     '--accent': palette.accent,
     '--accent-strong': palette.accentStrong,
@@ -385,10 +412,39 @@ export function applyThemePaletteToElement(
     '--warning': palette.warning,
     '--danger': palette.danger,
     '--theme-shadow': palette.shadow,
+    '--efs-state-success': palette.success,
+    '--efs-state-warning': palette.warning,
+    '--efs-state-danger': palette.danger,
+    '--shell-primary': palette.accent,
+    '--shell-primary-strong': palette.accentStrong,
+    '--shell-primary-soft': palette.accentSoft,
+    '--shell-body-bg': shellBodyBg,
+    '--shell-overlay': shellOverlay,
+    '--shell-overlay-opacity': isDark ? '0.76' : '0.54',
+    '--shell-panel-bg': shellPanelBg,
     '--shell-panel-solid': palette.surface,
     '--shell-panel-solid-subtle': palette.surfaceAlt,
     '--shell-panel-solid-muted': palette.surfaceInset,
+    '--shell-panel': palette.surface,
+    '--shell-surface': palette.surfaceAlt,
+    '--shell-soft-bg': shellSoftBg,
+    '--shell-inset-bg': shellInsetBg,
+    '--shell-inset-strong-bg': shellInsetStrongBg,
+    '--shell-nav-bg': shellNavBg,
+    '--shell-hover-bg': shellHoverBg,
+    '--shell-row-hover': shellHoverBg,
+    '--shell-code-bg': shellCodeBg,
+    '--shell-pre-bg': shellPreBg,
+    '--shell-input-bg': shellInputBg,
+    '--shell-input-placeholder': palette.textMuted,
+    '--shell-shadow': palette.shadow,
+    '--shell-pill-text': palette.onAccent,
+    '--shell-nav-text': palette.textMuted,
+    '--shell-code-text': palette.text,
+    '--shell-chip-bg': shellChipBg,
+    '--shell-scrollbar': shellScrollbar,
     '--shell-border': palette.border,
+    '--shell-border-strong': palette.borderStrong,
     '--shell-text': palette.text,
     '--shell-text-strong': palette.text,
     '--shell-muted': palette.textMuted
@@ -396,6 +452,8 @@ export function applyThemePaletteToElement(
 
   Object.entries(vars).forEach(([name, value]) => target.style.setProperty(name, value));
   target.dataset.themeMode = palette.mode;
+  target.dataset.theme = palette.mode;
+  target.style.colorScheme = palette.mode;
 }
 
 function createThemeStudioStore() {

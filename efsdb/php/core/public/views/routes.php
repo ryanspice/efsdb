@@ -394,7 +394,7 @@ $routeClientPayload = array_map(static function (array $route): array {
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <code class="text-sm font-medium text-[var(--shell-text-strong)] truncate block" title="<?php echo htmlspecialchars((string)$route['routePath']); ?>"><?php echo htmlspecialchars((string)$route['routePath']); ?></code>
                                                 <?php if (($route['isHomepage'] ?? false) === true): ?>
-                                                    <span class="tag text-[10px] py-0.5 px-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Root</span>
+                                                    <span class="tag text-[10px] py-0.5 px-1.5" style="background: color-mix(in srgb, var(--accent-secondary, var(--accent)), transparent 86%); color: color-mix(in srgb, var(--accent-secondary, var(--accent)), var(--shell-text) 18%); border-color: color-mix(in srgb, var(--accent-secondary, var(--accent)), transparent 74%);">Root</span>
                                                 <?php endif; ?>
                                                 <?php if (($route['isStarter'] ?? false) === true): ?>
                                                     <span class="tag text-[10px] py-0.5 px-1.5">Starter</span>

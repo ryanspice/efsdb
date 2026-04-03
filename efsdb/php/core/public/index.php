@@ -107,7 +107,12 @@ if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fast
 }
 
 // FAST PATH for Ghost HTML cache
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && !str_starts_with($fastPath, '/_efsdb/') && $fastPath !== '/_efsdb') {
+if (
+    !defined('EFSDB_TEST_MODE')
+    && $_SERVER['REQUEST_METHOD'] === 'GET'
+    && !str_starts_with($fastPath, '/_efsdb/')
+    && $fastPath !== '/_efsdb'
+) {
     $env = str_starts_with($fastPath, '/staging') ? 'staging' : 'production';
     $ghostUri = rtrim($fastPath, '/');
     if ($ghostUri === '' || $ghostUri === '/staging') {
@@ -144,6 +149,8 @@ require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/Permissions.php';
 require_once __DIR__ . '/../src/RequestTiming.php';
+
+Config::assertRepoPhpIniLoaded('public/index.php');
 
 date_default_timezone_set('America/Toronto');
 $requestTiming = RequestTiming::install();
@@ -211,24 +218,28 @@ if (!function_exists('efsdb_json_body')) {
      */
     function efsdb_json_body(): array
     {
+        static $cacheKey = null;
         static $decodedCache = null;
-        if ($decodedCache !== null) {
-            return $decodedCache;
-        }
 
+        $rawJson = null;
         if (isset($GLOBALS['EFSDB_TEST_JSON_BODY']) && is_string($GLOBALS['EFSDB_TEST_JSON_BODY'])) {
-            $decoded = json_decode($GLOBALS['EFSDB_TEST_JSON_BODY'], true);
-            $decodedCache = is_array($decoded) ? $decoded : [];
+            $rawJson = $GLOBALS['EFSDB_TEST_JSON_BODY'];
+        } else {
+            $json = file_get_contents('php://input');
+            $rawJson = $json === false ? '' : $json;
+        }
+
+        if ($cacheKey === $rawJson && $decodedCache !== null) {
             return $decodedCache;
         }
 
-        $json = file_get_contents('php://input');
-        if ($json === false || trim($json) === '') {
+        $cacheKey = $rawJson;
+        if (trim($rawJson) === '') {
             $decodedCache = [];
             return $decodedCache;
         }
 
-        $decoded = json_decode($json, true);
+        $decoded = json_decode($rawJson, true);
         $decodedCache = is_array($decoded) ? $decoded : [];
         return $decodedCache;
     }
@@ -1241,18 +1252,18 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
 </div>
 
 <style>
-    .template-container { font-family: system-ui, -apple-system, sans-serif; color: #111827; background: #f9fafb; min-height: 100vh; }
-    .hero { background: #1f2937; color: white; padding: 4rem 2rem; text-align: center; }
+    .template-container { font-family: var(--shell-font-sans, system-ui, -apple-system, sans-serif); color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb)); min-height: 100vh; }
+    .hero { background: linear-gradient(180deg, color-mix(in srgb, var(--shell-panel, var(--shell-panel-bg, #ffffff)), var(--accent, #1f2937) 12%), color-mix(in srgb, var(--shell-bg, var(--shell-body-bg, #f9fafb)), var(--accent, #1f2937) 22%)); color: var(--shell-text-strong, white); padding: 4rem 2rem; text-align: center; border-bottom: 1px solid color-mix(in srgb, var(--accent, #3b82f6), transparent 78%); }
     .hero h1 { margin: 0; font-size: 3rem; font-weight: 800; letter-spacing: -0.025em; }
-    .subtitle { margin-top: 1rem; font-size: 1.25rem; color: #d1d5db; }
+    .subtitle { margin-top: 1rem; font-size: 1.25rem; color: color-mix(in srgb, var(--shell-muted, #64748b), var(--shell-text-strong, #ffffff) 24%); }
     .content { max-width: 1000px; margin: 0 auto; padding: 3rem 2rem; }
     .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
-    .feature-card { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    .feature-card h3 { margin-top: 0; color: #374151; }
-    .feature-card p { color: #6b7280; line-height: 1.5; margin-bottom: 0; }
-    .interactive-section { background: white; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; }
-    .action-btn { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
-    .action-btn:hover { background: #2563eb; }
+    .feature-card { background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1)); }
+    .feature-card h3 { margin-top: 0; color: var(--shell-text-strong, #374151); }
+    .feature-card p { color: var(--shell-muted, #6b7280); line-height: 1.5; margin-bottom: 0; }
+    .interactive-section { background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1)); text-align: center; }
+    .action-btn { background: var(--shell-primary, var(--accent, #3b82f6)); color: var(--shell-primary-text, var(--shell-pill-text, white)); border: 1px solid color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), transparent 30%); padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s; box-shadow: 0 10px 24px color-mix(in srgb, var(--accent, #3b82f6), transparent 82%); }
+    .action-btn:hover { background: color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), black 12%); transform: translateY(-1px); }
 </style>
 SVELTE;
                     } elseif ($framework === 'react') {
@@ -1264,30 +1275,30 @@ export default function {$name}() {
     const [count, setCount] = useState(0);
 
     return (
-        <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: '#111827', background: '#f9fafb', minHeight: '100vh' }}>
-            <header style={{ background: '#1f2937', color: 'white', padding: '4rem 2rem', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--shell-font-sans, system-ui, -apple-system, sans-serif)', color: 'var(--shell-text, #111827)', background: 'var(--shell-bg, var(--shell-body-bg, #f9fafb))', minHeight: '100vh' }}>
+            <header style={{ background: 'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel, var(--shell-panel-bg, #ffffff)), var(--accent, #1f2937) 12%), color-mix(in srgb, var(--shell-bg, var(--shell-body-bg, #f9fafb)), var(--accent, #1f2937) 22%))', color: 'var(--shell-text-strong, white)', padding: '4rem 2rem', textAlign: 'center', borderBottom: '1px solid color-mix(in srgb, var(--accent, #3b82f6), transparent 78%)' }}>
                 <h1 style={{ margin: 0, fontSize: '3rem', fontWeight: 800, letterSpacing: '-0.025em' }}>{$name}</h1>
-                <p style={{ marginTop: '1rem', fontSize: '1.25rem', color: '#d1d5db' }}>A cohesive component spreading data from EFSDB.</p>
+                <p style={{ marginTop: '1rem', fontSize: '1.25rem', color: 'color-mix(in srgb, var(--shell-muted, #64748b), var(--shell-text-strong, #ffffff) 24%)' }}>A cohesive component spreading data from EFSDB.</p>
             </header>
 
             <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '3rem 2rem' }}>
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                        <h3 style={{ marginTop: 0, color: '#374151' }}>React Component</h3>
-                        <p style={{ color: '#6b7280', lineHeight: 1.5, marginBottom: 0 }}>This component was generated for the React framework.</p>
+                    <div style={{ background: 'var(--shell-panel, var(--shell-panel-bg, white))', border: '1px solid var(--shell-border, #e2e8f0)', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: 'var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))' }}>
+                        <h3 style={{ marginTop: 0, color: 'var(--shell-text-strong, #374151)' }}>React Component</h3>
+                        <p style={{ color: 'var(--shell-muted, #6b7280)', lineHeight: 1.5, marginBottom: 0 }}>This component was generated for the React framework.</p>
                     </div>
-                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                        <h3 style={{ marginTop: 0, color: '#374151' }}>Public Workspace Access</h3>
-                        <p style={{ color: '#6b7280', lineHeight: 1.5, marginBottom: 0 }}>Powered by the EFSDB runtime and public workspace.</p>
+                    <div style={{ background: 'var(--shell-panel, var(--shell-panel-bg, white))', border: '1px solid var(--shell-border, #e2e8f0)', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: 'var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))' }}>
+                        <h3 style={{ marginTop: 0, color: 'var(--shell-text-strong, #374151)' }}>Public Workspace Access</h3>
+                        <p style={{ color: 'var(--shell-muted, #6b7280)', lineHeight: 1.5, marginBottom: 0 }}>Powered by the EFSDB runtime and public workspace.</p>
                     </div>
                 </section>
 
-                <section style={{ background: 'white', padding: '2rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', textAlign: 'center' }}>
+                <section style={{ background: 'var(--shell-panel, var(--shell-panel-bg, white))', border: '1px solid var(--shell-border, #e2e8f0)', padding: '2rem', borderRadius: '0.75rem', boxShadow: 'var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))', textAlign: 'center' }}>
                     <h2>Interactive Counter</h2>
                     <p>State is preserved and hydrating works perfectly.</p>
                     <button
                         onClick={() => setCount(count + 1)}
-                        style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontSize: '1rem', fontWeight: 600, cursor: 'pointer' }}
+                        style={{ background: 'var(--shell-primary, var(--accent, #3b82f6))', color: 'var(--shell-primary-text, var(--shell-pill-text, white))', border: '1px solid color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), transparent 30%)', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 10px 24px color-mix(in srgb, var(--accent, #3b82f6), transparent 82%)' }}
                     >
                         Clicked {count} times
                     </button>
@@ -1306,30 +1317,30 @@ import { Component } from '@angular/core';
   selector: 'app-{$name}',
   standalone: true,
   template: `
-    <div style="font-family: system-ui, -apple-system, sans-serif; color: #111827; background: #f9fafb; min-height: 100vh;">
-        <header style="background: #1f2937; color: white; padding: 4rem 2rem; text-align: center;">
+    <div style="font-family: var(--shell-font-sans, system-ui, -apple-system, sans-serif); color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb)); min-height: 100vh;">
+        <header style="background: linear-gradient(180deg, color-mix(in srgb, var(--shell-panel, var(--shell-panel-bg, #ffffff)), var(--accent, #1f2937) 12%), color-mix(in srgb, var(--shell-bg, var(--shell-body-bg, #f9fafb)), var(--accent, #1f2937) 22%)); color: var(--shell-text-strong, white); padding: 4rem 2rem; text-align: center; border-bottom: 1px solid color-mix(in srgb, var(--accent, #3b82f6), transparent 78%);">
             <h1 style="margin: 0; font-size: 3rem; font-weight: 800; letter-spacing: -0.025em;">{$name}</h1>
-            <p style="margin-top: 1rem; font-size: 1.25rem; color: #d1d5db;">A cohesive component spreading data from EFSDB.</p>
+            <p style="margin-top: 1rem; font-size: 1.25rem; color: color-mix(in srgb, var(--shell-muted, #64748b), var(--shell-text-strong, #ffffff) 24%);">A cohesive component spreading data from EFSDB.</p>
         </header>
 
         <main style="max-width: 1000px; margin: 0 auto; padding: 3rem 2rem;">
             <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
-                <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    <h3 style="margin-top: 0; color: #374151;">Angular Component</h3>
-                    <p style="color: #6b7280; line-height: 1.5; margin-bottom: 0;">This component was generated for the Angular framework.</p>
+                <div style="background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1));">
+                    <h3 style="margin-top: 0; color: var(--shell-text-strong, #374151);">Angular Component</h3>
+                    <p style="color: var(--shell-muted, #6b7280); line-height: 1.5; margin-bottom: 0;">This component was generated for the Angular framework.</p>
                 </div>
-                <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    <h3 style="margin-top: 0; color: #374151;">Public Workspace Access</h3>
-                    <p style="color: #6b7280; line-height: 1.5; margin-bottom: 0;">Powered by the EFSDB runtime and public workspace.</p>
+                <div style="background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1));">
+                    <h3 style="margin-top: 0; color: var(--shell-text-strong, #374151);">Public Workspace Access</h3>
+                    <p style="color: var(--shell-muted, #6b7280); line-height: 1.5; margin-bottom: 0;">Powered by the EFSDB runtime and public workspace.</p>
                 </div>
             </section>
 
-            <section style="background: white; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center;">
+            <section style="background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1)); text-align: center;">
                 <h2>Interactive Counter</h2>
                 <p>State is preserved and hydrating works perfectly.</p>
                 <button
                     (click)="increment()"
-                    style="background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer;"
+                    style="background: var(--shell-primary, var(--accent, #3b82f6)); color: var(--shell-primary-text, var(--shell-pill-text, white)); border: 1px solid color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), transparent 30%); padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 10px 24px color-mix(in srgb, var(--accent, #3b82f6), transparent 82%);"
                 >
                     Clicked {{count}} times
                 </button>
@@ -1658,7 +1669,7 @@ if (is_dir(\$componentDir)) {
     } elseif (file_exists(\$componentDir . '/index.html')) {
         \$rawHtml = file_get_contents(\$componentDir . '/index.html');
         if (str_contains(\$rawHtml, 'type="module"') && preg_match('/\\.(ts|tsx|jsx|svelte|vue)["\']/', \$rawHtml)) {
-            \$html = "<!DOCTYPE html><html><head><title>Building...</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body style=\"font-family: system-ui, sans-serif; padding: 2rem; background: #f9fafb;\"><div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);\"><h2>Component is building...</h2><p>The component <b>{\$componentName}</b> is currently being built or failed to build.</p><p>Please wait a moment and refresh the page. If this persists, check the component build logs.</p></div></body></html>";
+            \$html = "<!DOCTYPE html><html><head><title>Building...</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body style=\"font-family: var(--shell-font-sans, system-ui, sans-serif); padding: 2rem; color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb));\"><div style=\"max-width: 600px; margin: 0 auto; background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 8px; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0,0,0,0.1));\"><h2 style=\"margin-top:0; color: var(--shell-text-strong, #111827);\">Component is building...</h2><p style=\"color: var(--shell-muted, #64748b);\">The component <b style=\"color: var(--shell-text, #111827);\">{\$componentName}</b> is currently being built or failed to build.</p><p style=\"color: var(--shell-muted, #64748b);\">Please wait a moment and refresh the page. If this persists, check the component build logs.</p></div></body></html>";
         } else {
             \$html = \$rawHtml;
         }
@@ -1744,7 +1755,7 @@ if (isset(\$html)) {
         \$html .= '<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>';
         \$html .= '<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>';
         \$html .= '<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>';
-        \$html .= "<style>body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #fff; }</style>";
+        \$html .= "<style>body { font-family: var(--shell-font-sans, system-ui, sans-serif); margin: 0; padding: 0; color: var(--shell-text, #111827); background: var(--shell-panel, var(--shell-panel-bg, #fff)); }</style>";
         \$html .= "</head><body><div id='root'></div>";
         \$html .= "<script type='text/babel' data-type='module'>";
         \$html .= \$cleanCode;
@@ -1753,11 +1764,11 @@ if (isset(\$html)) {
         \$html .= "</script></body></html>";
     } else {
         \$html = "<!DOCTYPE html><html><head><title>Preview: {\$componentName}</title>";
-        \$html .= "<style>body { font-family: system-ui, sans-serif; padding: 2rem; background: #f9fafb; } .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }</style>";
+        \$html .= "<style>body { font-family: var(--shell-font-sans, system-ui, sans-serif); padding: 2rem; color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb)); } .card { background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 8px; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0,0,0,0.1)); }</style>";
         \$html .= "</head><body><div class='card'>";
         \$html .= "<h2>{\$componentName}</h2>";
         \$html .= "<p>This is a single-file component. In a full build, this would be compiled by Vite.</p>";
-        \$html .= "<div style='margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 4px; overflow-x: auto;'><pre><code>";
+        \$html .= "<div style='margin-top: 1rem; padding: 1rem; background: var(--shell-surface, var(--shell-soft-bg, #f3f4f6)); border: 1px solid var(--shell-border, #e2e8f0); border-radius: 4px; overflow-x: auto;'><pre><code>";
         \$html .= htmlspecialchars(file_get_contents(\$componentFile));
         \$html .= "</code></pre></div></div></body></html>";
     }

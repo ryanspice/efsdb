@@ -819,6 +819,11 @@ final class PublicWorkspace
      */
     private function findSiteManifestByRelativePath(string $root, string $relativePath): ?array
     {
+        $canonicalId = $this->fileId($this->tenantKey(), $this->normalizeRoot($root), $relativePath);
+        if ($this->store->hasManifest(self::FILE_ENTITY, $canonicalId)) {
+            return $this->store->getManifest(self::FILE_ENTITY, $canonicalId);
+        }
+
         $logicalPath = $this->siteLogicalPath($root, $relativePath);
         $manifest = $this->store->findManifestByLogicalPath(self::FILE_ENTITY, $logicalPath);
         if ($manifest !== null) {

@@ -29,15 +29,24 @@ if ($isGuestOverlayShell) {
     <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
     <script>
         (function() {
-            var theme = 'light';
+            var themeSetting = 'auto';
             try {
                 var stored = localStorage.getItem('efsdb-theme');
-                if (stored === 'light' || stored === 'dark' || stored === 'green') {
-                    theme = stored;
+                if (stored === 'light' || stored === 'dark' || stored === 'auto') {
+                    themeSetting = stored;
                 }
             } catch (error) {}
-            document.documentElement.dataset.theme = theme;
-            document.documentElement.style.colorScheme = theme;
+
+            var resolvedTheme = themeSetting;
+            if (themeSetting === 'auto') {
+                resolvedTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark'
+                    : 'light';
+            }
+
+            document.documentElement.dataset.themeSetting = themeSetting;
+            document.documentElement.dataset.theme = resolvedTheme;
+            document.documentElement.style.colorScheme = resolvedTheme;
         })();
     </script>
     <link rel="stylesheet" href="/css/style.css">
