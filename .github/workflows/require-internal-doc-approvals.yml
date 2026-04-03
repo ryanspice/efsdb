@@ -1,0 +1,51 @@
+name: require-internal-doc-approvals
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, review_submitted]
+    paths:
+      - docs/internal/blake3-extension-build-test.md
+
+jobs:
+  require-approvals:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pull_number = context.payload.pull_request?.number;
+            if (!pull_number) {
+              core.setFailed('This workflow requires a pull request context.');
+              return;
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number
+            });
+
+            const approvalsByUser = new Map();
+            for (const review of reviews) {
+              if (!review.user?.login) {
+                continue;
+              }
+
+              if (review.state === 'APPROVED') {
+                approvalsByUser.set(review.user.login, true);
+                continue;
+              }
+
+              if (review.state === 'CHANGES_REQUESTED' || review.state === 'DISMISSED') {
+                approvalsByUser.delete(review.user.login);
+              }
+            }
+
+            const approvals = approvalsByUser.size;
+            core.info(`Approvals for docs/internal/blake3-extension-build-test.md: ${approvals}`);
+
+            if (approvals < 2) {
+              core.setFailed('This document requires two pull-request approvals before merge.');
+            }

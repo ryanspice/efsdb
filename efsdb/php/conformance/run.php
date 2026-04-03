@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../core/src/Crypto.php';
+require_once __DIR__ . '/../core/src/Config.php';
+
+Config::assertRepoPhpIniLoaded('conformance/run.php');
 
 $fixturesDir = __DIR__ . '/../../../spec/fixtures';
 $configFile = $fixturesDir . '/expected.json';
