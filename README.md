@@ -1,120 +1,56 @@
-# EFSDB
+# PixelBoats Card Recovery Lab v0.4.0
 
-EFSDB is an encrypted file system database with canonical manifests, chunked encrypted storage, a PHP reference runtime, and a web control plane.
+A standalone SvelteKit / Three.js lab for the PixelBoats collectible recovery flow.
 
-## Active Source Of Truth
+## Included
 
-- Runtime and host behavior:
-  - `efsdb/php/core`
-  - `efsdb/php/runtime`
-- Web apps:
-  - `web/apps/login`
-  - `web/apps/explorer`
-  - `web/apps/builder`
-  - `web/apps/admin`
-- Shared typed web contracts:
-  - `web/contracts/*.ts`
-- Shared workstation UI and design tokens:
-  - `web/ui`
-  - `web/styles`
-- Executable characterization and conformance:
-  - `spec/characterization`
-  - `efsdb/php/conformance`
-- Active spec docs:
-  - `spec/CURRENT_STATE.md`
-  - `spec/FORMAT.md`
-  - `spec/auth-contract.md`
-  - `spec/CONFORMANCE.md`
+- GPU-rendered moonlit Sapphire Cove background
+- Animated shader water, moon reflection, coast lights, haze and wake
+- WebGL navigation rail, resource HUD, Pirate-o-pedia and physically shaded buttons
+- Paper-thin laminated lore card (`0.014` world-unit edge)
+- Four-turn 2D-style recovery spin
+- Exact locked landing transform with no correction frame or resting-position jump
+- Drag rotation, click-to-flip and wheel zoom
+- Archive flight into Pirate-o-pedia
+- Optional exposure and world-motion tuning panel
 
-Historical phase plans and retired drafts now live under `spec/archive`.
+## Run
 
-## Run The Demo
-
-From the repo root:
-
-```powershell
-bun install
-bun run build:web
-bun run dev
+```bash
+pnpm install
+pnpm dev
 ```
 
-`bun run build:web` rebuilds the Tailwind PHP shell and ships the active `login`, `explorer`, `builder`, and `admin` web bundles into [efsdb/php/core/public/js](B:\Dev\PHPFS\efsdb\php\core\public\js). Search remains embedded inside the explorer bundle and is not shipped as a standalone host app.
+Open `http://localhost:5173`.
 
-Direct PHP startup still works:
+Open `http://localhost:5173/?debug=1` for the tuning panel, or press the backtick key.
 
-```powershell
-$env:EFSDB_ENV = "development"
-php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public
+## Controls
+
+- Drag card: inspect
+- Click card: flip
+- Mouse wheel: zoom
+- `R`: replay reveal
+- `Enter` / `Space`: flip
+- `A`: archive
+- Backtick: toggle lab controls
+
+## Transform hierarchy
+
+```text
+cardAnchor          landing position + scale
+  cardTilt          final inspectable orientation
+    revealSpin      temporary exact full rotations only
+      paper card
 ```
 
-Useful overrides:
+The reveal finishes by assigning the captured landing position, quaternion and scale to the same nodes used by the resting state. `revealSpin` completes exactly four full rotations and returns to zero, so the visible transform is identical before and after the reveal state transition.
 
-```powershell
-$env:EFSDB_DATA_DIR = "./efsdb-data"
-$env:EFSDB_BOOTSTRAP_SECRET = "replace-with-a-real-secret"
-$env:EFSDB_DEBUG = "1"
-```
+## Production follow-ups
 
-Open [http://127.0.0.1:8787](http://127.0.0.1:8787).
-
-## Bootstrap And Roles
-
-- Development bootstraps on the first HTTP request.
-- If `EFSDB_BOOTSTRAP_SECRET` is set, it becomes the initial `tenant_admin` login key.
-- If no bootstrap secret is set, first initialization generates a one-time `tenant_admin` key and prints it to the server console once.
-- If the data directory already exists, no new key is generated. Use `bun run tenant-admin-key` to rotate and print a fresh local demo key.
-- Production requires `EFSDB_BOOTSTRAP_SECRET` or an explicit bootstrap CLI flow and fails closed without it.
-- Seeded roles remain:
-  - `operator_root`
-  - `tenant_admin`
-  - `member_premium`
-  - `member_standard`
-  - `guest`
-
-## Verification
-
-Core validation:
-
-```powershell
-bun run check
-```
-
-Individual checks:
-
-```powershell
-bun run check:api
-bun run check:auth
-bun run check:conformance:generate
-bun run check:conformance
-bun run web:typecheck
-bun run web:test:ui
-```
-
-To keep CLI PHP execution aligned with the app runtime:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\php-core.ps1 .\efsdb\php\core\bin\apicheck.php
-```
-
-Manual smoke test:
-
-```powershell
-$env:EFSDB_BOOTSTRAP_SECRET = "replace-with-your-tenant-admin-key"
-powershell -ExecutionPolicy Bypass -File efsdb/php/core/bin/smoke.ps1
-```
-
-## Security Notes
-
-- Runtime data and key material must live outside the served web root in production.
-- Refresh tokens are hashed server-side and revoked or rotated on use.
-- Login keys are stored only as password hashes inside encrypted documents.
-- The conformance fixtures include a public test key for deterministic crypto checks. Do not reuse that key for real deployments.
-
-## Docs
-
-- [Current state](spec/CURRENT_STATE.md)
-- [Format spec](spec/FORMAT.md)
-- [Auth contract](spec/auth-contract.md)
-- [Conformance checklist](spec/CONFORMANCE.md)
-- [Web contract guide](web/contracts/README.md)
-- [Archived phase docs](spec/archive/README.md)
+1. Replace procedural card art with approved PixelBoats textures.
+2. Replace canvas text with an MSDF atlas.
+3. Drive weather, world time, port lights and wake from game packets.
+4. Persist collection state before starting the reveal.
+5. Queue multiple card discoveries through a presentation coordinator.
+6. Add Playwright screenshots for start, midpoint, exact landing and archive completion.
