@@ -1,0 +1,38 @@
+name: Package PixelBoats Lab
+
+on:
+  push:
+    branches:
+      - artifact/pixelboats-card-recovery-lab-v0.4.0
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout artifact branch
+        uses: actions/checkout@v4
+
+      - name: Build tar archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="pixelboats-card-recovery-lab-v0.4.0"
+          mkdir -p "package/$root"
+          rsync -a \
+            --exclude='.git' \
+            --exclude='package' \
+            --exclude='pixelboats-card-recovery-lab-v0.4.0.tar.gz' \
+            ./ "package/$root/"
+          tar -czf pixelboats-card-recovery-lab-v0.4.0.tar.gz -C package "$root"
+          tar -tzf pixelboats-card-recovery-lab-v0.4.0.tar.gz
+
+      - name: Upload tar archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixelboats-card-recovery-lab-v0.4.0
+          path: pixelboats-card-recovery-lab-v0.4.0.tar.gz
+          if-no-files-found: error
+          compression-level: 0
