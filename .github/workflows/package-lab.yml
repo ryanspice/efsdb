@@ -1,6 +1,9 @@
 name: Package PixelBoats Lab
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - artifact/pixelboats-card-recovery-lab-v0.4.0
