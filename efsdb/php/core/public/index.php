@@ -1,145 +1,39 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../src/PublicAssetPolicy.php';
+
 if (php_sapi_name() === 'cli-server') {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if (is_string($path) && is_file(__DIR__ . $path)) {
-        return false;
-    }
-}
-
-// FAST PATH for static assets to avoid booting the entire framework for every image/js/css file
-$fastPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fastPath, $matches)) {
-    $env = $matches[1] === '' ? 'production' : $matches[1];
-    $relPath = ltrim($matches[2], '/');
-    if ($relPath !== '' && !str_contains($relPath, '..') && preg_match('#\.(css|js|mjs|woff2?|png|jpe?g|gif|svg|ico|json|map|txt|xml|wasm|bin)$#i', $relPath)) {
-        // FAST-FAIL for missing admin assets to prevent framework boot and 302 redirect cascade
-        if (str_starts_with($relPath, '_efsdb/')) {
-            if (!is_file(__DIR__ . '/' . $relPath)) {
-                http_response_code(404);
-                if (!defined('EFSDB_TEST_MODE')) exit;
+    if (is_string($path)) {
+        $relativePath = rawurldecode(ltrim($path, '/'));
+        if ($relativePath !== '' && PublicAssetPolicy::isPrivatePath($relativePath)) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Cache-Control: no-store');
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo '403 Forbidden';
+            return;
+        }
+        $publicRoot = str_replace('\\', '/', (string)realpath(__DIR__));
+        $staticFile = realpath(__DIR__ . '/' . $relativePath);
+        if (PublicAssetPolicy::isPublicAsset($relativePath) && $staticFile !== false && is_file($staticFile)) {
+            $canonicalFile = str_replace('\\', '/', $staticFile);
+            $canonicalRelativePath = str_starts_with($canonicalFile, $publicRoot . '/')
+                ? substr($canonicalFile, strlen($publicRoot) + 1) : null;
+            if ($canonicalRelativePath === null || !PublicAssetPolicy::isPublicAsset($canonicalRelativePath)) {
+                http_response_code(403);
+                header('Content-Type: text/plain; charset=utf-8');
+                header('Cache-Control: no-store');
+                if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo '403 Forbidden';
                 return;
             }
-        } else {
-            // Public site asset handling
-            $repoRoot = dirname(__DIR__, 4);
-            $tenantHash = substr(sha1('tenant'), 0, 16);
-            $cacheFile = $repoRoot . '/.cache/efsdb/workspaces/materialized/' . $tenantHash . '/' . $env . '/.fingerprint-cache';
-
-            if (is_file($cacheFile)) {
-                $cached = json_decode((string)file_get_contents($cacheFile), true);
-                if (is_array($cached) && isset($cached['path'])) {
-                    $targetPath = $cached['path'] . '/' . str_replace('/', DIRECTORY_SEPARATOR, $relPath);
-                    if (is_file($targetPath)) {
-                        $ext = strtolower(pathinfo($targetPath, PATHINFO_EXTENSION));
-                        $mimes = [
-                            'css' => 'text/css; charset=utf-8',
-                            'js' => 'application/javascript; charset=utf-8',
-                            'mjs' => 'application/javascript; charset=utf-8',
-                            'json' => 'application/json; charset=utf-8',
-                            'map' => 'application/json; charset=utf-8',
-                            'png' => 'image/png',
-                            'jpg' => 'image/jpeg',
-                            'jpeg' => 'image/jpeg',
-                            'gif' => 'image/gif',
-                            'svg' => 'image/svg+xml',
-                            'ico' => 'image/x-icon',
-                            'woff' => 'font/woff',
-                            'woff2' => 'font/woff2',
-                            'txt' => 'text/plain; charset=utf-8',
-                            'xml' => 'application/xml; charset=utf-8',
-                            'wasm' => 'application/wasm',
-                            'bin' => 'application/octet-stream',
-                        ];
-                        if (isset($mimes[$ext])) {
-                            header('Content-Type: ' . $mimes[$ext]);
-                            if (str_contains($targetPath, '/immutable/') || preg_match('/(?:[.-])[a-f0-9]{8,}\.[a-z0-9]+$/i', basename($targetPath))) {
-                                header('Cache-Control: public, max-age=31536000, immutable');
-                            } else {
-                                header('Cache-Control: public, max-age=0, must-revalidate');
-                            }
-                            header('X-EFSDB-Fast-Path: true');
-
-                            $fileSize = filesize($targetPath);
-                            header("Accept-Ranges: bytes");
-
-                            if (isset($_SERVER['HTTP_RANGE'])) {
-                                if (preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
-                                    $start = (int)$matches[1];
-                                    $end = $matches[2] === '' ? $fileSize - 1 : (int)$matches[2];
-
-                                    if ($start > $end || $start >= $fileSize) {
-                                        http_response_code(416);
-                                        header("Content-Range: bytes */$fileSize");
-                                        if (!defined('EFSDB_TEST_MODE')) exit;
-                                        return;
-                                    }
-
-                                    $length = $end - $start + 1;
-                                    http_response_code(206);
-                                    header("Content-Range: bytes $start-$end/$fileSize");
-                                    header("Content-Length: $length");
-
-                                    $fp = fopen($targetPath, 'rb');
-                                    if ($fp) {
-                                        fseek($fp, $start);
-                                        echo fread($fp, $length);
-                                        fclose($fp);
-                                    }
-                                    if (!defined('EFSDB_TEST_MODE')) exit;
-                                    return;
-                                }
-                            }
-
-                            header("Content-Length: $fileSize");
-                            readfile($targetPath);
-                            if (!defined('EFSDB_TEST_MODE')) {
-                                exit;
-                            }
-                            return;
-                        }
-                    }
-                }
-            }
+            return false;
         }
     }
 }
 
-// FAST PATH for Ghost HTML cache
-if (
-    !defined('EFSDB_TEST_MODE')
-    && $_SERVER['REQUEST_METHOD'] === 'GET'
-    && !str_starts_with($fastPath, '/_efsdb/')
-    && $fastPath !== '/_efsdb'
-) {
-    $env = str_starts_with($fastPath, '/staging') ? 'staging' : 'production';
-    $ghostUri = rtrim($fastPath, '/');
-    if ($ghostUri === '' || $ghostUri === '/staging') {
-        $ghostUri = $env === 'staging' ? '/staging' : '/';
-    }
-    $ghostFile = __DIR__ . '/.ghost/' . $env . '/' . md5($ghostUri) . '.html';
-    $acceptsGzip = str_contains($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip');
-
-    if ($acceptsGzip && is_file($ghostFile . '.gz')) {
-        header('Content-Type: text/html; charset=utf-8');
-        header('Content-Encoding: gzip');
-        header('X-EFSDB-Ghost: fast');
-        readfile($ghostFile . '.gz');
-        if (!defined('EFSDB_TEST_MODE')) {
-            exit;
-        }
-        return;
-    } elseif (is_file($ghostFile)) {
-        header('Content-Type: text/html; charset=utf-8');
-        header('X-EFSDB-Ghost: fast');
-        readfile($ghostFile);
-        if (!defined('EFSDB_TEST_MODE')) {
-            exit;
-        }
-        return;
-    }
-}
+// Public delivery, including generated assets, goes through the authorized router.
+$fastPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 $startTime = microtime(true);
 
@@ -470,6 +364,12 @@ if (!function_exists('efsdb_guest_overlay_context')) {
 
 $uriPath = (is_string($fastPath) ? $fastPath : '/') ?: '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$requestHeaders = [];
+foreach ($_SERVER as $name => $value) {
+    if (str_starts_with((string)$name, 'HTTP_') && is_scalar($value)) {
+        $requestHeaders[strtolower(str_replace('_', '-', substr((string)$name, 5)))] = (string)$value;
+    }
+}
 
 if (str_starts_with($uriPath, '/_efsdb/api/')) {
     if ($uriPath === '/_efsdb/api/health') {
@@ -1978,10 +1878,10 @@ if (isset($_GET['action']) && is_string($_GET['action'])) {
 if (!$isControlPlane) {
     // The fast path should have handled the Ghost HTML already, but if it fell through for some reason
     // we still let the router handle it
-    $publicResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, fn() => $auth->authenticate());
+    $publicResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, fn() => $auth->authenticate(), $requestHeaders);
     if ($publicResponse !== null) {
         $isRootPath = $uriPath === '/' || $uriPath === '' || $uriPath === '/staging' || $uriPath === '/staging/';
-        if ($publicResponse['status'] === 404 && $isRootPath && trim((string)($publicResponse['body'] ?? '')) === '404 Not Found (EFSDB)') {
+        if ($publicResponse['status'] === 404 && $isRootPath && !$app->getPublicWorkspace()->isRootEnabled($uriPath === '/' || $uriPath === '' ? 'production' : 'staging')) {
             // Fall through to the welcome page
         } else {
             http_response_code((int)$publicResponse['status']);
@@ -2061,7 +1961,7 @@ if ($isControlPlane) {
     require __DIR__ . '/views/footer.php';
 } else {
     // Let the router try to serve the request first
-    $siteResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, User::guest(), getallheaders());
+    $siteResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, fn() => $auth->authenticate(), $requestHeaders);
 
     // If it was found, return it.
     if ($siteResponse !== null) {
