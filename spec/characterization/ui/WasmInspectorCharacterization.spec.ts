@@ -67,10 +67,21 @@ test.describe('WASM Inspector Track C', () => {
             throw new Error('Inspector Error: ' + await errorBox.textContent());
         }
 
-        await expect(metadataList.locator('li:has-text("Type:")')).toContainText('0x01');
-        await expect(metadataList.locator('li:has-text("Flags:")')).toContainText('0x00');
-        await expect(metadataList.locator('li:has-text("Suite:")')).toContainText('0x01');
-        await expect(metadataList.locator('li:has-text("Header Length:")')).toContainText('16 bytes');
-        await expect(metadataList.locator('li:has-text("Payload Length:")')).toContainText('0 bytes');
+        await expect(metadataList.locator('.metric-card').filter({ hasText: 'Header' })).toContainText('16 B');
+        await expect(metadataList.locator('.metric-card').filter({ hasText: 'Payload' })).toContainText('0 B');
+
+        // The inspector presents summary cards and a redacted canonical JSON view.
+        // Assert the parser contract directly rather than the retired list markup.
+        await inspector.getByText('View metadata JSON', { exact: true }).click();
+        const metadata = JSON.parse(await inspector.locator('.json-details pre').innerText());
+        expect(metadata).toMatchObject({
+            ok: true,
+            type: 1,
+            flags: 0,
+            suite: 1,
+            header_length: 16,
+            payload_length: 0,
+            extensions: []
+        });
     });
 });
