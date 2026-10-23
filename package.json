@@ -37,6 +37,9 @@
     "gc": "bun run ./scripts/php-core.ts -- -d efsdb.process_id=manual-gc efsdb/php/core/bin/gc.php",
     "reset": "pwsh -Command \"if (Test-Path '.cache/efsdb/live/data') { Remove-Item -Recurse -Force '.cache/efsdb/live/data' }; $env:EFSDB_DATA_DIR='.cache/efsdb/live/data'; bun run ./scripts/php-core.ts -- efsdb/php/core/bin/efsdb.php init\""
   },
+  "overrides": {
+    "vite": "^6.4.5"
+  },
   "dependencies": {
     "baseline-browser-mapping": "^2.10.9",
     "caniuse-lite": "^1.0.30001780"
