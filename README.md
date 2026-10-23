@@ -8,7 +8,7 @@ Files, application state, and published sites usually acquire separate storage a
 
 The PHP reference runtime hosts the application. Svelte powers login, Explorer, Builder, and administration. Rust provides a separate engine and conformance surface. The useful engineering question is whether those boundaries can stay understandable and testable as the system grows.
 
-**Current status:** an experimental reference implementation with active security hardening work. The [October 2026 review](docs/MODERNIZATION.md) identifies open authorization, public-file delivery, and concurrent-worker issues. Use disposable demo data and a patched PHP runtime; production acceptance remains open.
+**Current status:** an experimental reference implementation with the first security fixes implemented and checked locally: component authorization/import limits, policy-aware public delivery, atomic refresh consumption, and concurrent key/bootstrap initialization. The [implementation receipt](docs/security/implementation-20261023.md) records checks and remaining host gates. Use disposable demo data; production PHP-FPM acceptance remains open.
 
 ## What to explore
 
@@ -38,7 +38,7 @@ Read [INTENT.md](INTENT.md), then [AGENTS.md](AGENTS.md). Choose one bounded tas
 
 The shared convention is five files: this README, `AGENTS.md`, `INTENT.md`, `docs/MODERNIZATION.md`, and `repo.schema.json`. Source paths stay in place. Runtime data, credentials, private conversations, and mutable fleet receipts stay outside public repository material.
 
-On October 23, 2026, this workspace's CLI resolved to PHP 8.5.4. Verify and update the actual serving runtime before exposing the application to untrusted requests. PHP's October 21 security fixes are in 8.5.12, 8.4.27, 8.3.36, and 8.2.35; vendor backports require vendor evidence. [PHP advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
+On October 23, 2026, both discovered local PHP installations were updated to **8.5.12** with the existing configuration and BLAKE3 extension preserved. Run `bun run check:runtime` to inspect the selected CLI. The [runtime receipt](docs/security/runtime-20261023.md) covers the local update; verify the actual serving binary and workers separately. PHP's October 21 security fixes are in 8.5.12, 8.4.27, 8.3.36, and 8.2.35; vendor backports require vendor evidence. [PHP advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
 
 <details>
 <summary>Local setup, source map, bootstrap, and verification commands</summary>

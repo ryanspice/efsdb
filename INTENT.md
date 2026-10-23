@@ -18,7 +18,7 @@ Preserve active specifications in `spec/`, especially the frozen envelope and au
 4. Make agent entry, ownership, useful commits, and handoff repeatable.
 5. Present a credible GitHub project with an understandable demo and evidence.
 
-The [modernization plan](docs/MODERNIZATION.md) defines work IDs, owners, dependencies, and acceptance gates. It is a proposed queue, not blanket deployment/publication authority.
+The [modernization plan](docs/MODERNIZATION.md) defines work IDs, owners, dependencies, and acceptance gates. The [implementation receipt](docs/security/implementation-20261023.md) records the first local security wave. Host acceptance and deployment/publication authority remain separate.
 
 ## Repository metadata
 
@@ -30,7 +30,7 @@ This JSON block is the `intent` instance for `repo.schema.json`. Refresh the rev
   "kind": "intent",
   "repository": "ryanspice/efsdb",
   "reviewedAt": "2026-10-23",
-  "baselineCommit": "f060badc12c28558b80574b96b2c1ce18e1ed683",
+  "baselineCommit": "a62f13005db02ff98382a0739a82f31a6d2b9ae0",
   "status": "experimental",
   "purpose": "Encrypted file storage and a PHP-hosted workspace with explicit format, authorization, and conformance boundaries.",
   "entrypoints": ["README.md", "AGENTS.md", "spec/CURRENT_STATE.md", "docs/MODERNIZATION.md"],

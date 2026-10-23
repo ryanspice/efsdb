@@ -2,14 +2,14 @@
 
 Reviewed October 23, 2026. Scope: EFSDB/PHPFS, PHP-FPM implications, frontend/build dependencies, agent workflow, and repository presentation. Baseline: `main`, `f060badc12c28558b80574b96b2c1ce18e1ed683`.
 
-This package changes documentation and repository metadata. Security patches, runtime/dependency changes, commits, deployment, and GitHub profile actions have not been performed. Findings are source conclusions unless a check is recorded below. This is a bounded review of accessible source and primary advisories, not an exhaustive penetration test or census of every public review.
+The baseline review below is historical input to the implementation. The first local fix wave is now implemented on `codex/security-hardening-20261023`; see the [implementation receipt](security/implementation-20261023.md) for commits, checks and limits. Deployment and GitHub profile actions remain open. This is a bounded review of accessible source and primary advisories, not an exhaustive penetration test or census of every public review.
 
-## Current evidence
+## Original review evidence
 
 - Preserve existing tracked `scripts/php-core.ts` and untracked `chat.json` (not read). Wrapper baseline SHA-256: `53A211D776F30418A537E1DA5DA8F0703D7BA1EB5322F292F508E42C427960BA`.
-- Current CLI: workspace-local `.cache/873fa5fd/php-bin/php.exe`, PHP **8.5.4**, NTS x64. No serving FPM pool or deployed binary was inspected.
+- Review-baseline CLI: workspace-local `.cache/873fa5fd/php-bin/php.exe`, PHP **8.5.4**, NTS x64. It has since been updated to **8.5.12**; no serving FPM pool or deployed binary was inspected.
 - Local Node **26.7.0**, Bun **1.2.23**. Select a supported CI/runtime line per project without changing the machine globally.
-- Lockfile: Svelte **5.54.0**, Vite **6.4.1**, plugin **5.1.1**, devalue **5.6.4**. Package ranges do not prove patched resolutions.
+- Review-baseline lockfile: Svelte **5.54.0**, Vite **6.4.1**, plugin **5.1.1**, devalue **5.6.4**. The implementation resolves Svelte **5.57.2**, Vite **6.4.5**, plugin **5.1.1**, devalue **5.9.4**, with all shipped UI bundles rebuilt. Package ranges alone do not prove patched resolutions.
 - `bun run web:typecheck`: **PASS**, exit 0, October 23. Full builds, API/auth/conformance, browser, multiprocess and hosted gates were not run.
 - An independent read-only application audit returned five source findings; the lead inspected corresponding source paths. No live-host exploit was attempted.
 
@@ -33,7 +33,7 @@ October 23 registry snapshot: Svelte **5.57.2**, Kit **3.1.0**, Vite **8.3.5**, 
 
 ## Source findings and fix packets
 
-All five are P1 source findings. Hosted exposure depends on the described conditions. Paths below are relative to `efsdb/php/core/`; refresh line references after changes.
+All five were P1 source findings at the review baseline. Local fixes for E-01 through E-05 are implemented and checked; hosted acceptance remains open. Paths and line references below describe the original evidence and are relative to `efsdb/php/core/`. Use the implementation receipt for current paths and behavior.
 
 | ID | Evidence and implication | Fix | Required acceptance |
 | --- | --- | --- | --- |
@@ -87,7 +87,7 @@ Use the About description/topics in `INTENT.md`. After browser verification, add
 
 Make a documentation-convention commit and separate coherent security-fix commits when authorized. Stage explicit owned files/hunks. Propose pinning EFSDB near SvelteKit PHP and agent-skills with clear descriptions. No remote metadata, pin, release or profile change is included here.
 
-Planning completion means ten reviewable documentation/schema files with checked contracts. Modernization completion additionally requires the fix waves, independent acceptance, hosted evidence and authorized publication; these remain open.
+The ten-file planning package is committed. The first source/runtime/dependency fix wave has local acceptance recorded in the implementation receipt. Modernization completion additionally requires target-host PHP-FPM/filesystem/web-server evidence, deployment isolation and authorized publication.
 
 ## Planning-package verification receipt
 
