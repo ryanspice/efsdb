@@ -5,6 +5,7 @@ require_once __DIR__ . '/Crypto.php';
 require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/IndexManager.php';
 require_once __DIR__ . '/RequestTiming.php';
+require_once __DIR__ . '/FilesystemLock.php';
 
 final class Store
 {
@@ -35,6 +36,16 @@ final class Store
     public function getDataDir(): string
     {
         return $this->dir;
+    }
+
+    /**
+     * @template T
+     * @param callable(): T $operation
+     * @return T
+     */
+    public function withExclusiveLock(string $resource, callable $operation): mixed
+    {
+        return FilesystemLock::exclusive($this->dir, $resource, $operation);
     }
 
     public function getIndexManager(): IndexManager
