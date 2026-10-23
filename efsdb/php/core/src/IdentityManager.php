@@ -17,9 +17,11 @@ final class IdentityManager
 
     public function ensureInitialized(): void
     {
-        $this->seedRoles();
-        $this->seedSettings();
-        $this->ensureTenantAdmin();
+        $this->store->withExclusiveLock('identity-bootstrap', function (): void {
+            $this->seedRoles();
+            $this->seedSettings();
+            $this->ensureTenantAdmin();
+        });
     }
 
     /**

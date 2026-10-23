@@ -6,6 +6,7 @@ require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/IndexManager.php';
 require_once __DIR__ . '/RequestTiming.php';
 require_once __DIR__ . '/FilesystemLock.php';
+require_once __DIR__ . '/KeyFile.php';
 
 final class Store
 {
@@ -65,8 +66,7 @@ final class Store
 
     public function initMasterKey(): string
     {
-        $b64 = Crypto::randomKeyB64();
-        file_put_contents($this->dir . '/master.key', $b64, LOCK_EX);
+        $b64 = KeyFile::loadOrCreate($this->dir, 'master.key');
         $this->loadKey();
         return $b64;
     }
@@ -719,8 +719,8 @@ final class Store
 
     private function mkdir(string $dir): void
     {
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+            throw new RuntimeException('Unable to create store directory');
         }
     }
 

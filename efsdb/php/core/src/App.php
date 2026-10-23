@@ -53,25 +53,21 @@ final class App
         $this->schema = new Schema($schemaDir);
         $this->store = new Store($dataDir, $this->schema);
 
-        if (!$this->store->hasMasterKey()) {
+        $this->store->withExclusiveLock('app-bootstrap', function () use ($dataDir): void {
             $this->store->initMasterKey();
-            $isFirstRun = true;
-        } else {
-            $isFirstRun = false;
-        }
+            $this->idx = new IndexManager($dataDir, $this->store->masterKeyB64(), $this->store);
+            $this->permissions = new Permissions();
+            $this->identity = new IdentityManager($this->store, $this->permissions);
+            $this->identity->ensureInitialized();
 
-        $this->idx = new IndexManager($dataDir, $this->store->masterKeyB64(), $this->store);
-        $this->permissions = new Permissions();
-        $this->identity = new IdentityManager($this->store, $this->permissions);
-        $this->identity->ensureInitialized();
+            $this->audit = new Audit($this);
+            $this->publicWorkspace = new PublicWorkspace($this->store, $this->identity, $this->audit);
 
-        $this->audit = new Audit($this);
-        $this->garbageCollector = new GarbageCollector($this->store, $this->audit);
-        $this->publicWorkspace = new PublicWorkspace($this->store, $this->identity, $this->audit);
-
-        if ($isFirstRun) {
+            // Existing root documents are retained. Rechecking on every startup
+            // also completes a bootstrap interrupted after publishing its key.
             $this->publicWorkspace->ensureInitialized();
-        }
+        });
+        $this->garbageCollector = new GarbageCollector($this->store, $this->audit);
         $this->deliveryModeResolver = new DeliveryModeResolver($this->identity, $this->publicWorkspace);
         $this->publicSiteRouter = new PublicSiteRouter($this->publicWorkspace, $this->deliveryModeResolver);
         $this->publicSiteImport = new PublicSiteImport($this->publicWorkspace, $this->audit);
