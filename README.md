@@ -1,12 +1,55 @@
 # EFSDB
 
+**Encrypted file storage, a PHP runtime, and a browser workspace for inspecting and publishing what you build.**
+
+[Project intent](INTENT.md) · [Agent guide](AGENTS.md) · [Security and modernization plan](docs/MODERNIZATION.md)
+
+Files, application state, and published sites usually acquire separate storage and administration systems. EFSDB explores a common foundation: encrypted storage with an explicit format, permission-aware views of the same data, and a workspace that can turn selected content into a public site.
+
+The PHP reference runtime hosts the application. Svelte powers login, Explorer, Builder, and administration. Rust provides a separate engine and conformance surface. The useful engineering question is whether those boundaries can stay understandable and testable as the system grows.
+
+**Current status:** an experimental reference implementation with active security hardening work. The [October 2026 review](docs/MODERNIZATION.md) identifies open authorization, public-file delivery, and concurrent-worker issues. Use disposable demo data and a patched PHP runtime; production acceptance remains open.
+
+## What to explore
+
+| Surface | What it demonstrates | Source |
+| --- | --- | --- |
+| Encrypted storage | Canonical manifests, chunk storage, indexing, and explicit format contracts | `efsdb/php/core/src`, `spec/FORMAT.md` |
+| Explorer | Natural/raw views and permission-aware file operations | `web/apps/explorer`, `web/contracts` |
+| Builder | Staging/production workspaces and public-site delivery | `web/apps/builder`, `PublicWorkspace.php`, `PublicSiteRouter.php` |
+| Administration | Roles, settings, shared window shells, and operational views | `web/apps/admin`, `web/ui`, `web/styles` |
+| Conformance | PHP characterization and PHP/Rust behavior comparisons | `spec/characterization`, `efsdb/php/conformance`, `efsdb-core` |
+
+```mermaid
+flowchart LR
+  Browser[Login / Explorer / Builder / Admin] --> Contracts[Typed web contracts]
+  Contracts --> Host[PHP host and authorization]
+  Host --> Store[Encrypted storage and manifests]
+  Host --> Publish[Staging and production delivery]
+  Spec[Format and characterization] -. verifies .-> Store
+  Spec -. compares .-> Rust[Rust engine]
+```
+
+The current public delivery default is `php-html`. Imported [SvelteKit PHP](https://github.com/ryanspice/sveltekit-php) output is limited to static-prerender delivery; generic SSR and action parity need separate acceptance.
+
+## Start contributing
+
+Read [INTENT.md](INTENT.md), then [AGENTS.md](AGENTS.md). Choose one bounded task from the update plan, claim its files, check the behavior, and return a focused patch or authorized commit with evidence. The lead owns integration and acceptance.
+
+The shared convention is five files: this README, `AGENTS.md`, `INTENT.md`, `docs/MODERNIZATION.md`, and `repo.schema.json`. Source paths stay in place. Runtime data, credentials, private conversations, and mutable fleet receipts stay outside public repository material.
+
+On October 23, 2026, this workspace's CLI resolved to PHP 8.5.4. Verify and update the actual serving runtime before exposing the application to untrusted requests. PHP's October 21 security fixes are in 8.5.12, 8.4.27, 8.3.36, and 8.2.35; vendor backports require vendor evidence. [PHP advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
+
+<details>
+<summary>Local setup, source map, bootstrap, and verification commands</summary>
+
+
 EFSDB is an encrypted file system database with canonical manifests, chunked encrypted storage, a PHP reference runtime, and a web control plane.
 
 ## Active Source Of Truth
 
 - Runtime and host behavior:
   - `efsdb/php/core`
-  - `efsdb/php/runtime`
 - Web apps:
   - `web/apps/login`
   - `web/apps/explorer`
@@ -38,7 +81,7 @@ bun run build:web
 bun run dev
 ```
 
-`bun run build:web` rebuilds the Tailwind PHP shell and ships the active `login`, `explorer`, `builder`, and `admin` web bundles into [efsdb/php/core/public/js](B:\Dev\PHPFS\efsdb\php\core\public\js). Search remains embedded inside the explorer bundle and is not shipped as a standalone host app.
+`bun run build:web` rebuilds the Tailwind PHP shell and ships the active `login`, `explorer`, `builder`, and `admin` web bundles into [efsdb/php/core/public/js](efsdb/php/core/public/js). Search remains embedded inside the explorer bundle and is not shipped as a standalone host app. The native BLAKE3 extension must match the selected PHP ABI, architecture, and thread-safety mode; see the existing [extension build guide](docs/internal/blake3-extension-build-test.md).
 
 Direct PHP startup still works:
 
@@ -118,3 +161,5 @@ powershell -ExecutionPolicy Bypass -File efsdb/php/core/bin/smoke.ps1
 - [Conformance checklist](spec/CONFORMANCE.md)
 - [Web contract guide](web/contracts/README.md)
 - [Archived phase docs](spec/archive/README.md)
+
+</details>
