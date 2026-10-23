@@ -149,6 +149,7 @@ require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/Permissions.php';
 require_once __DIR__ . '/../src/RequestTiming.php';
+require_once __DIR__ . '/../src/ComponentMutationPolicy.php';
 
 Config::assertRepoPhpIniLoaded('public/index.php');
 
@@ -1192,6 +1193,11 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
         }
 
         if ($method === 'POST' && $uriPath === '/_efsdb/api/explorer/create-component') {
+            if (!$perms->canEditSiteFiles($user)) {
+                efsdb_json_response(efsdb_error('forbidden', 'Component creation requires site edit access'), 403);
+                if (!defined('EFSDB_TEST_MODE')) exit;
+                return;
+            }
             $input = efsdb_json_body();
             $name = (string)($input['name'] ?? '');
             $framework = strtolower((string)($input['framework'] ?? 'sveltekit'));
@@ -1208,8 +1214,8 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $explorer = $app->getExplorer();
                 $nodeEnv = $app->getNodeEnvironmentService();
 
-                // Read the template directory from projects/examples
-                $templatePath = rtrim(str_replace('\\', '/', dirname(__DIR__, 4)), '/') . "/projects/examples/$framework";
+                $env = ComponentMutationPolicy::environment($env);
+                $templatePath = ComponentMutationPolicy::template($framework, dirname(__DIR__, 4) . '/projects/examples');
 
                 if (!is_dir($templatePath)) {
                     // Fallback to single file generation if template doesn't exist
@@ -1438,6 +1444,11 @@ ANGULAR;
         }
 
         if ($method === 'POST' && $uriPath === '/_efsdb/api/explorer/import-component') {
+            if (!$perms->canEditSiteFiles($user)) {
+                efsdb_json_response(efsdb_error('forbidden', 'Component import requires site edit access'), 403);
+                if (!defined('EFSDB_TEST_MODE')) exit;
+                return;
+            }
             $name = (string)($_POST['name'] ?? '');
             $env = (string)($_POST['env'] ?? 'staging');
             $source = (string)($_POST['source'] ?? '');
@@ -1449,10 +1460,20 @@ ANGULAR;
                 return;
             }
 
+            $tempDir = null;
             try {
+                $env = ComponentMutationPolicy::environment($env);
+                if (!in_array($source, ['github', 'upload'], true)) {
+                    throw new InvalidArgumentException('Invalid component source');
+                }
+                if ($source === 'github') {
+                    ComponentMutationPolicy::githubArchiveUrl((string)($_POST['githubUrl'] ?? ''), 'main');
+                }
                 $ws = $app->getPublicWorkspace();
-                $tempDir = sys_get_temp_dir() . '/efsdb_import_' . uniqid();
-                mkdir($tempDir, 0777, true);
+                $tempDir = sys_get_temp_dir() . '/efsdb_import_' . bin2hex(random_bytes(16));
+                if (!mkdir($tempDir, 0700)) {
+                    throw new RuntimeException('Unable to create private component import directory');
+                }
 
                 $zipFile = $tempDir . '/archive.zip';
 
@@ -1463,36 +1484,39 @@ ANGULAR;
                         throw new InvalidArgumentException('GitHub URL is required');
                     }
 
-                    $parsedUrl = parse_url($githubUrl);
-                    if (($parsedUrl['host'] ?? '') !== 'github.com' || ($parsedUrl['scheme'] ?? '') !== 'https') {
-                        throw new InvalidArgumentException('Invalid GitHub URL');
-                    }
-
                     // Basic GitHub repo URL to zip download (assuming main branch)
                     // e.g. https://github.com/user/repo -> https://github.com/user/repo/archive/refs/heads/main.zip
-                    $downloadUrl = $githubUrl . '/archive/refs/heads/main.zip';
+                    $downloadUrl = ComponentMutationPolicy::githubArchiveUrl($githubUrl, 'main');
 
                     $opts = [
                         "http" => [
                             "method" => "GET",
+                            "timeout" => 15,
+                            "max_redirects" => 5,
                             "header" => "User-Agent: EFSDB-Importer\r\n"
                         ]
                     ];
                     $context = stream_context_create($opts);
-                    $zipContent = @file_get_contents($downloadUrl, false, $context);
+                    $zipContent = @file_get_contents($downloadUrl, false, $context, 0, ComponentMutationPolicy::MAX_ARCHIVE_BYTES + 1);
 
                     if ($zipContent === false) {
                         // Fallback to master branch
-                        $downloadUrl = $githubUrl . '/archive/refs/heads/master.zip';
-                        $zipContent = @file_get_contents($downloadUrl, false, $context);
+                        $downloadUrl = ComponentMutationPolicy::githubArchiveUrl($githubUrl, 'master');
+                        $zipContent = @file_get_contents($downloadUrl, false, $context, 0, ComponentMutationPolicy::MAX_ARCHIVE_BYTES + 1);
                         if ($zipContent === false) {
                             throw new RuntimeException("Failed to download repository from GitHub. Check the URL or branch name.");
                         }
                     }
-                    file_put_contents($zipFile, $zipContent);
+                    if (strlen($zipContent) > ComponentMutationPolicy::MAX_ARCHIVE_BYTES) {
+                        throw new InvalidArgumentException('Component archive exceeds the compressed size limit');
+                    }
+                    file_put_contents($zipFile, $zipContent, LOCK_EX);
                 } elseif ($source === 'upload') {
                     if (!isset($_FILES['archive']) || $_FILES['archive']['error'] !== UPLOAD_ERR_OK) {
                         throw new RuntimeException("Upload failed or no file provided");
+                    }
+                    if ((int)($_FILES['archive']['size'] ?? 0) > ComponentMutationPolicy::MAX_ARCHIVE_BYTES) {
+                        throw new InvalidArgumentException('Component archive exceeds the compressed size limit');
                     }
                     $fileName = $_FILES['archive']['name'];
                     if (str_ends_with(strtolower($fileName), '.tar.gz') || str_ends_with(strtolower($fileName), '.tgz') || str_ends_with(strtolower($fileName), '.tar')) {
@@ -1500,10 +1524,7 @@ ANGULAR;
                         $zipFile = $tempDir . '/archive.tar' . (str_contains(strtolower($fileName), 'gz') ? '.gz' : '');
                     }
                     if (!move_uploaded_file($_FILES['archive']['tmp_name'], $zipFile)) {
-                        // Some environments might not allow move_uploaded_file easily, fallback to copy
-                        if (!copy($_FILES['archive']['tmp_name'], $zipFile)) {
-                            throw new RuntimeException("Failed to save uploaded file");
-                        }
+                        throw new RuntimeException('Failed to save uploaded component archive');
                     }
                 } else {
                     throw new InvalidArgumentException("Invalid source mode");
@@ -1512,22 +1533,7 @@ ANGULAR;
                 $extractDir = $tempDir . '/extracted';
                 mkdir($extractDir);
 
-                if ($isTar) {
-                    try {
-                        $phar = new PharData($zipFile);
-                        $phar->extractTo($extractDir);
-                    } catch (Exception $e) {
-                        throw new RuntimeException("Failed to extract TAR archive: " . $e->getMessage());
-                    }
-                } else {
-                    $zip = new ZipArchive();
-                    if ($zip->open($zipFile) === true) {
-                        $zip->extractTo($extractDir);
-                        $zip->close();
-                    } else {
-                        throw new RuntimeException("Failed to open zip archive");
-                    }
-                }
+                ComponentMutationPolicy::extract($zipFile, $extractDir, $isTar);
 
                 // GitHub zips contain a single root folder (e.g. repo-main)
                 $items = array_values(array_diff(scandir($extractDir), ['.', '..']));
@@ -1590,21 +1596,15 @@ ANGULAR;
                     'logicalPath' => $logicalPath
                 ]);
 
-                // Cleanup
-                // Quick recursive delete function for cleanup
-                $deleteDir = function ($dir) use (&$deleteDir) {
-                    if (!file_exists($dir)) return;
-                    $files = array_diff(scandir($dir), ['.', '..']);
-                    foreach ($files as $file) {
-                        (is_dir("$dir/$file")) ? $deleteDir("$dir/$file") : unlink("$dir/$file");
-                    }
-                    rmdir($dir);
-                };
-                $deleteDir($tempDir);
-
                 efsdb_json_response(['details' => ['logicalPath' => $logicalPath, 'siteRuntime' => $siteRuntime]]);
+            } catch (InvalidArgumentException $e) {
+                efsdb_json_response(efsdb_error('invalid_component', $e->getMessage()), 400);
             } catch (Throwable $e) {
                 efsdb_json_response(efsdb_error('server_error', $e->getMessage()), 500);
+            } finally {
+                if (is_string($tempDir)) {
+                    ComponentMutationPolicy::removeTemporaryDirectory($tempDir);
+                }
             }
             if (!defined('EFSDB_TEST_MODE')) {
                 exit;
