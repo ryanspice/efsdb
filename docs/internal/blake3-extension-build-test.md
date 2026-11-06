@@ -28,4 +28,4 @@ CI runs `bash scripts/ci-build-blake3.sh` separately for each selected PHP lane.
 
 Development and parity entry points load `efsdb/php/core/php.ini` through `scripts/php-core.ts`. Run `check:php-ini`, the native smoke, `tests/fixtures/run_php_parity_baseline.php`, `tests/fixtures/php_envelope_bounds.php`, and locked Rust tests. Source checks, native compilation, PHP/Rust parity, and browser checks are distinct evidence.
 
-Any edit to this document is guarded in CI by a pull-request approval rule requiring **two approvals before merge**.
+Changes to this document and its native module require code review and the automated native hash, PHP/Rust parity, security, and web checks described above. The former document-only two-approval workflow was retired during the November 2026 integration after the owner approved using these checks and the integration review.

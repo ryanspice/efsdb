@@ -10,7 +10,7 @@ The integration preserves atomic bootstrap/key publication, single-use refresh l
 
 ## CI and verification
 
-Automatic CI has separate PHP/Rust parity and web jobs, locked dependency installs, PHP security-floor checks, ABI-specific native compilation, explicit security regressions, typechecking, shipped bundle builds, and browser characterization. Evidence artifacts expire after seven days. There are no automatic deployment or publication jobs. The guarded native-build document retains its two-review requirement, with review events wired to rerun the check.
+Automatic CI has separate PHP/Rust parity and web jobs, locked dependency installs, PHP security-floor checks, ABI-specific native compilation, explicit security regressions, typechecking, shipped bundle builds, and browser characterization. Evidence artifacts expire after seven days. There are no automatic deployment or publication jobs. The former native-build-document-only two-review gate was retired with owner approval; native/PHP/Rust/web CI and the recorded code review govern this integration.
 
 Local integration evidence includes runtime/INI/API/auth and conformance checks, 32 PHP characterization programs, 16 canonical PHP buffer fixtures and 16 stream fixtures, 17 Rust tests, four optimized Rust bounds tests, 46 PHP bounds assertions with crypto, eight native hash assertions, web type/build checks, and 21 browser tests. The no-extension bounds lane passes 47 assertions because it also checks missing-BLAKE3 precedence.
 
