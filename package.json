@@ -18,6 +18,7 @@
     "build:admin": "bun run web:build:admin",
     "build:theme": "bun run web:build:theme",
     "build:window-shell": "bun run web:build:window-shell",
+    "build:wasm": "node scripts/ci/build-wasm.mjs",
     "build:web": "bun ./scripts/build-web.ts",
     "web:typecheck": "bun run --cwd web typecheck",
     "web:build": "bun run --cwd web build",

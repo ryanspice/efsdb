@@ -81,21 +81,22 @@ Historical phase plans and retired drafts now live under `spec/archive`.
 
 ## Run The Demo
 
-First validate the PHP configuration in [OPERATIONS.md](OPERATIONS.md#tools-and-php-configuration). The checked-in ini currently contains machine-specific paths, and root PHP scripts explicitly select it. Once that configuration is valid, run from the repo root:
+First validate the PHP configuration and install the pinned WASM build tools in [OPERATIONS.md](OPERATIONS.md). The checked-in ini receives runtime paths through the shared launcher. Once that configuration is valid, run from the repo root:
 
 ```powershell
 bun install --frozen-lockfile
+bun run build:wasm
 bun run build:web
 bun run dev
 ```
 
 `bun run build:web` rebuilds the Tailwind PHP shell and ships the active `login`, `explorer`, `builder`, and `admin` web bundles into [efsdb/php/core/public/js](efsdb/php/core/public/js). Search remains embedded inside the explorer bundle and is not shipped as a standalone host app. The native BLAKE3 extension must match the selected PHP ABI, architecture, and thread-safety mode; see the existing [extension build guide](docs/internal/blake3-extension-build-test.md).
 
-Direct PHP startup still works:
+The shared launcher also accepts explicit PHP server arguments:
 
 ```powershell
 $env:EFSDB_ENV = "development"
-php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public efsdb/php/core/public/index.php
+bun run ./scripts/php-core.ts -- -S 127.0.0.1:8787 -t efsdb/php/core/public efsdb/php/core/public/index.php
 ```
 
 Useful overrides:

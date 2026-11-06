@@ -2,6 +2,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { preparePhpInvocation } from '../../scripts/php-core.ts';
 
 const repoRoot = realpathSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'));
 const requestedPhpBin = process.env.EFSDB_PHP_BIN || 'php';
@@ -54,25 +55,25 @@ const dataDir = path.join(runRoot, 'data');
 mkdirSync(dataDir);
 console.log('Synthetic Playwright store: ' + dataDir);
 
-const child = spawn(phpBin, [
-  '-c', path.join(repoRoot, 'efsdb/php/core/php.ini'),
+const invocation = preparePhpInvocation([
   '-d', 'efsdb.process_id=playwright-server',
   '-S', '127.0.0.1:' + rawPort,
   '-t', path.join(repoRoot, 'efsdb/php/core/public')
 ], {
+  ...process.env,
+  EFSDB_ENV: 'test',
+  EFSDB_DEBUG: '1',
+  EFSDB_DATA_DIR: dataDir,
+  EFSDB_PHP_BIN: phpBin,
+  EFSDB_PHP_BLAKE3_EXTENSION: extension,
+  EFSDB_PHP_EXTENSION_DIR: extensionDir,
+  EFSDB_PHP_ERROR_LOG: path.join(runRoot, 'php-error.log')
+});
+const child = spawn(invocation.command, invocation.args, {
   cwd: repoRoot,
   stdio: 'inherit',
   windowsHide: true,
-  env: {
-    ...process.env,
-    EFSDB_ENV: 'test',
-    EFSDB_DEBUG: '1',
-    EFSDB_DATA_DIR: dataDir,
-    EFSDB_PHP_BIN: phpBin,
-    EFSDB_PHP_BLAKE3_EXTENSION: extension,
-    EFSDB_PHP_EXTENSION_DIR: extensionDir,
-    EFSDB_PHP_ERROR_LOG: path.join(runRoot, 'php-error.log')
-  }
+  env: invocation.env
 });
 let failedToStart = false;
 child.once('error', (error) => {

@@ -66,6 +66,8 @@ jobs:
           sudo apt-get install -y autoconf build-essential pkg-config
       - name: Build BLAKE3 for the selected PHP ABI
         run: bash scripts/ci-build-blake3.sh 2>&1 | tee .ai/evidence/ci/native-build.log
+      - name: Verify portable PHP startup and worker configuration
+        run: bun test tests/php-launcher.test.ts 2>&1 | tee .ai/evidence/ci/php-launcher.log
       - name: Run API, auth and conformance checks
         run: bun run check 2>&1 | tee .ai/evidence/ci/core.log
       - name: Run PHP characterizations and envelope security regressions

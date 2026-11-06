@@ -43,7 +43,7 @@ Choose the suite matching the change and inspect its harness/data target. PHP ch
 
 ## Browser checks
 
-The UI suite uses [web/playwright.config.ts](web/playwright.config.ts), Chromium and the portable Node launcher. PHP must satisfy the runtime baseline and load the matching native BLAKE3 extension. If Chromium is missing, run `bunx playwright install chromium` from the `web` directory after installing the workspace dependencies, then return to the repository root.
+The UI suite uses [web/playwright.config.ts](web/playwright.config.ts), Chromium and the portable Node 24+ launcher, which imports the shared PHP configuration helper. PHP must satisfy the runtime baseline and load the matching native BLAKE3 extension. If Chromium is missing, run `bunx playwright install chromium` from the `web` directory after installing the workspace dependencies, then return to the repository root.
 
 Run `bun run web:test:ui` after the relevant asset build. The configured server starts at `127.0.0.1:8791` with one worker and no existing-server reuse. Its [launcher](web/scripts/start-playwright-server.mjs) creates a fresh store under `.ai/evidence/playwright/run-*/data`, overrides an inherited `EFSDB_DATA_DIR`, and retains the store and PHP log for inspection. It rejects linked evidence-directory ancestors. Reports and results are under `.ai/evidence/playwright/report` and `.ai/evidence/playwright/test-results`; these artifacts and automated assertions are not human visual acceptance.
 
@@ -51,9 +51,9 @@ The manual [smoke script](efsdb/php/core/bin/smoke.ps1) is separate: it requires
 
 ## CI gates
 
-[PHP and Rust parity](.github/workflows/parity.yml) runs on pushes and PRs to `main`/`master`, plus manual dispatch. Its PHP 8.3/8.5 matrix builds BLAKE3 against the selected PHP ABI, runs `bun run check`, all PHP characterization programs (including the concurrency, import and public-delivery security cases), `tests/fixtures/php_envelope_bounds.php`, the PHP parity preflight/baseline fixtures, and locked Rust tests. [scripts/ci-check-parity.mjs](scripts/ci-check-parity.mjs) requires positive parity counts and zero skipped tests; a missing extension or empty test result is not a passing lane.
+[PHP and Rust parity](.github/workflows/parity.yml) runs on pushes and PRs to `main`/`master`, plus manual dispatch. Its PHP 8.3/8.5 matrix builds BLAKE3 against the selected PHP ABI, verifies launcher/descendant configuration with `bun test tests/php-launcher.test.ts`, runs `bun run check`, all PHP characterization programs (including the concurrency, import and public-delivery security cases), `tests/fixtures/php_envelope_bounds.php`, the PHP parity preflight/baseline fixtures, and locked Rust tests. [scripts/ci-check-parity.mjs](scripts/ci-check-parity.mjs) requires positive parity counts and zero skipped tests; a missing extension or empty test result is not a passing lane.
 
-[Web CI](.github/workflows/ci.yml) runs on the same events with PHP 8.5. It checks the runtime baseline, runs `web:typecheck`, builds shipped assets, builds native BLAKE3, installs Chromium, and runs `web:test:ui` against a fresh synthetic store. Both workflows pin Bun 1.2.23, select Node 24, use frozen dependency installation and retain evidence under `.ai/evidence/`. Neither workflow deploys, rotates credentials or establishes production-host acceptance.
+[Web CI](.github/workflows/ci.yml) runs on the same events with PHP 8.5. It checks the runtime baseline, builds the locked Rust WASM package with Rust 1.93.1 and wasm-pack 0.14.0, runs the real WASM inspector smoke test, runs `web:typecheck`, builds shipped assets, builds native BLAKE3, installs Chromium, and runs `web:test:ui` against a fresh synthetic store. Both workflows pin Bun 1.2.23, select Node 24, use frozen dependency installation and retain evidence under `.ai/evidence/`. Neither workflow deploys, rotates credentials or establishes production-host acceptance. Locally, run `bun run build:wasm` before typechecking or building Explorer on a clean checkout or after Rust changes; generated bindings are intentionally ignored.
 
 ## Evidence in the handoff
 

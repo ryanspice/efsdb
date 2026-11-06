@@ -14,6 +14,8 @@ Automatic CI has separate PHP/Rust parity and web jobs, locked dependency instal
 
 Local integration evidence includes runtime/INI/API/auth and conformance checks, 32 PHP characterization programs, 16 canonical PHP buffer fixtures and 16 stream fixtures, 17 Rust tests, four optimized Rust bounds tests, 46 PHP bounds assertions with crypto, eight native hash assertions, web type/build checks, and 21 browser tests. The no-extension bounds lane passes 47 assertions because it also checks missing-BLAKE3 precedence.
 
+Clean Linux runs exposed two build assumptions: duplicated PHP module loading and ignored WASM output left over locally. The shared PHP launcher now probes built-in modules and supplies one isolated, inherited module scan directory while preserving the exact core ini. Development and PowerShell entry points use the same launcher. Web CI rebuilds real WASM with pinned tools and the locked dependency graph before smoke/type/build checks; unused random-key generation dependencies are disabled because the Rust verifier accepts supplied keys.
+
 Legacy route characterizations now distinguish query-URL redirects from rendering at their canonical destinations, target the moved importer/public entry, and verify empty initialized roots instead of the removed placeholder seed. The expected security and delivery assertions remain exercised.
 
 Local checks do not establish PHP-FPM/Apache/Nginx behavior, physical-device performance, or human UI acceptance. PHP's ChaCha stream verifier still buffers the actual body. Broad performance claims require representative measurements.

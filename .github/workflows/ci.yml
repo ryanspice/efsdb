@@ -43,6 +43,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.2.23'
+      - uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install pinned WASM packaging tool
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/.ai/evidence/ci/wasm-pack-target
+        run: |
+          cargo install wasm-pack --version 0.14.0 --locked --root "$GITHUB_WORKSPACE/.ai/evidence/ci/wasm-pack"
+          echo "$GITHUB_WORKSPACE/.ai/evidence/ci/wasm-pack/bin" >> "$GITHUB_PATH"
       - uses: shivammathur/setup-php@v2
         env:
           update: 'true'
@@ -55,6 +64,11 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Enforce PHP security floor
         run: bun run check:runtime
+      - name: Build locked Rust WASM and generated browser types
+        run: bun run build:wasm 2>&1 | tee .ai/evidence/ci/wasm-build.log
+      - name: Smoke the generated WASM inspector
+        working-directory: web
+        run: bunx vitest run ui/tests/wasm-smoke.test.ts --reporter=verbose 2>&1 | tee ../.ai/evidence/ci/wasm-smoke.log
       - name: Typecheck web contracts and applications
         run: bun run web:typecheck 2>&1 | tee .ai/evidence/ci/web-types.log
       - name: Build shipped web assets
@@ -78,6 +92,7 @@ jobs:
           path: |
             .ai/evidence/ci/*.log
             .ai/evidence/ci/blake3-build.txt
+            .ai/evidence/wasm/build-*/receipt.json
             .ai/evidence/playwright/report/
             .ai/evidence/playwright/test-results/
             .ai/evidence/playwright/run-*/php-error.log
