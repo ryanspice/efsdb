@@ -46,6 +46,14 @@ On October 23, 2026, both discovered local PHP installations were updated to **8
 
 EFSDB is an encrypted file system database with canonical manifests, chunked encrypted storage, a PHP reference runtime, and a web control plane.
 
+## Working In This Repository
+
+- [AGENTS.md](AGENTS.md): shared agent entry point and source ownership.
+- [OPERATIONS.md](OPERATIONS.md): checkout identity, PHP configuration, local setup and maintenance.
+- [SCRIPTS.md](SCRIPTS.md): command inventory, generated output and side effects.
+- [TESTING.md](TESTING.md): checks selected by change scope and evidence to report.
+- [POLICIES.md](POLICIES.md): runtime, data and delivery invariants.
+
 ## Active Source Of Truth
 
 - Runtime and host behavior:
@@ -73,10 +81,10 @@ Historical phase plans and retired drafts now live under `spec/archive`.
 
 ## Run The Demo
 
-From the repo root:
+First validate the PHP configuration in [OPERATIONS.md](OPERATIONS.md#tools-and-php-configuration). The checked-in ini currently contains machine-specific paths, and root PHP scripts explicitly select it. Once that configuration is valid, run from the repo root:
 
 ```powershell
-bun install
+bun install --frozen-lockfile
 bun run build:web
 bun run dev
 ```
@@ -87,7 +95,7 @@ Direct PHP startup still works:
 
 ```powershell
 $env:EFSDB_ENV = "development"
-php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public
+php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public efsdb/php/core/public/index.php
 ```
 
 Useful overrides:
@@ -116,6 +124,8 @@ Open [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
 ## Verification
 
+Use [TESTING.md](TESTING.md) to choose checks. `check` regenerates tracked conformance fixtures; API/auth and UI checks reset their dedicated test stores. Review these effects in [SCRIPTS.md](SCRIPTS.md) before running them.
+
 Core validation:
 
 ```powershell
@@ -139,7 +149,7 @@ To keep CLI PHP execution aligned with the app runtime:
 powershell -ExecutionPolicy Bypass -File .\scripts\php-core.ps1 .\efsdb\php\core\bin\apicheck.php
 ```
 
-Manual smoke test:
+Manual smoke test against a disposable local server (creates a user and changes its target):
 
 ```powershell
 $env:EFSDB_BOOTSTRAP_SECRET = "replace-with-your-tenant-admin-key"

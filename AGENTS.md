@@ -1,55 +1,38 @@
-# Working in EFSDB
+# Repository instructions
 
-## Enter with a concrete task
+This is the shared instruction entry point for EFSDB. Tool-specific files point here and add no separate authority. Follow the current task and applicable host permissions; these documents do not expand authorization.
 
-Read `INTENT.md`, `spec/CURRENT_STATE.md`, and the relevant section of `docs/MODERNIZATION.md`. Inspect the branch, HEAD, status, nearest instructions, and owned files before editing. Follow applicable parent instructions. For Svelte work, start with the official Svelte MCP's `list-sections`, read relevant documentation, and run its autofixer before finalizing Svelte source edits.
+## Start with the relevant source
 
-The lead owns architecture, work allocation, integration, and final acceptance. A worker owns a bounded result and named paths. Historic conversations and reviews are evidence to revalidate, not new authority.
+1. Verify the checkout root, remote, branch, HEAD and working tree before changing files. [OPERATIONS.md](OPERATIONS.md#identify-the-checkout) gives the commands. A cached `origin/main` ref is not a fresh remote observation.
+2. Read [README.md](README.md), [spec/CURRENT_STATE.md](spec/CURRENT_STATE.md), and only the implementation and guidance needed for the task. Report unavailable named sources instead of substituting another checkout or an older plan.
+3. Use [OPERATIONS.md](OPERATIONS.md) for setup and maintenance, [SCRIPTS.md](SCRIPTS.md) for command effects, [TESTING.md](TESTING.md) for verification, and [POLICIES.md](POLICIES.md) for project invariants.
+4. Treat tracked source, local changes, generated bundles/fixtures, remote commits, a running deployment and human acceptance as distinct states. Inspect the exact inputs and outputs behind a claim.
 
-## Work order
+## Project map
 
-Use the `work_order` shape in `repo.schema.json`, or a readable packet with the same information:
+- PHP host and services: `efsdb/php/core`; public entry point: `efsdb/php/core/public/index.php`; standalone delivery runtime: `efsdb/php/runtime`.
+- Active web apps: `web/apps/login`, `web/apps/explorer`, `web/apps/builder`, `web/apps/admin`. Search is embedded in Explorer.
+- Shared payloads: `web/contracts`; UI and design: [web/ui/README.md](web/ui/README.md), `web/styles`, `web/ui/design`.
+- Executable checks: `efsdb/php/core/bin`, `efsdb/php/conformance`, `spec/characterization`.
+- Active format/auth references: `spec/FORMAT.md`, `spec/auth-contract.md`, `spec/CONFORMANCE.md`. Historical plans remain in `spec/archive`; investigate disagreements with implementation rather than treating an archive as current behavior.
 
-```text
-ROUTE: execution owner, exact provider/model, tools and cost/data boundary
-ROLE: lead / implementation / research / independent review
-TASK: one result and the user-visible reason for it
-BASELINE: repository, HEAD, worktree, dirty paths and relevant file hashes
-OWNERSHIP: allowed writes, protected paths, shared runtime/test owner
-ACCEPTANCE: checks and expected behavior, including denied cases
-BUDGET: finite deadline, turns/children where relevant, stop conditions
-HANDOFF: patch/commit, actual checks, limits, next action and child state
-```
+## Working scope
 
-Record file claims through the active harness before starting. One writer owns a path at a time. Use an isolated worktree for overlapping source work; uncommitted changes do not travel into a new worktree. Reconcile the intended baseline explicitly. Review existing dirty fixes before choosing the implementation baseline.
+- The lead owns integration and final acceptance. Workers stay within their assigned files and return changes, checks, evidence and unresolved issues.
+- Preserve unrelated dirty and untracked work. Stage the intended files explicitly; do not reset, clean, stash or overwrite another owner's work to simplify a task.
+- Keep recovery copies for consequential edits. Record the original hash and the expected edited hash; verify the current hash before restoring a preimage. Reconcile a mismatch instead of overwriting later changes.
+- Use existing user authorization. A documentation task does not authorize production promotion, data deletion, key rotation, deployment or shared provider configuration changes.
+- Keep credentials, runtime data and private operational notes out of commits and tool output. Use portable paths; do not require a private Wiki, skill installation or model configuration to work in this repo.
 
-## Routes and fleet
+## Checks and handoff
 
-Use available native coding workers for authorized implementation. Discover current capabilities before selecting an exact route; a catalog entry or price badge does not prove tools, entitlement, or allowance. Keep native subscription usage, metered API spend, and promotional credits distinct. Do not silently change a requested exact model or enter paid fallback.
+Choose the smallest meaningful checks plus the project gates for the changed surface in [TESTING.md](TESTING.md). Read command side effects first: `check` regenerates fixtures, UI setup creates a fresh synthetic store under `.ai/evidence/playwright/`, and maintenance commands can change live data. Repeat checks only for changed inputs, failures or unresolved concerns.
 
-When Fugu is selected, read current owner-authored `POLICY.md` and use `Invoke-FuguLane.ps1`. Locate optional local tooling through a validated `LOCAL_PATHS.md`; missing tools are a specific limitation, not a reason to reconfigure the machine. Current broker grants are narrower than native coding tools: return evidence/proposed patches when writes are not granted. Respect inherited run plans, ledger, expiry, and child limits. Use broker-supported recursion. Do not duplicate a mutable model roster or machine-specific paths here.
+Review generated diffs separately from authored source. Report the exact checkout/commit, changed files, commands and results, skipped or blocked checks, and remaining decisions. Separate source checks, runtime behavior, visual evidence and human acceptance; a successful build proves none of the other categories by itself.
 
-Fugu run/task IDs and native harness task IDs have different lifecycle owners. Keep accounting and cancellation separate unless an implemented bridge proves otherwise. A timed-out parent wait does not cancel a child. Reconcile owned descendants before completion; do not kill shared services by process name.
+## Current intent and owned artifacts
 
-## Preserve these boundaries
+Read `INTENT.md` and the relevant section of `docs/MODERNIZATION.md` before changing contracts. Use the work-order and handoff shapes in `repo.schema.json` for scoped ownership and evidence. Keep project task records under `.ai/`: intake in `inbox/`, deliverables in `outbox/`, checks in `evidence/`, and retained originals in `archive/`. Record plans and reviews in `.ai/SYNTHESIS-QUEUE.json`; mark them synthesized only after recording the source hash, maintained destination, unresolved issues and receipt. Never commit private packets, keys, runtime stores or conversation exports.
 
-- Keep the frozen envelope, KDF/AAD behavior, parser result contract, and conformance fixtures stable unless a task explicitly authorizes a versioned format change.
-- Preserve actual/effective roles, hashed credentials, single-use refresh requirements, natural/raw entitlements, and `/_efsdb` control-plane routes.
-- Public caches/file shortcuts must enforce the same enabled, tenant, environment, and visibility policy as the main router.
-- SvelteKit import scope is static-prerender delivery; generic SSR/actions require separate acceptance.
-- Never reset, clean, broadly stage, or overwrite unrelated work. Do not commit credentials, conversation exports, runtime data, key files, or provider profiles.
-- Keep development servers on their authorized interface. Runtime upgrades must preserve native BLAKE3 ABI compatibility and existing data.
-
-## Verify the slice
-
-Choose checks for the change. PHP host/auth/storage work needs relevant characterization/API/auth checks; encryption changes also need conformance and PHP/Rust parity. Web work needs `bun run web:typecheck`, affected builds, and relevant browser flows. `bun run check` generates fixtures; inspect their diff and do not absorb unrelated output.
-
-Use synthetic data in an owned workspace. Concurrent-worker defects require multiprocess tests and PHP-FPM acceptance; serial `php -S` success cannot close them. Report unrun/failed gates explicitly. Reviewer agreement is not test or deployment evidence.
-
-## Commit useful work and leave cleanly
-
-Keep one coherent fix, its necessary regression checks, and contract/documentation update together. When committing is authorized, inspect `git diff --check`, stage explicit paths or reviewed hunks, inspect the staged diff, and create a focused commit such as `fix(auth): consume refresh tokens atomically`. If a file contains another worker's changes, isolate the patch or coordinate before staging. Never use `git add .` in the shared checkout.
-
-Do not create empty, failing, or cosmetic churn commits to satisfy task counts. If commits were not authorized, return the reviewed diff and proposed commit title. Push, merge, release, deploy, key rotation, and destructive data changes require their own authority; do not ask again when already authorized in the session.
-
-Return a `handoff` receipt with base/current commit, worktree, touched paths, relevant hashes, commands/results and evidence, open findings, commit or null, and pending descendants. Separate local verification, independent acceptance, hosted proof, and publication. State the next permitted action. The lead accepts the work before integration.
+Follow applicable parent Svelte instructions: use the official Svelte MCP documentation and autofixer for Svelte source changes. One writer owns a path; coordinate shared generated output and test processes. Historical receipts establish their recorded candidate only.
