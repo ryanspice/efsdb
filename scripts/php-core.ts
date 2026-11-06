@@ -1,6 +1,6 @@
 import { mkdirSync, existsSync } from "node:fs";
 import { execFileSync, spawn } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
@@ -34,8 +34,33 @@ if (!process.env.EFSDB_PHP_BLAKE3_EXTENSION && !existsSync(defaultBlake3Extensio
 
 mkdirSync(logsDir, { recursive: true });
 
+const resolveExecutablePath = (command: string): string => {
+  if (isAbsolute(command) || command.includes("/") || command.includes("\\")) {
+    return command;
+  }
+
+  const pathEntries = (process.env.PATH ?? "").split(delimiter).filter(Boolean);
+  const names =
+    process.platform === "win32" && !/\.(?:exe|bat|cmd|com)$/i.test(command)
+      ? [command, `${command}.exe`, `${command}.cmd`, `${command}.bat`, `${command}.com`]
+      : [command];
+
+  for (const entry of pathEntries) {
+    for (const name of names) {
+      const candidate = resolve(entry, name);
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return command;
+};
+
+const resolvedPhpBin = resolveExecutablePath(phpBin);
+
 const detectExtensionDir = (): string => {
-  const phpBinDir = resolve(dirname(phpBin));
+  const phpBinDir = resolve(dirname(resolvedPhpBin));
   const siblingExtDir = resolve(phpBinDir, "ext");
   if (existsSync(siblingExtDir)) {
     return siblingExtDir;
@@ -43,7 +68,7 @@ const detectExtensionDir = (): string => {
 
   let output = "";
   try {
-    output = execFileSync(phpBin, ["-n", "-r", 'echo ini_get("extension_dir");'], {
+    output = execFileSync(resolvedPhpBin, ["-n", "-r", 'echo ini_get("extension_dir");'], {
       cwd: rootDir,
       encoding: "utf8",
     }).trim();
@@ -64,7 +89,7 @@ const detectExtensionDir = (): string => {
 
 const env = {
   ...process.env,
-  EFSDB_PHP_BIN: phpBin,
+  EFSDB_PHP_BIN: resolvedPhpBin,
   EFSDB_PHP_EXTENSION_DIR: process.env.EFSDB_PHP_EXTENSION_DIR ?? detectExtensionDir(),
   EFSDB_PHP_BLAKE3_EXTENSION:
     process.env.EFSDB_PHP_BLAKE3_EXTENSION ?? defaultBlake3Extension,
@@ -72,7 +97,7 @@ const env = {
     process.env.EFSDB_PHP_ERROR_LOG ?? resolve(logsDir, "php-error.log"),
 };
 
-const child = spawn(phpBin, ["-c", phpIniPath, ...args], {
+const child = spawn(resolvedPhpBin, ["-c", phpIniPath, ...args], {
   cwd: rootDir,
   env,
   stdio: "inherit",
