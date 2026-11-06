@@ -8,7 +8,7 @@ Files, application state, and published sites usually acquire separate storage a
 
 The PHP reference runtime hosts the application. Svelte powers login, Explorer, Builder, and administration. Rust provides a separate engine and conformance surface. The useful engineering question is whether those boundaries can stay understandable and testable as the system grows.
 
-**Current status:** an experimental reference implementation with the first security fixes implemented and checked locally: component authorization/import limits, policy-aware public delivery, atomic refresh consumption, and concurrent key/bootstrap initialization. The [implementation receipt](docs/security/implementation-20261023.md) records checks and remaining host gates. Use disposable demo data; production PHP-FPM acceptance remains open.
+**Current status:** an experimental reference implementation with security fixes for component authorization/import limits, policy-aware public delivery, refresh consumption, and key/bootstrap initialization. The [integration record](docs/INTEGRATION-2026-11-06.md) separates automated evidence from open PHP-FPM, server and human UI acceptance. Use disposable demo data; representative performance baselines remain future work.
 
 ## What to explore
 

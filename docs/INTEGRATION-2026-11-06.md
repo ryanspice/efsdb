@@ -25,3 +25,13 @@ Local checks do not establish PHP-FPM/Apache/Nginx behavior, physical-device per
 Task evidence and private preimages stay under ignored `.ai/` with hash receipts and a synthesis queue. The private root chat input was archived and removed from the root. No Codegraph directory existed in this checkout. Existing characterization programs still use their repository `.cache/efsdb/tests/` paths; those are recorded test-output exceptions, not live-store cleanup authority.
 
 `artifact/pixelboats-card-recovery-lab-v0.4.0` is a distribution snapshot whose tree replaces most repository source. It is retained separately and is not merged into the EFSDB source branch.
+
+## Next acceptance decisions
+
+The post-integration plans remain open work, not acceptance. Pin the exact candidate
+and use disposable data before testing PHP-FPM bootstrap and refresh-token races,
+server private-path denial, and Explorer drag, scrolling and stylesheet behavior.
+Record host, automated browser and human outcomes separately. Define representative
+synthetic storage, crypto, import and UI workloads before choosing an optimization;
+the buffered ChaCha verifier alone does not establish a measured bottleneck. EFSDB's
+SvelteKit boundary remains imported static-prerender output.
