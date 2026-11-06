@@ -8,10 +8,11 @@ Implementations must pass these checks to be considered compliant.
 
 - [ ] **KDF**: Correctly derives keys using `sodium_crypto_kdf_derive_from_key` with correct contexts (`manifest` padded to 8 bytes, `chunk` padded to 8 bytes) and IDs (2, 3).
 - [ ] **Encryption**:
-    - [ ] Writes `AEG1` (AEGIS-256) or `XCH1` (XChaCha20) tags.
+    - [ ] Writes the frozen envelope framing with suite IDs from `spec/enums/protection-suites.md`.
     - [ ] Uses random Nonces for every write.
-    - [ ] Validates Tags and Nonces on decrypt.
-    - [ ] Fails if AAD does not match expected value (`manifest:$id`, `chunk:$hash`).
+    - [ ] Validates AEAD tags and nonces on decrypt for supported AEAD suites.
+    - [ ] Preserves the frozen `H + 8 + N + C` contract where `payload_length = N` and the suite tag/checksum remains trailer `C`.
+    - [ ] Fails if AAD does not match expected value (`manifest:$id`, `chunk:$hash`) for storage encryption and `0..H+7` for envelope suite `0x02`.
 - [ ] **Master Key**: accepts 32-byte raw key from Base64 source.
 
 ## 2. Storage

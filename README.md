@@ -1,12 +1,63 @@
 # EFSDB
 
+**Encrypted file storage, a PHP runtime, and a browser workspace for inspecting and publishing what you build.**
+
+[Project intent](INTENT.md) · [Agent guide](AGENTS.md) · [Security and modernization plan](docs/MODERNIZATION.md)
+
+Files, application state, and published sites usually acquire separate storage and administration systems. EFSDB explores a common foundation: encrypted storage with an explicit format, permission-aware views of the same data, and a workspace that can turn selected content into a public site.
+
+The PHP reference runtime hosts the application. Svelte powers login, Explorer, Builder, and administration. Rust provides a separate engine and conformance surface. The useful engineering question is whether those boundaries can stay understandable and testable as the system grows.
+
+**Current status:** an experimental reference implementation with the first security fixes implemented and checked locally: component authorization/import limits, policy-aware public delivery, atomic refresh consumption, and concurrent key/bootstrap initialization. The [implementation receipt](docs/security/implementation-20261023.md) records checks and remaining host gates. Use disposable demo data; production PHP-FPM acceptance remains open.
+
+## What to explore
+
+| Surface | What it demonstrates | Source |
+| --- | --- | --- |
+| Encrypted storage | Canonical manifests, chunk storage, indexing, and explicit format contracts | `efsdb/php/core/src`, `spec/FORMAT.md` |
+| Explorer | Natural/raw views and permission-aware file operations | `web/apps/explorer`, `web/contracts` |
+| Builder | Staging/production workspaces and public-site delivery | `web/apps/builder`, `PublicWorkspace.php`, `PublicSiteRouter.php` |
+| Administration | Roles, settings, shared window shells, and operational views | `web/apps/admin`, `web/ui`, `web/styles` |
+| Conformance | PHP characterization and PHP/Rust behavior comparisons | `spec/characterization`, `efsdb/php/conformance`, `efsdb-core` |
+
+```mermaid
+flowchart LR
+  Browser[Login / Explorer / Builder / Admin] --> Contracts[Typed web contracts]
+  Contracts --> Host[PHP host and authorization]
+  Host --> Store[Encrypted storage and manifests]
+  Host --> Publish[Staging and production delivery]
+  Spec[Format and characterization] -. verifies .-> Store
+  Spec -. compares .-> Rust[Rust engine]
+```
+
+The current public delivery default is `php-html`. Imported [SvelteKit PHP](https://github.com/ryanspice/sveltekit-php) output is limited to static-prerender delivery; generic SSR and action parity need separate acceptance.
+
+## Start contributing
+
+Read [INTENT.md](INTENT.md), then [AGENTS.md](AGENTS.md). Choose one bounded task from the update plan, claim its files, check the behavior, and return a focused patch or authorized commit with evidence. The lead owns integration and acceptance.
+
+The shared convention is five files: this README, `AGENTS.md`, `INTENT.md`, `docs/MODERNIZATION.md`, and `repo.schema.json`. Source paths stay in place. Runtime data, credentials, private conversations, and mutable fleet receipts stay outside public repository material.
+
+On October 23, 2026, both discovered local PHP installations were updated to **8.5.12** with the existing configuration and BLAKE3 extension preserved. Run `bun run check:runtime` to inspect the selected CLI. The [runtime receipt](docs/security/runtime-20261023.md) covers the local update; verify the actual serving binary and workers separately. PHP's October 21 security fixes are in 8.5.12, 8.4.27, 8.3.36, and 8.2.35; vendor backports require vendor evidence. [PHP advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
+
+<details>
+<summary>Local setup, source map, bootstrap, and verification commands</summary>
+
+
 EFSDB is an encrypted file system database with canonical manifests, chunked encrypted storage, a PHP reference runtime, and a web control plane.
+
+## Working In This Repository
+
+- [AGENTS.md](AGENTS.md): shared agent entry point and source ownership.
+- [OPERATIONS.md](OPERATIONS.md): checkout identity, PHP configuration, local setup and maintenance.
+- [SCRIPTS.md](SCRIPTS.md): command inventory, generated output and side effects.
+- [TESTING.md](TESTING.md): checks selected by change scope and evidence to report.
+- [POLICIES.md](POLICIES.md): runtime, data and delivery invariants.
 
 ## Active Source Of Truth
 
 - Runtime and host behavior:
   - `efsdb/php/core`
-  - `efsdb/php/runtime`
 - Web apps:
   - `web/apps/login`
   - `web/apps/explorer`
@@ -30,21 +81,22 @@ Historical phase plans and retired drafts now live under `spec/archive`.
 
 ## Run The Demo
 
-From the repo root:
+First validate the PHP configuration and install the pinned WASM build tools in [OPERATIONS.md](OPERATIONS.md). The checked-in ini receives runtime paths through the shared launcher. Once that configuration is valid, run from the repo root:
 
 ```powershell
-bun install
+bun install --frozen-lockfile
+bun run build:wasm
 bun run build:web
 bun run dev
 ```
 
-`bun run build:web` rebuilds the Tailwind PHP shell and ships the active `login`, `explorer`, `builder`, and `admin` web bundles into [efsdb/php/core/public/js](B:\Dev\PHPFS\efsdb\php\core\public\js). Search remains embedded inside the explorer bundle and is not shipped as a standalone host app.
+`bun run build:web` rebuilds the Tailwind PHP shell and ships the active `login`, `explorer`, `builder`, and `admin` web bundles into [efsdb/php/core/public/js](efsdb/php/core/public/js). Search remains embedded inside the explorer bundle and is not shipped as a standalone host app. The native BLAKE3 extension must match the selected PHP ABI, architecture, and thread-safety mode; see the existing [extension build guide](docs/internal/blake3-extension-build-test.md).
 
-Direct PHP startup still works:
+The shared launcher also accepts explicit PHP server arguments:
 
 ```powershell
 $env:EFSDB_ENV = "development"
-php -c efsdb/php/core/php.ini -S 127.0.0.1:8787 -t efsdb/php/core/public
+bun run ./scripts/php-core.ts -- -S 127.0.0.1:8787 -t efsdb/php/core/public efsdb/php/core/public/index.php
 ```
 
 Useful overrides:
@@ -73,6 +125,8 @@ Open [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
 ## Verification
 
+Use [TESTING.md](TESTING.md) to choose checks. `check` regenerates tracked conformance fixtures; API/auth and UI checks reset their dedicated test stores. Review these effects in [SCRIPTS.md](SCRIPTS.md) before running them.
+
 Core validation:
 
 ```powershell
@@ -96,7 +150,7 @@ To keep CLI PHP execution aligned with the app runtime:
 powershell -ExecutionPolicy Bypass -File .\scripts\php-core.ps1 .\efsdb\php\core\bin\apicheck.php
 ```
 
-Manual smoke test:
+Manual smoke test against a disposable local server (creates a user and changes its target):
 
 ```powershell
 $env:EFSDB_BOOTSTRAP_SECRET = "replace-with-your-tenant-admin-key"
@@ -118,3 +172,5 @@ powershell -ExecutionPolicy Bypass -File efsdb/php/core/bin/smoke.ps1
 - [Conformance checklist](spec/CONFORMANCE.md)
 - [Web contract guide](web/contracts/README.md)
 - [Archived phase docs](spec/archive/README.md)
+
+</details>

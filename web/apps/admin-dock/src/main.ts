@@ -1,0 +1,1 @@
+import './AdminDock.ce.svelte';

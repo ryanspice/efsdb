@@ -27,11 +27,22 @@
     AdminWorkspaceProfileMeta,
     AdminWorkspaceUiState,
     AdminWorkspaceWidgetLayout,
+    AdminWidgetWindowFrame,
     AdminWidgetWindowState,
     NoticeState,
     RoleFormState,
     UserFormState
   } from './lib/types';
+  import {
+    ADMIN_DOCK_OPEN_REQUEST_STORAGE_KEY,
+    parseAdminDockOpenRequest
+  } from './lib/globalDockBridge';
+  import {
+    adminWidgetIconMasks as widgetIconMasks,
+    adminWidgetIds as widgetIds,
+    adminWidgetToolbarMeta as widgetToolbarMeta,
+    adminWidgetWindowConfig as widgetWindowConfig
+  } from './lib/widgetCatalog';
 
   import AdminShell from './components/AdminShell.svelte';
   import AdminWorkspaceToolbar from './components/AdminWorkspaceToolbar.svelte';
@@ -43,6 +54,7 @@
   import CreateRoleWidget from './components/CreateRoleWidget.svelte';
   import CreateUserWidget from './components/CreateUserWidget.svelte';
   import DisplayModePanel from './components/DisplayModePanel.svelte';
+  import DockPrefsWidget from './components/DockPrefsWidget.svelte';
   import RolesListWidget from './components/RolesListWidget.svelte';
   import SettingsPayloadWidget from './components/SettingsPayloadWidget.svelte';
   import UsersListWidget from './components/UsersListWidget.svelte';
@@ -52,6 +64,11 @@
     getAppIconMask,
     type AppIconName
   } from '@ui/components/icons/appIconCatalog';
+  import {
+    getWindowSettings,
+    subscribeWindowSettings,
+    type WindowSettings
+  } from '@ui/components/shell/windowSettings';
   import type {
     WorkspaceButtonsActionDraft,
     WorkspaceButtonsItem
@@ -65,42 +82,11 @@
     };
   };
 
-  type WindowConfig = {
-    title: string;
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  };
-
   type WindowDragSeed = {
     pointerId: number;
     clientX: number;
     clientY: number;
   };
-
-  type ToolbarButtonPresentation = 'icon' | 'label';
-  type ToolbarButtonMeta = {
-    label: string;
-    barLabel: string;
-    presentation: ToolbarButtonPresentation;
-    group: string;
-    summary: string;
-  };
-
-  const widgetIds: AdminWidgetId[] = [
-    'create-user',
-    'user-directory',
-    'create-role',
-    'role-directory',
-    'display-mode',
-    'window-preferences',
-    'settings-payload',
-    'catalog-search',
-    'catalog-results',
-    'catalog-facets'
-  ];
-
   const widgetStorageBase = 'widget-windows';
   const workspaceLayoutStorageBase = 'workspace-layouts';
   const workspaceUiStorageBase = 'workspace-ui';
@@ -117,117 +103,41 @@
     'create-role',
     'role-directory',
     'catalog-search',
-    'window-preferences'
+    'window-preferences',
+    'dock-preferences'
   ];
   const defaultToolbarCustomActions = ['workspace-discovery'];
-  const widgetIconNames: Record<AdminWidgetId, AppIconName> = {
-    'create-user': 'create-user',
-    'user-directory': 'user-directory',
-    'create-role': 'create-role',
-    'role-directory': 'role-directory',
-    'display-mode': 'display-mode',
-    'window-preferences': 'window-preferences',
-    'settings-payload': 'settings-payload',
-    'catalog-search': 'catalog-search',
-    'catalog-results': 'catalog-results',
-    'catalog-facets': 'catalog-facets'
-  };
-  const widgetIconMasks = widgetIds.reduce(
-    (accumulator, widgetId) => {
-      accumulator[widgetId] = getAppIconMask(widgetIconNames[widgetId]);
-      return accumulator;
-    },
-    {} as Record<AdminWidgetId, string>
-  );
-
-  const widgetWindowConfig: Record<AdminWidgetId, WindowConfig> = {
-    'create-user': { title: 'Create user', width: 620, height: 540, x: 96, y: 76 },
-    'user-directory': { title: 'User directory', width: 660, height: 620, x: 152, y: 104 },
-    'create-role': { title: 'Create role', width: 640, height: 560, x: 208, y: 92 },
-    'role-directory': { title: 'Role catalog', width: 720, height: 620, x: 264, y: 118 },
-    'display-mode': { title: 'Display mode', width: 640, height: 560, x: 320, y: 86 },
-    'window-preferences': { title: 'Window preferences', width: 720, height: 680, x: 148, y: 188 },
-    'settings-payload': { title: 'Settings payload', width: 840, height: 640, x: 218, y: 142 },
-    'catalog-search': { title: 'Search control', width: 700, height: 420, x: 252, y: 72 },
-    'catalog-results': { title: 'Search results', width: 760, height: 620, x: 286, y: 136 },
-    'catalog-facets': { title: 'Facet distribution', width: 620, height: 560, x: 342, y: 174 }
-  };
-  const widgetToolbarMeta: Record<AdminWidgetId, ToolbarButtonMeta> = {
-    'create-user': {
-      label: 'Create user',
-      barLabel: 'Create',
-      presentation: 'icon',
-      group: 'Provisioning',
-      summary: 'Open the account creator and focus the provisioning form immediately.'
-    },
-    'user-directory': {
-      label: 'Users',
-      barLabel: 'Users',
-      presentation: 'label',
-      group: 'Records',
-      summary: 'Open the user directory, restore it if minimized, and keep active accounts in view.'
-    },
-    'create-role': {
-      label: 'Create role',
-      barLabel: 'Role',
-      presentation: 'icon',
-      group: 'Provisioning',
-      summary: 'Open the role composer so custom tenant permissions can be assembled quickly.'
-    },
-    'role-directory': {
-      label: 'Role catalog',
-      barLabel: 'Roles',
-      presentation: 'label',
-      group: 'Records',
-      summary: 'Open the role catalog and review presets, operator locks, and entitlement coverage.'
-    },
-    'display-mode': {
-      label: 'Display mode',
-      barLabel: 'Modes',
-      presentation: 'icon',
-      group: 'Context',
-      summary: 'Open display mode switching to move between available operating contexts.'
-    },
-    'window-preferences': {
-      label: 'Window manager',
-      barLabel: 'Windows',
-      presentation: 'label',
-      group: 'Windowing',
-      summary: 'Open the staged window manager preview and apply chrome changes only when ready.'
-    },
-    'settings-payload': {
-      label: 'Settings payload',
-      barLabel: 'Payload',
-      presentation: 'icon',
-      group: 'System',
-      summary: 'Inspect the live settings payload and verify the control-plane contract in raw form.'
-    },
-    'catalog-search': {
-      label: 'Discovery',
-      barLabel: 'Search',
-      presentation: 'label',
-      group: 'Search',
-      summary: 'Open the discovery launcher to search workspace resources and system records.'
-    },
-    'catalog-results': {
-      label: 'Search results',
-      barLabel: 'Results',
-      presentation: 'icon',
-      group: 'Search',
-      summary: 'Open the search results surface and review the active discovery response set.'
-    },
-    'catalog-facets': {
-      label: 'Facet distribution',
-      barLabel: 'Facets',
-      presentation: 'icon',
-      group: 'Search',
-      summary: 'Open facet distribution to scan counts and narrow large result sets quickly.'
-    }
-  };
+  const hostThemeVarPairs = [
+    ['--accent', '--admin-accent'],
+    ['--shell-primary', '--admin-shell-primary'],
+    ['--shell-primary-text', '--admin-shell-primary-text'],
+    ['--shell-pill-text', '--admin-shell-pill-text'],
+    ['--shell-bg', '--admin-shell-bg'],
+    ['--shell-body-bg', '--admin-shell-body-bg'],
+    ['--shell-panel', '--admin-shell-panel'],
+    ['--shell-panel-bg', '--admin-shell-panel-bg'],
+    ['--shell-surface', '--admin-shell-surface'],
+    ['--shell-soft-bg', '--admin-shell-soft-bg'],
+    ['--shell-inset-bg', '--admin-shell-inset-bg'],
+    ['--shell-border', '--admin-shell-border'],
+    ['--shell-border-strong', '--admin-shell-border-strong'],
+    ['--shell-text', '--admin-shell-text'],
+    ['--shell-text-strong', '--admin-shell-text-strong'],
+    ['--shell-muted', '--admin-shell-muted'],
+    ['--shell-hover-bg', '--admin-shell-hover-bg'],
+    ['--shell-row-hover', '--admin-shell-row-hover'],
+    ['--shell-shadow', '--admin-shell-shadow'],
+    ['--shell-card-shadow', '--admin-shell-card-shadow'],
+    ['--shell-focus-ring', '--admin-shell-focus-ring'],
+    ['--shell-font-sans', '--admin-shell-font-sans'],
+    ['--efs-font-sans', '--admin-efs-font-sans']
+  ] as const;
+  const hostThemeEvents = ['efsdb-theme-palettechange'] as const;
   const customActionIconOptions: Array<{ value: AppIconName; label: string }> = [
     { value: 'buttons-manager', label: 'Workspace tools' },
     { value: 'catalog-search', label: 'Discovery' },
     { value: 'window-preferences', label: 'Window manager' },
+    { value: 'dock', label: 'Pinned dock' },
     { value: 'display-mode', label: 'Display mode' },
     { value: 'create-user', label: 'Create user' },
     { value: 'create-role', label: 'Create role' },
@@ -305,16 +215,17 @@
 
   function createWidgetWindows(): Record<AdminWidgetId, AdminWidgetWindowState> {
     return {
-      'create-user': { open: false, pinned: false, windowState: 'normal' },
-      'user-directory': { open: false, pinned: false, windowState: 'normal' },
-      'create-role': { open: false, pinned: false, windowState: 'normal' },
-      'role-directory': { open: false, pinned: false, windowState: 'normal' },
-      'display-mode': { open: false, pinned: false, windowState: 'normal' },
-      'window-preferences': { open: false, pinned: false, windowState: 'normal' },
-      'settings-payload': { open: false, pinned: false, windowState: 'normal' },
-      'catalog-search': { open: false, pinned: false, windowState: 'normal' },
-      'catalog-results': { open: false, pinned: false, windowState: 'normal' },
-      'catalog-facets': { open: false, pinned: false, windowState: 'normal' }
+      'create-user': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'user-directory': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'create-role': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'role-directory': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'display-mode': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'window-preferences': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'dock-preferences': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'settings-payload': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'catalog-search': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'catalog-results': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null },
+      'catalog-facets': { open: false, pinned: false, windowState: 'normal', snapTarget: null, frame: null, restoreFrame: null }
     };
   }
 
@@ -328,8 +239,9 @@
       'catalog-search': { col: 1, row: 37, width: 4, height: 14 },
       'catalog-results': { col: 5, row: 37, width: 5, height: 18 },
       'catalog-facets': { col: 10, row: 37, width: 3, height: 18 },
-      'window-preferences': { col: 1, row: 51, width: 4, height: 22 },
-      'settings-payload': { col: 5, row: 73, width: 8, height: 14 }
+      'window-preferences': { col: 1, row: 51, width: 6, height: 22 },
+      'dock-preferences': { col: 7, row: 51, width: 6, height: 16 },
+      'settings-payload': { col: 1, row: 73, width: 12, height: 14 }
     };
   }
 
@@ -644,6 +556,41 @@
     return value === 'normal' || value === 'maximized' || value === 'minimized' || value === 'rolled-up';
   }
 
+  function isWindowSnapTarget(value: unknown): value is NonNullable<AdminWidgetWindowState['snapTarget']> {
+    return (
+      value === 'maximize' ||
+      value === 'left-half' ||
+      value === 'right-half' ||
+      value === 'top-left' ||
+      value === 'top-right' ||
+      value === 'bottom-left' ||
+      value === 'bottom-right'
+    );
+  }
+
+  function normalizeStoredWindowFrame(value: unknown): AdminWidgetWindowFrame | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    const candidate = value as Partial<AdminWidgetWindowFrame>;
+    const x = Number(candidate.x);
+    const y = Number(candidate.y);
+    const width = Number(candidate.width);
+    const height = Number(candidate.height);
+
+    if (![x, y, width, height].every((entry) => Number.isFinite(entry))) {
+      return null;
+    }
+
+    return {
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.max(320, Math.round(width)),
+      height: Math.max(220, Math.round(height))
+    };
+  }
+
   function normalizeWidgetWindows(
     value: unknown
   ): Record<AdminWidgetId, AdminWidgetWindowState> {
@@ -664,7 +611,10 @@
       defaults[widgetId] = {
         open: Boolean(candidate.open),
         pinned: Boolean(candidate.pinned),
-        windowState: isWindowMode(candidate.windowState) ? candidate.windowState : 'normal'
+        windowState: isWindowMode(candidate.windowState) ? candidate.windowState : 'normal',
+        frame: normalizeStoredWindowFrame(candidate.frame),
+        restoreFrame: normalizeStoredWindowFrame(candidate.restoreFrame),
+        snapTarget: isWindowSnapTarget(candidate.snapTarget) ? candidate.snapTarget : null
       };
     }
 
@@ -880,6 +830,7 @@
   let roleResult = $state<NoticeState | null>(null);
   let catalogQuery = $state('');
   let catalogEntity = $state('public_workspace_files');
+  let windowSettings = $state(getWindowSettings());
 
   let activeUserCount = $derived(users.filter((user) => user.status.toLowerCase() === 'active').length);
   let assignableRoleCount = $derived(roles.filter((role) => !role.operatorOnly).length);
@@ -943,6 +894,7 @@
   let workspaceToolbarItems = $derived(
     [...workspaceToolbarWidgets, ...workspaceToolbarActions] as WorkspaceButtonsItem[]
   );
+  let dockLabelMode = $derived(windowSettings.dockLabelMode);
   let edgeDockItems = $derived(
     dockWidgetIds.map((widgetId) => ({
       id: widgetId,
@@ -974,8 +926,37 @@
     }
   ]);
 
+  function syncHostThemeSurface(theme: BootstrapTheme = getTheme()): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const rootElement = window.document.documentElement;
+    const rootStyle = window.getComputedStyle(rootElement);
+
+    hostThemeVarPairs.forEach(([source, target]) => {
+      const value = rootStyle.getPropertyValue(source).trim();
+
+      if (value) {
+        host.style.setProperty(target, value);
+        return;
+      }
+
+      host.style.removeProperty(target);
+    });
+
+    const resolvedTheme = rootElement.getAttribute('data-theme') === 'light' || theme === 'light'
+      ? 'light'
+      : 'dark';
+    host.setAttribute('theme', resolvedTheme);
+  }
+
+  function syncHostWindowSettings(nextSettings: WindowSettings = windowSettings): void {
+    host.setAttribute('data-page-theme', nextSettings.pageThemeSpread);
+  }
+
   function applyTheme(theme: BootstrapTheme): void {
-    host.setAttribute('theme', theme);
+    syncHostThemeSurface(theme);
   }
 
   function syncWindowStack(): void {
@@ -1025,6 +1006,27 @@
     const nextStates = { ...edgeDockRestoreStates };
     delete nextStates[widgetId];
     edgeDockRestoreStates = nextStates;
+  }
+
+  function syncPinnedWindowFlags(pinnedWidgets: AdminWidgetId[]): void {
+    for (const widgetId of widgetIds) {
+      widgetWindows[widgetId].pinned = pinnedWidgets.includes(widgetId) && widgetWindows[widgetId].open;
+    }
+  }
+
+  function handleGlobalDockOpenRequest(raw: string | null): void {
+    const request = parseAdminDockOpenRequest(raw);
+    if (!request || !widgetIds.includes(request.widgetId)) {
+      return;
+    }
+
+    openWidget(request.widgetId, {
+      pinned: request.pinned
+    });
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(ADMIN_DOCK_OPEN_REQUEST_STORAGE_KEY);
+    }
   }
 
   function consumeWindowDragSeed(widgetId: AdminWidgetId): void {
@@ -1508,7 +1510,10 @@
         accumulator[widgetId] = {
           open: widgetWindows[widgetId].open,
           pinned: widgetWindows[widgetId].pinned,
-          windowState: widgetWindows[widgetId].windowState
+          windowState: widgetWindows[widgetId].windowState,
+          frame: widgetWindows[widgetId].frame ?? null,
+          restoreFrame: widgetWindows[widgetId].restoreFrame ?? null,
+          snapTarget: widgetWindows[widgetId].snapTarget ?? null
         };
         return accumulator;
       },
@@ -1590,8 +1595,21 @@
 
   onMount(() => {
     applyTheme(getTheme());
+    syncHostWindowSettings(windowSettings);
+
+    const syncThemeSurface = () => {
+      syncHostThemeSurface(getTheme());
+    };
     const removeThemeListener = onThemeChange((theme) => {
       applyTheme(theme);
+    });
+    const removeWindowSettingsListener = subscribeWindowSettings((nextSettings) => {
+      windowSettings = nextSettings;
+      syncHostWindowSettings(nextSettings);
+    });
+
+    hostThemeEvents.forEach((eventName) => {
+      window.addEventListener(eventName, syncThemeSurface);
     });
 
     try {
@@ -1636,6 +1654,7 @@
         [...workspaceUi.edgePinnedWidgets, ...widgetIds.filter((widgetId) => widgetWindows[widgetId].pinned)],
         workspaceUi.edgePinnedWidgets
       );
+      syncPinnedWindowFlags(workspaceUi.edgePinnedWidgets);
       workspaceLayouts = compactWorkspaceLayouts(workspaceLayouts, workspaceUi.hiddenWidgets);
       workspaceStack = widgetIds.filter((widgetId) => !workspaceUi.hiddenWidgets.includes(widgetId));
 
@@ -1643,6 +1662,8 @@
       if (storedDockState) {
         edgeDockState = normalizeEdgeDockState(JSON.parse(storedDockState));
       }
+
+      handleGlobalDockOpenRequest(localStorage.getItem(ADMIN_DOCK_OPEN_REQUEST_STORAGE_KEY));
     } catch (error: unknown) {
       void error;
     }
@@ -1655,13 +1676,51 @@
     syncCompactWorkspace();
     compactMedia.addEventListener('change', syncCompactWorkspace);
 
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === getGlobalStorageKey(edgeDockStorageBase)) {
+        try {
+          const nextPinnedWidgets = normalizeWorkspaceWidgetList(
+            event.newValue ? JSON.parse(event.newValue) : [],
+            []
+          );
+          workspaceUi.edgePinnedWidgets = nextPinnedWidgets;
+          syncPinnedWindowFlags(nextPinnedWidgets);
+        } catch {
+          void 0;
+        }
+        return;
+      }
+
+      if (event.key === getGlobalStorageKey(edgeDockStateStorageBase)) {
+        try {
+          edgeDockState = event.newValue
+            ? normalizeEdgeDockState(JSON.parse(event.newValue))
+            : createEdgeDockState();
+        } catch {
+          edgeDockState = createEdgeDockState();
+        }
+        return;
+      }
+
+      if (event.key === ADMIN_DOCK_OPEN_REQUEST_STORAGE_KEY) {
+        handleGlobalDockOpenRequest(event.newValue);
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+
     widgetPersistenceReady = true;
 
     void refreshAll();
 
     return () => {
+      window.removeEventListener('storage', handleStorage);
       compactMedia.removeEventListener('change', syncCompactWorkspace);
+      hostThemeEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, syncThemeSurface);
+      });
       removeThemeListener();
+      removeWindowSettingsListener();
     };
   });
 </script>
@@ -1931,6 +1990,29 @@
       </AdminWorkspaceItem>
     {/if}
 
+    {#if isWidgetVisibleInWorkspace('dock-preferences')}
+      <AdminWorkspaceItem
+        title="Dock preferences"
+        layout={displayWorkspaceLayouts['dock-preferences']}
+        canvasWidth={workspaceWidth}
+        compact={workspaceCompact}
+        editable={workspaceEditing}
+        zIndex={getWorkspaceZIndex('dock-preferences')}
+        onChange={(layout) => updateWorkspaceLayout('dock-preferences', layout)}
+        onPreviewChange={(layout) => setWorkspacePreview('dock-preferences', layout)}
+        onShiftPopoutStart={(seed) => openWidget('dock-preferences', { pinned: true, dragSeed: seed })}
+        onFocus={() => bringWorkspaceToFront('dock-preferences')}
+      >
+        <DockPrefsWidget
+          dataTestid="admin-dock-settings-panel"
+          open={isWidgetDetached('dock-preferences')}
+          pinned={widgetWindows['dock-preferences'].pinned}
+          onOpen={() => openWidget('dock-preferences')}
+          onTogglePin={() => toggleWidgetPin('dock-preferences')}
+        />
+      </AdminWorkspaceItem>
+    {/if}
+
     {#if isWidgetVisibleInWorkspace('settings-payload')}
       <AdminWorkspaceItem
         title="Settings payload"
@@ -1958,7 +2040,11 @@
   {#if widgetWindows['create-user'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['create-user'].title}
+      helpText={widgetToolbarMeta['create-user'].summary}
       bind:windowState={widgetWindows['create-user'].windowState}
+      bind:frame={widgetWindows['create-user'].frame}
+      bind:restoreFrame={widgetWindows['create-user'].restoreFrame}
+      bind:snapTarget={widgetWindows['create-user'].snapTarget}
       pinned={widgetWindows['create-user'].pinned}
       defaultWidth={widgetWindowConfig['create-user'].width}
       defaultHeight={widgetWindowConfig['create-user'].height}
@@ -1988,7 +2074,11 @@
   {#if widgetWindows['user-directory'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['user-directory'].title}
+      helpText={widgetToolbarMeta['user-directory'].summary}
       bind:windowState={widgetWindows['user-directory'].windowState}
+      bind:frame={widgetWindows['user-directory'].frame}
+      bind:restoreFrame={widgetWindows['user-directory'].restoreFrame}
+      bind:snapTarget={widgetWindows['user-directory'].snapTarget}
       pinned={widgetWindows['user-directory'].pinned}
       defaultWidth={widgetWindowConfig['user-directory'].width}
       defaultHeight={widgetWindowConfig['user-directory'].height}
@@ -2013,7 +2103,11 @@
   {#if widgetWindows['create-role'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['create-role'].title}
+      helpText={widgetToolbarMeta['create-role'].summary}
       bind:windowState={widgetWindows['create-role'].windowState}
+      bind:frame={widgetWindows['create-role'].frame}
+      bind:restoreFrame={widgetWindows['create-role'].restoreFrame}
+      bind:snapTarget={widgetWindows['create-role'].snapTarget}
       pinned={widgetWindows['create-role'].pinned}
       defaultWidth={widgetWindowConfig['create-role'].width}
       defaultHeight={widgetWindowConfig['create-role'].height}
@@ -2042,7 +2136,11 @@
   {#if widgetWindows['role-directory'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['role-directory'].title}
+      helpText={widgetToolbarMeta['role-directory'].summary}
       bind:windowState={widgetWindows['role-directory'].windowState}
+      bind:frame={widgetWindows['role-directory'].frame}
+      bind:restoreFrame={widgetWindows['role-directory'].restoreFrame}
+      bind:snapTarget={widgetWindows['role-directory'].snapTarget}
       pinned={widgetWindows['role-directory'].pinned}
       defaultWidth={widgetWindowConfig['role-directory'].width}
       defaultHeight={widgetWindowConfig['role-directory'].height}
@@ -2067,7 +2165,11 @@
   {#if widgetWindows['display-mode'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['display-mode'].title}
+      helpText={widgetToolbarMeta['display-mode'].summary}
       bind:windowState={widgetWindows['display-mode'].windowState}
+      bind:frame={widgetWindows['display-mode'].frame}
+      bind:restoreFrame={widgetWindows['display-mode'].restoreFrame}
+      bind:snapTarget={widgetWindows['display-mode'].snapTarget}
       pinned={widgetWindows['display-mode'].pinned}
       defaultWidth={widgetWindowConfig['display-mode'].width}
       defaultHeight={widgetWindowConfig['display-mode'].height}
@@ -2094,7 +2196,11 @@
   {#if widgetWindows['window-preferences'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['window-preferences'].title}
+      helpText={widgetToolbarMeta['window-preferences'].summary}
       bind:windowState={widgetWindows['window-preferences'].windowState}
+      bind:frame={widgetWindows['window-preferences'].frame}
+      bind:restoreFrame={widgetWindows['window-preferences'].restoreFrame}
+      bind:snapTarget={widgetWindows['window-preferences'].snapTarget}
       pinned={widgetWindows['window-preferences'].pinned}
       defaultWidth={widgetWindowConfig['window-preferences'].width}
       defaultHeight={widgetWindowConfig['window-preferences'].height}
@@ -2115,10 +2221,42 @@
     </AdminWidgetWindow>
   {/if}
 
+  {#if widgetWindows['dock-preferences'].open}
+    <AdminWidgetWindow
+      title={widgetWindowConfig['dock-preferences'].title}
+      helpText={widgetToolbarMeta['dock-preferences'].summary}
+      bind:windowState={widgetWindows['dock-preferences'].windowState}
+      bind:frame={widgetWindows['dock-preferences'].frame}
+      bind:restoreFrame={widgetWindows['dock-preferences'].restoreFrame}
+      bind:snapTarget={widgetWindows['dock-preferences'].snapTarget}
+      pinned={widgetWindows['dock-preferences'].pinned}
+      defaultWidth={widgetWindowConfig['dock-preferences'].width}
+      defaultHeight={widgetWindowConfig['dock-preferences'].height}
+      defaultX={widgetWindowConfig['dock-preferences'].x}
+      defaultY={widgetWindowConfig['dock-preferences'].y}
+      zIndex={getWindowZIndex('dock-preferences')}
+      dragSeed={windowDragSeeds['dock-preferences'] ?? null}
+      onClose={() => closeWidget('dock-preferences')}
+      onFocus={() => bringWindowToFront('dock-preferences')}
+      onPinToggle={() => toggleWidgetPin('dock-preferences')}
+      onConsumeDragSeed={() => consumeWindowDragSeed('dock-preferences')}
+    >
+      <DockPrefsWidget
+        mode="window"
+        pinned={widgetWindows['dock-preferences'].pinned}
+        onTogglePin={() => toggleWidgetPin('dock-preferences')}
+      />
+    </AdminWidgetWindow>
+  {/if}
+
   {#if widgetWindows['settings-payload'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['settings-payload'].title}
+      helpText={widgetToolbarMeta['settings-payload'].summary}
       bind:windowState={widgetWindows['settings-payload'].windowState}
+      bind:frame={widgetWindows['settings-payload'].frame}
+      bind:restoreFrame={widgetWindows['settings-payload'].restoreFrame}
+      bind:snapTarget={widgetWindows['settings-payload'].snapTarget}
       pinned={widgetWindows['settings-payload'].pinned}
       defaultWidth={widgetWindowConfig['settings-payload'].width}
       defaultHeight={widgetWindowConfig['settings-payload'].height}
@@ -2143,7 +2281,11 @@
   {#if widgetWindows['catalog-search'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['catalog-search'].title}
+      helpText={widgetToolbarMeta['catalog-search'].summary}
       bind:windowState={widgetWindows['catalog-search'].windowState}
+      bind:frame={widgetWindows['catalog-search'].frame}
+      bind:restoreFrame={widgetWindows['catalog-search'].restoreFrame}
+      bind:snapTarget={widgetWindows['catalog-search'].snapTarget}
       pinned={widgetWindows['catalog-search'].pinned}
       defaultWidth={widgetWindowConfig['catalog-search'].width}
       defaultHeight={widgetWindowConfig['catalog-search'].height}
@@ -2176,7 +2318,11 @@
   {#if widgetWindows['catalog-results'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['catalog-results'].title}
+      helpText={widgetToolbarMeta['catalog-results'].summary}
       bind:windowState={widgetWindows['catalog-results'].windowState}
+      bind:frame={widgetWindows['catalog-results'].frame}
+      bind:restoreFrame={widgetWindows['catalog-results'].restoreFrame}
+      bind:snapTarget={widgetWindows['catalog-results'].snapTarget}
       pinned={widgetWindows['catalog-results'].pinned}
       defaultWidth={widgetWindowConfig['catalog-results'].width}
       defaultHeight={widgetWindowConfig['catalog-results'].height}
@@ -2203,7 +2349,11 @@
   {#if widgetWindows['catalog-facets'].open}
     <AdminWidgetWindow
       title={widgetWindowConfig['catalog-facets'].title}
+      helpText={widgetToolbarMeta['catalog-facets'].summary}
       bind:windowState={widgetWindows['catalog-facets'].windowState}
+      bind:frame={widgetWindows['catalog-facets'].frame}
+      bind:restoreFrame={widgetWindows['catalog-facets'].restoreFrame}
+      bind:snapTarget={widgetWindows['catalog-facets'].snapTarget}
       pinned={widgetWindows['catalog-facets'].pinned}
       defaultWidth={widgetWindowConfig['catalog-facets'].width}
       defaultHeight={widgetWindowConfig['catalog-facets'].height}
@@ -2230,6 +2380,7 @@
 <ToolDock
   items={edgeDockItems}
   position={edgeDockState}
+  labelMode={dockLabelMode}
   onActivate={activateEdgeDockItem}
   onRemove={removeEdgeDockItem}
   onPositionChange={(position) => {
@@ -2238,171 +2389,200 @@
 />
 
 <style>
+  @import '../../../styles/win7.css';
+  @import '../../../styles/win7-overrides.css';
+
   :host {
     display: block;
     padding: clamp(1rem, 1rem + 0.8vw, 1.75rem);
-    font-family: var(--efs-font-sans);
+    font-family:
+      var(
+        --admin-efs-font-sans,
+        var(--admin-shell-font-sans, var(--efs-font-sans, var(--shell-font-sans)))
+      );
     color-scheme: dark;
-    color: var(--efs-text-primary, #e6eefb);
+    color: var(--admin-shell-text, #e6eefb);
     background:
       radial-gradient(
-        circle at top,
-        color-mix(in srgb, var(--efs-accent-primary, #8bc6ff), transparent 90%),
+        circle at top left,
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #8bc6ff)),
+          transparent 88%
+        ),
         transparent 28%
       ),
       radial-gradient(
         circle at bottom right,
-        color-mix(in srgb, var(--efs-accent-strong, #c4b5fd), transparent 92%),
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #8bc6ff)),
+          transparent 94%
+        ),
         transparent 24%
       ),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 36%);
-    --shell-panel-base: color-mix(
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%),
+      color-mix(
+        in srgb,
+        var(--admin-shell-body-bg, var(--admin-shell-bg, rgba(5, 11, 25, 0.94))),
+        transparent 0%
+      );
+    --shell-primary: var(--admin-shell-primary, var(--admin-accent, #8bc6ff));
+    --shell-primary-text: var(--admin-shell-primary-text, var(--admin-shell-pill-text, #07101f));
+    --shell-panel: color-mix(
       in srgb,
-      var(--efs-bg-surface-1, rgba(7, 15, 32, 0.88)),
-      transparent 6%
-    );
-    --shell-surface-base: color-mix(
-      in srgb,
-      var(--efs-bg-surface-0, rgba(5, 11, 25, 0.94)),
-      transparent 2%
-    );
-    --shell-border-base: color-mix(
-      in srgb,
-      var(--efs-border-default, rgba(132, 146, 166, 0.18)),
+      var(--admin-shell-panel-bg, var(--admin-shell-panel, rgba(7, 15, 32, 0.88))),
       transparent 4%
     );
-    --shell-text: var(--efs-text-primary, #e6eefb);
-    --shell-muted: var(--efs-text-secondary, #94a8c7);
-    --shell-primary: var(--efs-accent-primary, #8bc6ff);
-    --shell-primary-text: var(--efs-text-inverse, #07101f);
-    --shell-card-shadow-base: var(--efs-shadow-shell, 0 28px 60px rgba(0, 0, 0, 0.34));
-    --shell-focus-ring:
-      0 0 0 4px color-mix(
-        in srgb,
-        var(--efs-accent-focus, var(--efs-accent-primary, #8bc6ff)),
-        transparent 76%
-      );
-    --shell-row-hover-base: color-mix(
+    --shell-surface: color-mix(
       in srgb,
-      var(--efs-accent-primary, #8bc6ff),
-      transparent 92%
+      var(--admin-shell-soft-bg, var(--admin-shell-surface, rgba(5, 11, 25, 0.94))),
+      transparent 2%
     );
-    --shell-panel: var(--shell-panel-base);
-    --shell-surface: var(--shell-surface-base);
-    --shell-border: var(--shell-border-base);
-    --shell-card-shadow: var(--shell-card-shadow-base);
-    --shell-row-hover: var(--shell-row-hover-base);
+    --shell-border: color-mix(
+      in srgb,
+      var(--admin-shell-border, rgba(132, 146, 166, 0.18)),
+      transparent 6%
+    );
+    --shell-text: var(--admin-shell-text, #e6eefb);
+    --shell-text-strong: var(--admin-shell-text-strong, var(--admin-shell-text, #f8fafc));
+    --shell-muted: var(--admin-shell-muted, #94a8c7);
+    --shell-card-shadow:
+      var(--admin-shell-card-shadow, var(--admin-shell-shadow, 0 28px 60px rgba(0, 0, 0, 0.34)));
+    --shell-focus-ring:
+      var(
+        --admin-shell-focus-ring,
+        0 0 0 4px
+          color-mix(
+            in srgb,
+            var(--admin-shell-primary, var(--admin-accent, #8bc6ff)),
+            transparent 76%
+          )
+      );
+    --shell-row-hover:
+      var(
+        --admin-shell-row-hover,
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #8bc6ff)),
+          transparent 92%
+        )
+      );
   }
 
   :host([theme='light']) {
     color-scheme: light;
-    color: var(--efs-text-primary, #0f172a);
+    color: var(--admin-shell-text, #0f172a);
     background:
       radial-gradient(
-        circle at top,
-        color-mix(in srgb, var(--efs-accent-primary, #0f172a), transparent 92%),
+        circle at top left,
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #0f172a)),
+          transparent 90%
+        ),
         transparent 24%
       ),
       radial-gradient(
         circle at bottom right,
-        color-mix(in srgb, var(--efs-accent-strong, #2563eb), transparent 92%),
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #0f172a)),
+          transparent 92%
+        ),
         transparent 26%
       ),
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--efs-bg-surface-0, #ffffff), white 4%),
-        color-mix(in srgb, var(--efs-bg-app, #f8fafc), transparent 8%)
+        color-mix(
+          in srgb,
+          var(--admin-shell-panel-bg, var(--admin-shell-panel, #ffffff)),
+          white 4%
+        ),
+        color-mix(in srgb, var(--admin-shell-body-bg, var(--admin-shell-bg, #f8fafc)), transparent 8%)
       );
-    --shell-panel-base: color-mix(in srgb, var(--efs-bg-surface-0, #ffffff), transparent 2%);
-    --shell-surface-base: color-mix(in srgb, var(--efs-bg-surface-0, #ffffff), white 2%);
-    --shell-border-base: var(--efs-border-default, #e2e8f0);
-    --shell-text: var(--efs-text-primary, #0f172a);
-    --shell-muted: var(--efs-text-muted, #64748b);
-    --shell-primary: var(--efs-accent-primary, #0f172a);
-    --shell-primary-text: #ffffff;
-    --shell-card-shadow-base: 0 18px 40px rgba(15, 23, 42, 0.08);
-    --shell-focus-ring:
-      0 0 0 4px color-mix(
-        in srgb,
-        var(--efs-accent-focus, var(--efs-accent-primary, #0f172a)),
-        transparent 84%
-      );
-    --shell-row-hover-base: color-mix(
-      in srgb,
-      var(--efs-accent-primary, #0f172a),
-      transparent 94%
-    );
   }
 
-  :host([theme='dark']) {
+  :host([theme='dark']),
+  :host([theme='green']) {
     color-scheme: dark;
-    color: var(--efs-text-primary, #e6eefb);
+    color: var(--admin-shell-text, #e6eefb);
     background:
       radial-gradient(
         circle at top left,
-        color-mix(in srgb, var(--efs-accent-primary, #7dd3fc), transparent 88%),
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #7dd3fc)),
+          transparent 88%
+        ),
         transparent 26%
       ),
       radial-gradient(
         circle at bottom right,
-        color-mix(in srgb, var(--efs-accent-strong, #34d399), transparent 94%),
+        color-mix(
+          in srgb,
+          var(--admin-shell-primary, var(--admin-accent, #34d399)),
+          transparent 94%
+        ),
         transparent 24%
       ),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%);
-    --shell-panel-base: color-mix(
-      in srgb,
-      var(--efs-bg-surface-1, rgba(9, 18, 38, 0.9)),
-      transparent 4%
-    );
-    --shell-surface-base: color-mix(
-      in srgb,
-      var(--efs-bg-surface-0, rgba(4, 11, 24, 0.96)),
-      transparent 2%
-    );
-    --shell-border-base: color-mix(
-      in srgb,
-      var(--efs-border-default, rgba(122, 143, 171, 0.2)),
-      transparent 6%
-    );
-    --shell-text: var(--efs-text-primary, #e6eefb);
-    --shell-muted: var(--efs-text-secondary, #96a9c6);
-    --shell-primary: var(--efs-accent-primary, #7dd3fc);
-    --shell-primary-text: #04111f;
-    --shell-card-shadow-base: 0 32px 68px rgba(0, 0, 0, 0.42);
-    --shell-focus-ring:
-      0 0 0 4px color-mix(
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      color-mix(
         in srgb,
-        var(--efs-accent-focus, var(--efs-accent-primary, #7dd3fc)),
-        transparent 78%
+        var(--admin-shell-body-bg, var(--admin-shell-bg, rgba(4, 11, 24, 0.96))),
+        transparent 0%
       );
-    --shell-row-hover-base: color-mix(
-      in srgb,
-      var(--efs-accent-primary, #7dd3fc),
-      transparent 92%
-    );
   }
 
-  :host([theme='green']) {
-    color-scheme: dark;
-    --shell-primary: var(--efs-accent-primary, #c6ff00);
-    --shell-primary-text: #050804;
-    --shell-panel-base: rgba(12, 20, 10, 0.8);
-    --shell-surface-base: rgba(28, 39, 26, 0.62);
-    --shell-border-base: rgba(198, 255, 0, 0.12);
-    --shell-text: #e7eddc;
-    --shell-muted: #a2b392;
-    --shell-card-shadow-base: 0 20px 44px rgba(0, 0, 0, 0.32);
-    --shell-focus-ring:
-      0 0 0 4px color-mix(
-        in srgb,
-        var(--efs-accent-focus, var(--efs-accent-primary, #c6ff00)),
-        transparent 80%
-      );
-    --shell-row-hover-base: color-mix(
+  :host([data-page-theme='expanded']) {
+    --shell-panel: color-mix(
       in srgb,
-      var(--efs-accent-primary, #c6ff00),
-      transparent 94%
+      var(--admin-shell-panel-bg, var(--admin-shell-panel, rgba(7, 15, 32, 0.88))),
+      var(--shell-primary) 6%
     );
+    --shell-surface: color-mix(
+      in srgb,
+      var(--admin-shell-soft-bg, var(--admin-shell-surface, rgba(5, 11, 25, 0.94))),
+      var(--shell-primary) 7%
+    );
+    --shell-border: color-mix(
+      in srgb,
+      var(--shell-primary),
+      var(--admin-shell-border, rgba(132, 146, 166, 0.18)) 78%
+    );
+    --shell-card-shadow:
+      0 22px 48px color-mix(in srgb, var(--shell-primary), transparent 92%),
+      var(--admin-shell-card-shadow, var(--admin-shell-shadow, 0 28px 60px rgba(0, 0, 0, 0.34)));
+    --shell-row-hover:
+      color-mix(in srgb, var(--shell-primary), var(--admin-shell-hover-bg, transparent) 86%);
+  }
+
+  :host([data-page-theme='expanded']) .workspace-canvas::before {
+    border: 1px solid color-mix(in srgb, var(--shell-primary), var(--shell-border) 72%);
+    background:
+      linear-gradient(
+        90deg,
+        transparent 0,
+        transparent calc(100% / 12 - 1px),
+        color-mix(in srgb, var(--shell-primary), transparent 86%) calc(100% / 12 - 1px),
+        transparent calc(100% / 12)
+      ),
+      linear-gradient(
+        180deg,
+        transparent 0,
+        transparent 23px,
+        color-mix(in srgb, var(--shell-primary), transparent 90%) 23px,
+        transparent 24px
+      ),
+      radial-gradient(
+        circle at top left,
+        color-mix(in srgb, var(--shell-primary), transparent 88%),
+        transparent 42%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 36%);
+    box-shadow:
+      0 20px 42px color-mix(in srgb, var(--shell-primary), transparent 94%),
+      inset 0 0 0 1px color-mix(in srgb, var(--shell-primary), transparent 90%);
   }
 
   .workspace-canvas {

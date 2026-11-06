@@ -1,0 +1,101 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: 'true'
+  TMPDIR: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  TEMP: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  TMP: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.ai/evidence/ci/browsers
+  EFSDB_PHP_ERROR_LOG: ${{ github.workspace }}/.ai/evidence/ci/php-error.log
+
+jobs:
+  web:
+    name: Web types, shipped bundles and browser regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.23'
+      - uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install pinned WASM packaging tool
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/.ai/evidence/ci/wasm-pack-target
+        run: |
+          cargo install wasm-pack --version 0.14.0 --locked --root "$GITHUB_WORKSPACE/.ai/evidence/ci/wasm-pack"
+          echo "$GITHUB_WORKSPACE/.ai/evidence/ci/wasm-pack/bin" >> "$GITHUB_PATH"
+      - uses: shivammathur/setup-php@v2
+        env:
+          update: 'true'
+          fail-fast: 'true'
+        with:
+          php-version: '8.5'
+          coverage: none
+          extensions: mbstring, openssl, sodium, phar, zip, zlib, iconv
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Enforce PHP security floor
+        run: bun run check:runtime
+      - name: Build locked Rust WASM and generated browser types
+        run: bun run build:wasm 2>&1 | tee .ai/evidence/ci/wasm-build.log
+      - name: Smoke the generated WASM inspector
+        working-directory: web
+        run: bunx vitest run ui/tests/wasm-smoke.test.ts --reporter=verbose 2>&1 | tee ../.ai/evidence/ci/wasm-smoke.log
+      - name: Typecheck web contracts and applications
+        run: bun run web:typecheck 2>&1 | tee .ai/evidence/ci/web-types.log
+      - name: Build shipped web assets
+        run: bun run build:web 2>&1 | tee .ai/evidence/ci/web-build.log
+      - name: Install native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf build-essential pkg-config
+      - name: Build BLAKE3 for the selected PHP ABI
+        run: bash scripts/ci-build-blake3.sh 2>&1 | tee .ai/evidence/ci/native-build.log
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+        working-directory: web
+      - name: Run browser characterization with a fresh synthetic store
+        run: bun run web:test:ui 2>&1 | tee .ai/evidence/ci/browser.log
+      - name: Upload check and browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: efsdb-web
+          path: |
+            .ai/evidence/ci/*.log
+            .ai/evidence/ci/blake3-build.txt
+            .ai/evidence/wasm/build-*/receipt.json
+            .ai/evidence/playwright/report/
+            .ai/evidence/playwright/test-results/
+            .ai/evidence/playwright/run-*/php-error.log
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true

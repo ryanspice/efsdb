@@ -5,6 +5,8 @@ require_once __DIR__ . '/Crypto.php';
 require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/IndexManager.php';
 require_once __DIR__ . '/RequestTiming.php';
+require_once __DIR__ . '/FilesystemLock.php';
+require_once __DIR__ . '/KeyFile.php';
 
 final class Store
 {
@@ -37,6 +39,16 @@ final class Store
         return $this->dir;
     }
 
+    /**
+     * @template T
+     * @param callable(): T $operation
+     * @return T
+     */
+    public function withExclusiveLock(string $resource, callable $operation): mixed
+    {
+        return FilesystemLock::exclusive($this->dir, $resource, $operation);
+    }
+
     public function getIndexManager(): IndexManager
     {
         if ($this->indexManager === null) {
@@ -54,8 +66,7 @@ final class Store
 
     public function initMasterKey(): string
     {
-        $b64 = Crypto::randomKeyB64();
-        file_put_contents($this->dir . '/master.key', $b64, LOCK_EX);
+        $b64 = KeyFile::loadOrCreate($this->dir, 'master.key');
         $this->loadKey();
         return $b64;
     }
@@ -173,7 +184,7 @@ final class Store
             $totalSize += $len;
         }
 
-        $mtime = gmdate('c');
+        $mtime = $this->timestamp();
         $mime = (string)($meta['mime'] ?? 'application/octet-stream');
         $indexSource = $meta['indexesSource'] ?? $meta;
         $lookupSource = is_array($indexSource) ? $indexSource : [];
@@ -454,7 +465,7 @@ final class Store
     {
         $manifest = $this->getManifest($entity, $id);
         $retentionDays = max(0, (int)($options['retentionDays'] ?? 30));
-        $at = (string)($options['at'] ?? gmdate('c'));
+        $at = (string)($options['at'] ?? $this->timestamp());
         $retainUntil = (string)($options['retainUntil'] ?? gmdate('c', strtotime($at) + ($retentionDays * 86400)));
 
         $manifest['lifecycle'] ??= [];
@@ -464,7 +475,7 @@ final class Store
             'reason' => isset($options['reason']) ? (string)$options['reason'] : '',
             'retainUntil' => $retainUntil,
         ];
-        $manifest['mtime'] = gmdate('c');
+        $manifest['mtime'] = $this->timestamp();
 
         $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
@@ -484,14 +495,14 @@ final class Store
 
         $manifest['lifecycle'] ??= [];
         unset($manifest['lifecycle']['tombstone']);
-        $manifest['lifecycle']['restoredAt'] = gmdate('c');
+        $manifest['lifecycle']['restoredAt'] = $this->timestamp();
         if (isset($options['actorId'])) {
             $manifest['lifecycle']['restoredBy'] = (string)$options['actorId'];
         }
         if ($manifest['lifecycle'] === []) {
             unset($manifest['lifecycle']);
         }
-        $manifest['mtime'] = gmdate('c');
+        $manifest['mtime'] = $this->timestamp();
 
         $manifest = $this->writeManifest($entity, $id, $manifest);
         $this->getIndexManager()->update($entity, $manifest, $this->schemaLoader->getIndexDefinitions($entity));
@@ -708,9 +719,14 @@ final class Store
 
     private function mkdir(string $dir): void
     {
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+            throw new RuntimeException('Unable to create store directory');
         }
+    }
+
+    private function timestamp(): string
+    {
+        return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.u\Z');
     }
 
     private function loadKey(): void

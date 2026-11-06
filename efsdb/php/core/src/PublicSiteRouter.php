@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/DeliveryModeResolver.php';
 require_once __DIR__ . '/PublicWorkspace.php';
 require_once __DIR__ . '/User.php';
+require_once __DIR__ . '/PublicAssetPolicy.php';
 
 final class PublicSiteRuntimeContext
 {
@@ -141,21 +142,40 @@ final class PublicSiteRouter
     /**
      * @return array{status:int,headers:array<string,string>,body:string}|null
      */
-    public function handle(string $uriPath, string $method, User $user, array $requestHeaders = []): ?array
+    public function handle(string $uriPath, string $method, User|callable $userResolver, array $requestHeaders = []): ?array
     {
+        $resolvedUser = null;
+        $getUser = function() use (&$resolvedUser, $userResolver): User {
+            if ($resolvedUser === null) {
+                $resolvedUser = is_callable($userResolver) ? $userResolver() : $userResolver;
+            }
+            return $resolvedUser;
+        };
+
         [$root, $relativePath] = $this->selectRoot($uriPath);
         if (!$this->workspace->isRootEnabled($root)) {
             return null;
         }
 
-        if (!$this->workspace->canReadRoot($root, $user)) {
+        if (!$this->workspace->canReadRoot($root, $getUser)) {
             return $this->notFound($method);
         }
+
+        $respond = function (array $response) use ($root): array {
+            if (!$this->workspace->isPublicRoot($root)) {
+                $response['headers']['Cache-Control'] = 'private, no-store';
+                $response['headers']['Vary'] = 'Cookie, Authorization';
+            }
+            return $response;
+        };
 
         $mode = $this->deliveryModes->resolve($root);
         $request = $this->normalizeRequest($relativePath);
         if ($request === null) {
             return $this->badRequest($method);
+        }
+        if ($request['normalized'] !== '' && PublicAssetPolicy::isPrivatePath($request['normalized'])) {
+            return $this->notFound($method);
         }
 
         if (!in_array($method, ['GET', 'HEAD'], true)) {
@@ -165,17 +185,17 @@ final class PublicSiteRouter
         if ($mode === 'php-html') {
             $staticResponse = $this->serveLogicalCandidates($root, $method, $this->assetCandidates($request), $requestHeaders);
             if ($staticResponse !== null) {
-                return $staticResponse;
+                return $respond($staticResponse);
             }
 
-            $routeResponse = $this->renderCanonicalRoute($root, $method, $request, $requestHeaders, $user);
+            $routeResponse = $this->renderCanonicalRoute($root, $method, $request, $requestHeaders, $getUser());
             if ($routeResponse !== null) {
-                return $routeResponse;
+                return $respond($routeResponse);
             }
 
-            $missingRoute = $this->renderMissingPhpRoute($root, $method, $request, $requestHeaders, $user);
+            $missingRoute = $this->renderMissingPhpRoute($root, $method, $request, $requestHeaders, $getUser());
 
-            return $missingRoute ?? $this->notFound($method);
+            return $respond($missingRoute ?? $this->notFound($method));
         }
 
         if ($mode === 'sveltekit-php-adapter') {
@@ -189,7 +209,7 @@ final class PublicSiteRouter
                 return $this->notImplemented($method);
             }
 
-            return $this->serveStoredCandidates($root, $method, $this->adapterCandidates($adapterRequest, $adapter), $requestHeaders);
+            return $respond($this->serveStoredCandidates($root, $method, $this->adapterCandidates($adapterRequest, $adapter), $requestHeaders));
         }
 
         if ($mode !== 'php-html') {
@@ -554,6 +574,11 @@ final class PublicSiteRouter
     {
         foreach ($candidates as $candidate) {
             $item = $this->workspace->readSiteFile($root, $candidate, false, false);
+            $materialized = false;
+            if ($item === null) {
+                $item = $this->workspace->readMaterializedSiteFile($root, $candidate, false);
+                $materialized = $item !== null;
+            }
             if ($item === null) {
                 continue;
             }
@@ -572,7 +597,9 @@ final class PublicSiteRouter
                 return $this->success($method, $manifest, '', $headers);
             }
 
-            $withBytes = $this->workspace->readSiteFile($root, $candidate, false, true);
+            $withBytes = $materialized
+                ? $this->workspace->readMaterializedSiteFile($root, $candidate, true)
+                : $this->workspace->readSiteFile($root, $candidate, false, true);
             if ($withBytes === null) {
                 continue;
             }
@@ -731,7 +758,7 @@ final class PublicSiteRouter
     private function assetCandidates(array $request): array
     {
         $normalized = trim((string)$request['normalized'], '/');
-        if ($normalized === '') {
+        if ($normalized === '' || !PublicAssetPolicy::isPublicAsset($normalized)) {
             return [];
         }
 
@@ -896,9 +923,35 @@ final class PublicSiteRouter
      */
     private function success(string $method, array $manifest, string $bytes, array $headers): array
     {
+        $fileSize = (int)($manifest['size'] ?? strlen($bytes));
+        $headers['Accept-Ranges'] = 'bytes';
+        
+        if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
+            $start = (int)$matches[1];
+            $end = $matches[2] === '' ? $fileSize - 1 : (int)$matches[2];
+            
+            if ($start > $end || $start >= $fileSize) {
+                return [
+                    'status' => 416,
+                    'headers' => $headers + ['Content-Range' => "bytes */$fileSize"],
+                    'body' => ''
+                ];
+            }
+            
+            $length = $end - $start + 1;
+            return [
+                'status' => 206,
+                'headers' => $headers + [
+                    'Content-Range' => "bytes $start-$end/$fileSize",
+                    'Content-Length' => (string)$length
+                ],
+                'body' => $method === 'HEAD' ? '' : substr($bytes, $start, $length),
+            ];
+        }
+
         return [
             'status' => 200,
-            'headers' => $headers + ['Content-Length' => (string)($method === 'HEAD' ? (int)($manifest['size'] ?? strlen($bytes)) : strlen($bytes))],
+            'headers' => $headers + ['Content-Length' => (string)$fileSize],
             'body' => $method === 'HEAD' ? '' : $bytes,
         ];
     }
@@ -909,7 +962,11 @@ final class PublicSiteRouter
      */
     private function cacheHeaders(array $manifest, string $candidate): array
     {
-        $etag = $this->etag((string)($manifest['id'] ?? ''));
+        $etag = $this->etag(hash('sha256', json_encode([
+            $manifest['id'] ?? '', $manifest['storageId'] ?? '',
+            $manifest['chunks'] ?? [], $manifest['contentFingerprint'] ?? '',
+            $manifest['size'] ?? 0, $manifest['mtime'] ?? '',
+        ], JSON_THROW_ON_ERROR)));
         $lastModified = $this->httpDate((string)($manifest['mtime'] ?? ''));
 
         return [
@@ -937,6 +994,8 @@ final class PublicSiteRouter
                     return true;
                 }
             }
+            // If-None-Match takes precedence over If-Modified-Since.
+            return false;
         }
 
         $ifModifiedSince = trim((string)($requestHeaders['if-modified-since'] ?? ''));

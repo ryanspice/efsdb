@@ -1,0 +1,7 @@
+ARG_ENABLE('blake3', 'blake3 support', 'no');
+
+if (PHP_BLAKE3 != 'no') {
+	AC_DEFINE('HAVE_BLAKE3', 1, 'blake3 support enabled');
+
+	EXTENSION('blake3', 'php_blake3.c blake3.c blake3_dispatch.c blake3_portable.c', true, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /DBLAKE3_NO_SSE2 /DBLAKE3_NO_SSE41 /DBLAKE3_NO_AVX2 /DBLAKE3_NO_AVX512');
+}

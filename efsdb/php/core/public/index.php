@@ -1,90 +1,39 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../src/PublicAssetPolicy.php';
+
 if (php_sapi_name() === 'cli-server') {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if (is_string($path) && is_file(__DIR__ . $path)) {
-        return false;
-    }
-}
-
-// FAST PATH for static assets to avoid booting the entire framework for every image/js/css file
-$fastPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (is_string($fastPath) && preg_match('#^/(staging|production)?/?(.*)$#', $fastPath, $matches)) {
-    $env = $matches[1] === '' ? 'production' : $matches[1];
-    $relPath = ltrim($matches[2], '/');
-    if ($relPath !== '' && preg_match('#\.(css|js|mjs|woff2?|png|jpe?g|gif|svg|ico|json|map|txt|xml|wasm)$#i', $relPath)) {
-        // We only attempt this if it's not a control plane request
-        if (!str_starts_with($relPath, '_efsdb/')) {
-            $repoRoot = dirname(__DIR__, 4);
-            $tenantHash = substr(sha1('tenant'), 0, 16);
-            $cacheFile = $repoRoot . '/.cache/efsdb/workspaces/materialized/' . $tenantHash . '/' . $env . '/.fingerprint-cache';
-
-            if (is_file($cacheFile)) {
-                $cached = json_decode((string)file_get_contents($cacheFile), true);
-                if (is_array($cached) && isset($cached['path'])) {
-                    $targetPath = $cached['path'] . '/' . str_replace('/', DIRECTORY_SEPARATOR, $relPath);
-                    if (is_file($targetPath)) {
-                        $ext = strtolower(pathinfo($targetPath, PATHINFO_EXTENSION));
-                        $mimes = [
-                            'css' => 'text/css; charset=utf-8',
-                            'js' => 'application/javascript; charset=utf-8',
-                            'mjs' => 'application/javascript; charset=utf-8',
-                            'json' => 'application/json; charset=utf-8',
-                            'map' => 'application/json; charset=utf-8',
-                            'png' => 'image/png',
-                            'jpg' => 'image/jpeg',
-                            'jpeg' => 'image/jpeg',
-                            'gif' => 'image/gif',
-                            'svg' => 'image/svg+xml',
-                            'ico' => 'image/x-icon',
-                            'woff' => 'font/woff',
-                            'woff2' => 'font/woff2',
-                            'txt' => 'text/plain; charset=utf-8',
-                            'xml' => 'application/xml; charset=utf-8',
-                            'wasm' => 'application/wasm',
-                        ];
-                        if (isset($mimes[$ext])) {
-                            header('Content-Type: ' . $mimes[$ext]);
-                            if (str_contains($targetPath, '/immutable/') || preg_match('/(?:[.-])[a-f0-9]{8,}\.[a-z0-9]+$/i', basename($targetPath))) {
-                                header('Cache-Control: public, max-age=31536000, immutable');
-                            } else {
-                                header('Cache-Control: public, max-age=0, must-revalidate');
-                            }
-                            header('X-EFSDB-Fast-Path: true');
-                            readfile($targetPath);
-                            exit;
-                        }
-                    }
-                }
+    if (is_string($path)) {
+        $relativePath = rawurldecode(ltrim($path, '/'));
+        if ($relativePath !== '' && PublicAssetPolicy::isPrivatePath($relativePath)) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Cache-Control: no-store');
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo '403 Forbidden';
+            return;
+        }
+        $publicRoot = str_replace('\\', '/', (string)realpath(__DIR__));
+        $staticFile = realpath(__DIR__ . '/' . $relativePath);
+        if (PublicAssetPolicy::isPublicAsset($relativePath) && $staticFile !== false && is_file($staticFile)) {
+            $canonicalFile = str_replace('\\', '/', $staticFile);
+            $canonicalRelativePath = str_starts_with($canonicalFile, $publicRoot . '/')
+                ? substr($canonicalFile, strlen($publicRoot) + 1) : null;
+            if ($canonicalRelativePath === null || !PublicAssetPolicy::isPublicAsset($canonicalRelativePath)) {
+                http_response_code(403);
+                header('Content-Type: text/plain; charset=utf-8');
+                header('Cache-Control: no-store');
+                if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') echo '403 Forbidden';
+                return;
             }
+            return false;
         }
     }
 }
 
-// FAST PATH for Ghost HTML cache
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && !str_starts_with($fastPath, '/_efsdb/') && $fastPath !== '/_efsdb') {
-    $env = str_starts_with($fastPath, '/staging') ? 'staging' : 'production';
-    $ghostUri = rtrim($fastPath, '/');
-    if ($ghostUri === '' || $ghostUri === '/staging') {
-        $ghostUri = $env === 'staging' ? '/staging' : '/';
-    }
-    $ghostFile = __DIR__ . '/.ghost/' . $env . '/' . md5($ghostUri) . '.html';
-    $acceptsGzip = str_contains($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip');
-
-    if ($acceptsGzip && is_file($ghostFile . '.gz')) {
-        header('Content-Type: text/html; charset=utf-8');
-        header('Content-Encoding: gzip');
-        header('X-EFSDB-Ghost: fast');
-        readfile($ghostFile . '.gz');
-        exit;
-    } elseif (is_file($ghostFile)) {
-        header('Content-Type: text/html; charset=utf-8');
-        header('X-EFSDB-Ghost: fast');
-        readfile($ghostFile);
-        exit;
-    }
-}
+// Public delivery, including generated assets, goes through the authorized router.
+$fastPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 $startTime = microtime(true);
 
@@ -94,6 +43,9 @@ require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/Permissions.php';
 require_once __DIR__ . '/../src/RequestTiming.php';
+require_once __DIR__ . '/../src/ComponentMutationPolicy.php';
+
+Config::assertRepoPhpIniLoaded('public/index.php');
 
 date_default_timezone_set('America/Toronto');
 $requestTiming = RequestTiming::install();
@@ -110,6 +62,12 @@ register_shutdown_function(function () use ($startTime, $dataDir, $requestTiming
     $bytes = ob_get_length() ?: 0;
     $method = $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN';
     $uri = $_SERVER['REQUEST_URI'] ?? '/';
+
+    // Release the HTTP connection immediately so the admin panel UI isn't blocked by disk I/O
+    if (function_exists('fastcgi_finish_request')) {
+        session_write_close();
+        fastcgi_finish_request();
+    }
 
     try {
         $requestTiming->emit();
@@ -155,18 +113,30 @@ if (!function_exists('efsdb_json_body')) {
      */
     function efsdb_json_body(): array
     {
+        static $cacheKey = null;
+        static $decodedCache = null;
+
+        $rawJson = null;
         if (isset($GLOBALS['EFSDB_TEST_JSON_BODY']) && is_string($GLOBALS['EFSDB_TEST_JSON_BODY'])) {
-            $decoded = json_decode($GLOBALS['EFSDB_TEST_JSON_BODY'], true);
-            return is_array($decoded) ? $decoded : [];
+            $rawJson = $GLOBALS['EFSDB_TEST_JSON_BODY'];
+        } else {
+            $json = file_get_contents('php://input');
+            $rawJson = $json === false ? '' : $json;
         }
 
-        $json = file_get_contents('php://input');
-        if ($json === false || trim($json) === '') {
-            return [];
+        if ($cacheKey === $rawJson && $decodedCache !== null) {
+            return $decodedCache;
         }
 
-        $decoded = json_decode($json, true);
-        return is_array($decoded) ? $decoded : [];
+        $cacheKey = $rawJson;
+        if (trim($rawJson) === '') {
+            $decodedCache = [];
+            return $decodedCache;
+        }
+
+        $decoded = json_decode($rawJson, true);
+        $decodedCache = is_array($decoded) ? $decoded : [];
+        return $decodedCache;
     }
 }
 
@@ -392,8 +362,14 @@ if (!function_exists('efsdb_guest_overlay_context')) {
     }
 }
 
-$uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$uriPath = (is_string($fastPath) ? $fastPath : '/') ?: '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$requestHeaders = [];
+foreach ($_SERVER as $name => $value) {
+    if (str_starts_with((string)$name, 'HTTP_') && is_scalar($value)) {
+        $requestHeaders[strtolower(str_replace('_', '-', substr((string)$name, 5)))] = (string)$value;
+    }
+}
 
 if (str_starts_with($uriPath, '/_efsdb/api/')) {
     if ($uriPath === '/_efsdb/api/health') {
@@ -840,7 +816,7 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $payload = efsdb_json_body();
                 try {
                     $result = $app->getEnvironmentOperations()->promote($user->id, $payload['reason'] ?? null);
-                    $app->getGhostPreloadService()->preloadEnvironment('production');
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment('production'));
                     efsdb_json_response($result);
                 } catch (Throwable $e) {
                     efsdb_json_response(efsdb_error('invalid_promote_request', $e->getMessage()), 400);
@@ -862,7 +838,7 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $root = (string)($payload['root'] ?? 'production');
                 try {
                     $result = $app->getEnvironmentOperations()->rollback($root, $user->id, $payload['reason'] ?? null);
-                    $app->getGhostPreloadService()->preloadEnvironment($root);
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment($root));
                     efsdb_json_response($result);
                 } catch (Throwable $e) {
                     efsdb_json_response(efsdb_error('invalid_rollback_request', $e->getMessage()), 400);
@@ -885,7 +861,7 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $targetRoot = (string)($payload['targetRoot'] ?? '');
                 try {
                     $result = $app->getEnvironmentOperations()->copy($sourceRoot, $targetRoot, 'copy', $user->id, $payload['reason'] ?? null);
-                    $app->getGhostPreloadService()->preloadEnvironment($targetRoot);
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment($targetRoot));
                     efsdb_json_response($result);
                 } catch (Throwable $e) {
                     efsdb_json_response(efsdb_error('invalid_copy_request', $e->getMessage()), 400);
@@ -1117,6 +1093,11 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
         }
 
         if ($method === 'POST' && $uriPath === '/_efsdb/api/explorer/create-component') {
+            if (!$perms->canEditSiteFiles($user)) {
+                efsdb_json_response(efsdb_error('forbidden', 'Component creation requires site edit access'), 403);
+                if (!defined('EFSDB_TEST_MODE')) exit;
+                return;
+            }
             $input = efsdb_json_body();
             $name = (string)($input['name'] ?? '');
             $framework = strtolower((string)($input['framework'] ?? 'sveltekit'));
@@ -1133,8 +1114,8 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
                 $explorer = $app->getExplorer();
                 $nodeEnv = $app->getNodeEnvironmentService();
 
-                // Read the template directory from projects/examples
-                $templatePath = rtrim(str_replace('\\', '/', dirname(__DIR__, 4)), '/') . "/projects/examples/$framework";
+                $env = ComponentMutationPolicy::environment($env);
+                $templatePath = ComponentMutationPolicy::template($framework, dirname(__DIR__, 4) . '/projects/examples');
 
                 if (!is_dir($templatePath)) {
                     // Fallback to single file generation if template doesn't exist
@@ -1177,18 +1158,18 @@ if (str_starts_with($uriPath, '/_efsdb/api/')) {
 </div>
 
 <style>
-    .template-container { font-family: system-ui, -apple-system, sans-serif; color: #111827; background: #f9fafb; min-height: 100vh; }
-    .hero { background: #1f2937; color: white; padding: 4rem 2rem; text-align: center; }
+    .template-container { font-family: var(--shell-font-sans, system-ui, -apple-system, sans-serif); color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb)); min-height: 100vh; }
+    .hero { background: linear-gradient(180deg, color-mix(in srgb, var(--shell-panel, var(--shell-panel-bg, #ffffff)), var(--accent, #1f2937) 12%), color-mix(in srgb, var(--shell-bg, var(--shell-body-bg, #f9fafb)), var(--accent, #1f2937) 22%)); color: var(--shell-text-strong, white); padding: 4rem 2rem; text-align: center; border-bottom: 1px solid color-mix(in srgb, var(--accent, #3b82f6), transparent 78%); }
     .hero h1 { margin: 0; font-size: 3rem; font-weight: 800; letter-spacing: -0.025em; }
-    .subtitle { margin-top: 1rem; font-size: 1.25rem; color: #d1d5db; }
+    .subtitle { margin-top: 1rem; font-size: 1.25rem; color: color-mix(in srgb, var(--shell-muted, #64748b), var(--shell-text-strong, #ffffff) 24%); }
     .content { max-width: 1000px; margin: 0 auto; padding: 3rem 2rem; }
     .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
-    .feature-card { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    .feature-card h3 { margin-top: 0; color: #374151; }
-    .feature-card p { color: #6b7280; line-height: 1.5; margin-bottom: 0; }
-    .interactive-section { background: white; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; }
-    .action-btn { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
-    .action-btn:hover { background: #2563eb; }
+    .feature-card { background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1)); }
+    .feature-card h3 { margin-top: 0; color: var(--shell-text-strong, #374151); }
+    .feature-card p { color: var(--shell-muted, #6b7280); line-height: 1.5; margin-bottom: 0; }
+    .interactive-section { background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1)); text-align: center; }
+    .action-btn { background: var(--shell-primary, var(--accent, #3b82f6)); color: var(--shell-primary-text, var(--shell-pill-text, white)); border: 1px solid color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), transparent 30%); padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s; box-shadow: 0 10px 24px color-mix(in srgb, var(--accent, #3b82f6), transparent 82%); }
+    .action-btn:hover { background: color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), black 12%); transform: translateY(-1px); }
 </style>
 SVELTE;
                     } elseif ($framework === 'react') {
@@ -1200,30 +1181,30 @@ export default function {$name}() {
     const [count, setCount] = useState(0);
 
     return (
-        <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: '#111827', background: '#f9fafb', minHeight: '100vh' }}>
-            <header style={{ background: '#1f2937', color: 'white', padding: '4rem 2rem', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--shell-font-sans, system-ui, -apple-system, sans-serif)', color: 'var(--shell-text, #111827)', background: 'var(--shell-bg, var(--shell-body-bg, #f9fafb))', minHeight: '100vh' }}>
+            <header style={{ background: 'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel, var(--shell-panel-bg, #ffffff)), var(--accent, #1f2937) 12%), color-mix(in srgb, var(--shell-bg, var(--shell-body-bg, #f9fafb)), var(--accent, #1f2937) 22%))', color: 'var(--shell-text-strong, white)', padding: '4rem 2rem', textAlign: 'center', borderBottom: '1px solid color-mix(in srgb, var(--accent, #3b82f6), transparent 78%)' }}>
                 <h1 style={{ margin: 0, fontSize: '3rem', fontWeight: 800, letterSpacing: '-0.025em' }}>{$name}</h1>
-                <p style={{ marginTop: '1rem', fontSize: '1.25rem', color: '#d1d5db' }}>A cohesive component spreading data from EFSDB.</p>
+                <p style={{ marginTop: '1rem', fontSize: '1.25rem', color: 'color-mix(in srgb, var(--shell-muted, #64748b), var(--shell-text-strong, #ffffff) 24%)' }}>A cohesive component spreading data from EFSDB.</p>
             </header>
 
             <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '3rem 2rem' }}>
                 <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                        <h3 style={{ marginTop: 0, color: '#374151' }}>React Component</h3>
-                        <p style={{ color: '#6b7280', lineHeight: 1.5, marginBottom: 0 }}>This component was generated for the React framework.</p>
+                    <div style={{ background: 'var(--shell-panel, var(--shell-panel-bg, white))', border: '1px solid var(--shell-border, #e2e8f0)', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: 'var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))' }}>
+                        <h3 style={{ marginTop: 0, color: 'var(--shell-text-strong, #374151)' }}>React Component</h3>
+                        <p style={{ color: 'var(--shell-muted, #6b7280)', lineHeight: 1.5, marginBottom: 0 }}>This component was generated for the React framework.</p>
                     </div>
-                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                        <h3 style={{ marginTop: 0, color: '#374151' }}>Public Workspace Access</h3>
-                        <p style={{ color: '#6b7280', lineHeight: 1.5, marginBottom: 0 }}>Powered by the EFSDB runtime and public workspace.</p>
+                    <div style={{ background: 'var(--shell-panel, var(--shell-panel-bg, white))', border: '1px solid var(--shell-border, #e2e8f0)', padding: '1.5rem', borderRadius: '0.75rem', boxShadow: 'var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))' }}>
+                        <h3 style={{ marginTop: 0, color: 'var(--shell-text-strong, #374151)' }}>Public Workspace Access</h3>
+                        <p style={{ color: 'var(--shell-muted, #6b7280)', lineHeight: 1.5, marginBottom: 0 }}>Powered by the EFSDB runtime and public workspace.</p>
                     </div>
                 </section>
 
-                <section style={{ background: 'white', padding: '2rem', borderRadius: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', textAlign: 'center' }}>
+                <section style={{ background: 'var(--shell-panel, var(--shell-panel-bg, white))', border: '1px solid var(--shell-border, #e2e8f0)', padding: '2rem', borderRadius: '0.75rem', boxShadow: 'var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))', textAlign: 'center' }}>
                     <h2>Interactive Counter</h2>
                     <p>State is preserved and hydrating works perfectly.</p>
                     <button
                         onClick={() => setCount(count + 1)}
-                        style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontSize: '1rem', fontWeight: 600, cursor: 'pointer' }}
+                        style={{ background: 'var(--shell-primary, var(--accent, #3b82f6))', color: 'var(--shell-primary-text, var(--shell-pill-text, white))', border: '1px solid color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), transparent 30%)', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 10px 24px color-mix(in srgb, var(--accent, #3b82f6), transparent 82%)' }}
                     >
                         Clicked {count} times
                     </button>
@@ -1242,30 +1223,30 @@ import { Component } from '@angular/core';
   selector: 'app-{$name}',
   standalone: true,
   template: `
-    <div style="font-family: system-ui, -apple-system, sans-serif; color: #111827; background: #f9fafb; min-height: 100vh;">
-        <header style="background: #1f2937; color: white; padding: 4rem 2rem; text-align: center;">
+    <div style="font-family: var(--shell-font-sans, system-ui, -apple-system, sans-serif); color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb)); min-height: 100vh;">
+        <header style="background: linear-gradient(180deg, color-mix(in srgb, var(--shell-panel, var(--shell-panel-bg, #ffffff)), var(--accent, #1f2937) 12%), color-mix(in srgb, var(--shell-bg, var(--shell-body-bg, #f9fafb)), var(--accent, #1f2937) 22%)); color: var(--shell-text-strong, white); padding: 4rem 2rem; text-align: center; border-bottom: 1px solid color-mix(in srgb, var(--accent, #3b82f6), transparent 78%);">
             <h1 style="margin: 0; font-size: 3rem; font-weight: 800; letter-spacing: -0.025em;">{$name}</h1>
-            <p style="margin-top: 1rem; font-size: 1.25rem; color: #d1d5db;">A cohesive component spreading data from EFSDB.</p>
+            <p style="margin-top: 1rem; font-size: 1.25rem; color: color-mix(in srgb, var(--shell-muted, #64748b), var(--shell-text-strong, #ffffff) 24%);">A cohesive component spreading data from EFSDB.</p>
         </header>
 
         <main style="max-width: 1000px; margin: 0 auto; padding: 3rem 2rem;">
             <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
-                <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    <h3 style="margin-top: 0; color: #374151;">Angular Component</h3>
-                    <p style="color: #6b7280; line-height: 1.5; margin-bottom: 0;">This component was generated for the Angular framework.</p>
+                <div style="background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1));">
+                    <h3 style="margin-top: 0; color: var(--shell-text-strong, #374151);">Angular Component</h3>
+                    <p style="color: var(--shell-muted, #6b7280); line-height: 1.5; margin-bottom: 0;">This component was generated for the Angular framework.</p>
                 </div>
-                <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    <h3 style="margin-top: 0; color: #374151;">Public Workspace Access</h3>
-                    <p style="color: #6b7280; line-height: 1.5; margin-bottom: 0;">Powered by the EFSDB runtime and public workspace.</p>
+                <div style="background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1));">
+                    <h3 style="margin-top: 0; color: var(--shell-text-strong, #374151);">Public Workspace Access</h3>
+                    <p style="color: var(--shell-muted, #6b7280); line-height: 1.5; margin-bottom: 0;">Powered by the EFSDB runtime and public workspace.</p>
                 </div>
             </section>
 
-            <section style="background: white; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center;">
+            <section style="background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 0.75rem; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1)); text-align: center;">
                 <h2>Interactive Counter</h2>
                 <p>State is preserved and hydrating works perfectly.</p>
                 <button
                     (click)="increment()"
-                    style="background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer;"
+                    style="background: var(--shell-primary, var(--accent, #3b82f6)); color: var(--shell-primary-text, var(--shell-pill-text, white)); border: 1px solid color-mix(in srgb, var(--shell-primary, var(--accent, #3b82f6)), transparent 30%); padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 10px 24px color-mix(in srgb, var(--accent, #3b82f6), transparent 82%);"
                 >
                     Clicked {{count}} times
                 </button>
@@ -1363,6 +1344,11 @@ ANGULAR;
         }
 
         if ($method === 'POST' && $uriPath === '/_efsdb/api/explorer/import-component') {
+            if (!$perms->canEditSiteFiles($user)) {
+                efsdb_json_response(efsdb_error('forbidden', 'Component import requires site edit access'), 403);
+                if (!defined('EFSDB_TEST_MODE')) exit;
+                return;
+            }
             $name = (string)($_POST['name'] ?? '');
             $env = (string)($_POST['env'] ?? 'staging');
             $source = (string)($_POST['source'] ?? '');
@@ -1374,10 +1360,20 @@ ANGULAR;
                 return;
             }
 
+            $tempDir = null;
             try {
+                $env = ComponentMutationPolicy::environment($env);
+                if (!in_array($source, ['github', 'upload'], true)) {
+                    throw new InvalidArgumentException('Invalid component source');
+                }
+                if ($source === 'github') {
+                    ComponentMutationPolicy::githubArchiveUrl((string)($_POST['githubUrl'] ?? ''), 'main');
+                }
                 $ws = $app->getPublicWorkspace();
-                $tempDir = sys_get_temp_dir() . '/efsdb_import_' . uniqid();
-                mkdir($tempDir, 0777, true);
+                $tempDir = sys_get_temp_dir() . '/efsdb_import_' . bin2hex(random_bytes(16));
+                if (!mkdir($tempDir, 0700)) {
+                    throw new RuntimeException('Unable to create private component import directory');
+                }
 
                 $zipFile = $tempDir . '/archive.zip';
 
@@ -1390,29 +1386,37 @@ ANGULAR;
 
                     // Basic GitHub repo URL to zip download (assuming main branch)
                     // e.g. https://github.com/user/repo -> https://github.com/user/repo/archive/refs/heads/main.zip
-                    $downloadUrl = $githubUrl . '/archive/refs/heads/main.zip';
+                    $downloadUrl = ComponentMutationPolicy::githubArchiveUrl($githubUrl, 'main');
 
                     $opts = [
                         "http" => [
                             "method" => "GET",
+                            "timeout" => 15,
+                            "max_redirects" => 5,
                             "header" => "User-Agent: EFSDB-Importer\r\n"
                         ]
                     ];
                     $context = stream_context_create($opts);
-                    $zipContent = @file_get_contents($downloadUrl, false, $context);
+                    $zipContent = @file_get_contents($downloadUrl, false, $context, 0, ComponentMutationPolicy::MAX_ARCHIVE_BYTES + 1);
 
                     if ($zipContent === false) {
                         // Fallback to master branch
-                        $downloadUrl = $githubUrl . '/archive/refs/heads/master.zip';
-                        $zipContent = @file_get_contents($downloadUrl, false, $context);
+                        $downloadUrl = ComponentMutationPolicy::githubArchiveUrl($githubUrl, 'master');
+                        $zipContent = @file_get_contents($downloadUrl, false, $context, 0, ComponentMutationPolicy::MAX_ARCHIVE_BYTES + 1);
                         if ($zipContent === false) {
                             throw new RuntimeException("Failed to download repository from GitHub. Check the URL or branch name.");
                         }
                     }
-                    file_put_contents($zipFile, $zipContent);
+                    if (strlen($zipContent) > ComponentMutationPolicy::MAX_ARCHIVE_BYTES) {
+                        throw new InvalidArgumentException('Component archive exceeds the compressed size limit');
+                    }
+                    file_put_contents($zipFile, $zipContent, LOCK_EX);
                 } elseif ($source === 'upload') {
                     if (!isset($_FILES['archive']) || $_FILES['archive']['error'] !== UPLOAD_ERR_OK) {
                         throw new RuntimeException("Upload failed or no file provided");
+                    }
+                    if ((int)($_FILES['archive']['size'] ?? 0) > ComponentMutationPolicy::MAX_ARCHIVE_BYTES) {
+                        throw new InvalidArgumentException('Component archive exceeds the compressed size limit');
                     }
                     $fileName = $_FILES['archive']['name'];
                     if (str_ends_with(strtolower($fileName), '.tar.gz') || str_ends_with(strtolower($fileName), '.tgz') || str_ends_with(strtolower($fileName), '.tar')) {
@@ -1420,10 +1424,7 @@ ANGULAR;
                         $zipFile = $tempDir . '/archive.tar' . (str_contains(strtolower($fileName), 'gz') ? '.gz' : '');
                     }
                     if (!move_uploaded_file($_FILES['archive']['tmp_name'], $zipFile)) {
-                        // Some environments might not allow move_uploaded_file easily, fallback to copy
-                        if (!copy($_FILES['archive']['tmp_name'], $zipFile)) {
-                            throw new RuntimeException("Failed to save uploaded file");
-                        }
+                        throw new RuntimeException('Failed to save uploaded component archive');
                     }
                 } else {
                     throw new InvalidArgumentException("Invalid source mode");
@@ -1432,22 +1433,7 @@ ANGULAR;
                 $extractDir = $tempDir . '/extracted';
                 mkdir($extractDir);
 
-                if ($isTar) {
-                    try {
-                        $phar = new PharData($zipFile);
-                        $phar->extractTo($extractDir);
-                    } catch (Exception $e) {
-                        throw new RuntimeException("Failed to extract TAR archive: " . $e->getMessage());
-                    }
-                } else {
-                    $zip = new ZipArchive();
-                    if ($zip->open($zipFile) === true) {
-                        $zip->extractTo($extractDir);
-                        $zip->close();
-                    } else {
-                        throw new RuntimeException("Failed to open zip archive");
-                    }
-                }
+                ComponentMutationPolicy::extract($zipFile, $extractDir, $isTar);
 
                 // GitHub zips contain a single root folder (e.g. repo-main)
                 $items = array_values(array_diff(scandir($extractDir), ['.', '..']));
@@ -1510,21 +1496,15 @@ ANGULAR;
                     'logicalPath' => $logicalPath
                 ]);
 
-                // Cleanup
-                // Quick recursive delete function for cleanup
-                $deleteDir = function ($dir) use (&$deleteDir) {
-                    if (!file_exists($dir)) return;
-                    $files = array_diff(scandir($dir), ['.', '..']);
-                    foreach ($files as $file) {
-                        (is_dir("$dir/$file")) ? $deleteDir("$dir/$file") : unlink("$dir/$file");
-                    }
-                    rmdir($dir);
-                };
-                $deleteDir($tempDir);
-
                 efsdb_json_response(['details' => ['logicalPath' => $logicalPath, 'siteRuntime' => $siteRuntime]]);
+            } catch (InvalidArgumentException $e) {
+                efsdb_json_response(efsdb_error('invalid_component', $e->getMessage()), 400);
             } catch (Throwable $e) {
                 efsdb_json_response(efsdb_error('server_error', $e->getMessage()), 500);
+            } finally {
+                if (is_string($tempDir)) {
+                    ComponentMutationPolicy::removeTemporaryDirectory($tempDir);
+                }
             }
             if (!defined('EFSDB_TEST_MODE')) {
                 exit;
@@ -1543,6 +1523,12 @@ ANGULAR;
             if (count($segments) >= 4 && $segments[0] === 'site' && $segments[2] === 'components') {
                 $env = $segments[1];
                 $componentName = implode('/', array_slice($segments, 3));
+
+                if (preg_match('/[^a-zA-Z0-9_.\/-]/', $componentName) || str_contains($componentName, '..')) {
+                    efsdb_json_response(efsdb_error('invalid_path', 'Component path contains invalid characters'), 400);
+                    if (!defined('EFSDB_TEST_MODE')) exit;
+                    return;
+                }
 
                 $routeFile = trim($routePath, '/');
                 if ($routeFile === '') {
@@ -1583,7 +1569,7 @@ if (is_dir(\$componentDir)) {
     } elseif (file_exists(\$componentDir . '/index.html')) {
         \$rawHtml = file_get_contents(\$componentDir . '/index.html');
         if (str_contains(\$rawHtml, 'type="module"') && preg_match('/\\.(ts|tsx|jsx|svelte|vue)["\']/', \$rawHtml)) {
-            \$html = "<!DOCTYPE html><html><head><title>Building...</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body style=\"font-family: system-ui, sans-serif; padding: 2rem; background: #f9fafb;\"><div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);\"><h2>Component is building...</h2><p>The component <b>{\$componentName}</b> is currently being built or failed to build.</p><p>Please wait a moment and refresh the page. If this persists, check the component build logs.</p></div></body></html>";
+            \$html = "<!DOCTYPE html><html><head><title>Building...</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body style=\"font-family: var(--shell-font-sans, system-ui, sans-serif); padding: 2rem; color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb));\"><div style=\"max-width: 600px; margin: 0 auto; background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 8px; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0,0,0,0.1));\"><h2 style=\"margin-top:0; color: var(--shell-text-strong, #111827);\">Component is building...</h2><p style=\"color: var(--shell-muted, #64748b);\">The component <b style=\"color: var(--shell-text, #111827);\">{\$componentName}</b> is currently being built or failed to build.</p><p style=\"color: var(--shell-muted, #64748b);\">Please wait a moment and refresh the page. If this persists, check the component build logs.</p></div></body></html>";
         } else {
             \$html = \$rawHtml;
         }
@@ -1669,7 +1655,7 @@ if (isset(\$html)) {
         \$html .= '<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>';
         \$html .= '<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>';
         \$html .= '<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>';
-        \$html .= "<style>body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #fff; }</style>";
+        \$html .= "<style>body { font-family: var(--shell-font-sans, system-ui, sans-serif); margin: 0; padding: 0; color: var(--shell-text, #111827); background: var(--shell-panel, var(--shell-panel-bg, #fff)); }</style>";
         \$html .= "</head><body><div id='root'></div>";
         \$html .= "<script type='text/babel' data-type='module'>";
         \$html .= \$cleanCode;
@@ -1678,11 +1664,11 @@ if (isset(\$html)) {
         \$html .= "</script></body></html>";
     } else {
         \$html = "<!DOCTYPE html><html><head><title>Preview: {\$componentName}</title>";
-        \$html .= "<style>body { font-family: system-ui, sans-serif; padding: 2rem; background: #f9fafb; } .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }</style>";
+        \$html .= "<style>body { font-family: var(--shell-font-sans, system-ui, sans-serif); padding: 2rem; color: var(--shell-text, #111827); background: var(--shell-bg, var(--shell-body-bg, #f9fafb)); } .card { background: var(--shell-panel, var(--shell-panel-bg, white)); border: 1px solid var(--shell-border, #e2e8f0); padding: 2rem; border-radius: 8px; box-shadow: var(--shell-shadow, 0 4px 6px -1px rgba(0,0,0,0.1)); }</style>";
         \$html .= "</head><body><div class='card'>";
         \$html .= "<h2>{\$componentName}</h2>";
         \$html .= "<p>This is a single-file component. In a full build, this would be compiled by Vite.</p>";
-        \$html .= "<div style='margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 4px; overflow-x: auto;'><pre><code>";
+        \$html .= "<div style='margin-top: 1rem; padding: 1rem; background: var(--shell-surface, var(--shell-soft-bg, #f3f4f6)); border: 1px solid var(--shell-border, #e2e8f0); border-radius: 4px; overflow-x: auto;'><pre><code>";
         \$html .= htmlspecialchars(file_get_contents(\$componentFile));
         \$html .= "</code></pre></div></div></body></html>";
     }
@@ -1700,7 +1686,7 @@ PHP;
                     $result = $app->getExplorer()->put($user, $routeLogicalPath, $phpContent, 'application/x-httpd-php');
                     // Inform the site build service about the new route
                     $app->getSiteBuildService()->handleSave($routeLogicalPath, 'natural');
-                    $app->getGhostPreloadService()->preloadEnvironment($env);
+                    register_shutdown_function(fn() => $app->getGhostPreloadService()->preloadEnvironment($env));
 
                     $app->getAudit()->record('component.nominated_route', [
                         'actor' => $user->id,
@@ -1892,10 +1878,10 @@ if (isset($_GET['action']) && is_string($_GET['action'])) {
 if (!$isControlPlane) {
     // The fast path should have handled the Ghost HTML already, but if it fell through for some reason
     // we still let the router handle it
-    $publicResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, $auth->authenticate());
+    $publicResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, fn() => $auth->authenticate(), $requestHeaders);
     if ($publicResponse !== null) {
         $isRootPath = $uriPath === '/' || $uriPath === '' || $uriPath === '/staging' || $uriPath === '/staging/';
-        if ($publicResponse['status'] === 404 && $isRootPath && trim((string)($publicResponse['body'] ?? '')) === '404 Not Found (EFSDB)') {
+        if ($publicResponse['status'] === 404 && $isRootPath && !$app->getPublicWorkspace()->isRootEnabled($uriPath === '/' || $uriPath === '' ? 'production' : 'staging')) {
             // Fall through to the welcome page
         } else {
             http_response_code((int)$publicResponse['status']);
@@ -1975,7 +1961,7 @@ if ($isControlPlane) {
     require __DIR__ . '/views/footer.php';
 } else {
     // Let the router try to serve the request first
-    $siteResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, User::guest(), getallheaders());
+    $siteResponse = $app->getPublicSiteRouter()->handle($uriPath, $method, fn() => $auth->authenticate(), $requestHeaders);
 
     // If it was found, return it.
     if ($siteResponse !== null) {

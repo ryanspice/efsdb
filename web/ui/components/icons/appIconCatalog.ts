@@ -557,6 +557,36 @@ export const APP_ICON_CATALOG = {
       }
     }
   },
+  dock: {
+    id: 'dock',
+    label: 'Dock',
+    category: 'widget',
+    defaultVariant: 'signature',
+    variants: {
+      signature: {
+        id: 'signature',
+        label: 'Pinned dock',
+        tone: 'signature',
+        svg: svg(
+          stroke(
+            '<path d="M4.5 7.25h11v5.5h-11z"/><path d="M6.5 10h2"/><path d="M9 10h2"/><path d="M11.5 10h2"/>',
+            '1.45'
+          )
+        )
+      },
+      rail: {
+        id: 'rail',
+        label: 'Dock rail',
+        tone: 'popular',
+        svg: svg(
+          stroke(
+            '<path d="M4.75 6.75h10.5v6.5H4.75z"/><path d="M6.5 9.5h1.5"/><path d="M9.25 9.5h1.5"/><path d="M12 9.5h1.5"/><path d="M4.75 13.25h10.5"/>',
+            '1.35'
+          )
+        )
+      }
+    }
+  },
   open: {
     id: 'open',
     label: 'Open',

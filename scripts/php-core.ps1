@@ -3,14 +3,6 @@ param(
     [string[]]$PhpArgs
 )
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$phpIni = Join-Path $repoRoot 'efsdb\php\core\php.ini'
-
-if (-not (Test-Path $phpIni)) {
-    Write-Error "EFSDB core php.ini was not found at $phpIni"
-    exit 1
-}
-
 if (-not $PhpArgs -or $PhpArgs.Count -eq 0) {
     Write-Host 'Usage: .\scripts\php-core.ps1 <php args...>'
     Write-Host 'Example: .\scripts\php-core.ps1 .\efsdb\php\core\bin\apicheck.php'
@@ -18,5 +10,8 @@ if (-not $PhpArgs -or $PhpArgs.Count -eq 0) {
     exit 1
 }
 
-& php -c $phpIni @PhpArgs
+# Keep runtime probing, module loading and descendant configuration in one launcher.
+$launcher = Join-Path $PSScriptRoot 'php-core.ts'
+$bun = (Get-Command bun -ErrorAction Stop).Source
+& $bun run $launcher -- @PhpArgs
 exit $LASTEXITCODE

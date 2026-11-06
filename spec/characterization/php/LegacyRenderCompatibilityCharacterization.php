@@ -12,14 +12,22 @@ $tenantUser = $app->getIdentity()->authenticateKey($bootstrapSecret);
 
 $failures = [];
 
-$home = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=home');
+// The query-style action URLs now canonicalize to path-style control routes.
+// Keep redirect coverage separate from rendering checks on their destinations.
+foreach (['home', 'login', 'explorer', 'admin', 'system', 'products', 'preview'] as $legacyAction) {
+    $legacy = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=' . $legacyAction);
+    phase0_assert($legacy['status'] === 301 && $legacy['body'] === '',
+        'Legacy action URL redirects before rendering: ' . $legacyAction, $failures);
+}
+
+$home = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/');
 phase0_assert(
-    $home['status'] === 200 && str_contains($home['body'], 'EFSDB Control'),
-    'Home compatibility route renders the current control-plane shell',
+    $home['status'] === 200 && str_contains($home['body'], '<efsdb-login'),
+    'Guest home renders the login host before control-plane content',
     $failures
 );
 
-$login = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=login');
+$login = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/login');
 phase0_assert(
     $login['status'] === 200
         && str_contains($login['body'], '<script type="application/json" id="efsdb-bootstrap">')
@@ -28,7 +36,7 @@ phase0_assert(
     $failures
 );
 
-$guestExplorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=explorer');
+$guestExplorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/explorer');
 phase0_assert(
     $guestExplorer['status'] === 200 && str_contains($guestExplorer['body'], '<efsdb-login'),
     'Guest access to explorer compatibility route falls back to the login host',
@@ -43,7 +51,7 @@ if ($tenantUser === null) {
 $session = $app->getIdentity()->createRefreshSession($tenantUser);
 $cookies = ['efsdb_refresh_token' => $session['token']];
 
-$explorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=explorer', 'GET', [
+$explorer = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/explorer', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -54,7 +62,7 @@ phase0_assert(
     $failures
 );
 
-$admin = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=admin', 'GET', [
+$admin = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/admin', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -65,7 +73,7 @@ phase0_assert(
     $failures
 );
 
-$adminLegacy = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=admin&ui=legacy', 'GET', [
+$adminLegacy = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/admin?ui=legacy', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -76,7 +84,7 @@ phase0_assert(
     $failures
 );
 
-$system = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=system', 'GET', [
+$system = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/system', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -85,7 +93,7 @@ phase0_assert(
     $failures
 );
 
-$products = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=products', 'GET', [
+$products = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/products', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -94,7 +102,7 @@ phase0_assert(
     $failures
 );
 
-$preview = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=preview', 'GET', [
+$preview = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/preview', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(
@@ -103,7 +111,7 @@ phase0_assert(
     $failures
 );
 
-$badFallbackLogin = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?action=admin', 'POST', [
+$badFallbackLogin = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/admin', 'POST', [
     'post' => ['login_key' => 'wrong-secret'],
 ]);
 phase0_assert(
@@ -112,7 +120,7 @@ phase0_assert(
     $failures
 );
 
-$logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/?logout=1', 'GET', [
+$logout = Phase0Harness::request($dataDir, $bootstrapSecret, '/_efsdb/logout', 'GET', [
     'cookies' => $cookies,
 ]);
 phase0_assert(

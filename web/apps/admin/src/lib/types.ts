@@ -30,6 +30,7 @@ export type AdminWidgetId =
   | 'role-directory'
   | 'display-mode'
   | 'window-preferences'
+  | 'dock-preferences'
   | 'settings-payload'
   | 'catalog-search'
   | 'catalog-results'
@@ -38,11 +39,29 @@ export type AdminWidgetId =
 export type AdminWidgetMode = 'card' | 'window';
 
 export type AdminWidgetWindowMode = 'normal' | 'maximized' | 'minimized' | 'rolled-up';
+export type AdminWidgetWindowSnapTarget =
+  | 'maximize'
+  | 'left-half'
+  | 'right-half'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
+export interface AdminWidgetWindowFrame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface AdminWidgetWindowState {
   open: boolean;
   pinned: boolean;
   windowState: AdminWidgetWindowMode;
+  frame?: AdminWidgetWindowFrame | null;
+  restoreFrame?: AdminWidgetWindowFrame | null;
+  snapTarget?: AdminWidgetWindowSnapTarget | null;
 }
 
 export interface AdminWorkspaceWidgetLayout {

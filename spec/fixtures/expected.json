@@ -3,9 +3,9 @@
     "blob": {
         "file": "blob_manifest.m",
         "id": "blob_001",
-        "storage_id": "m_8620755a35d0d4c538c265310f47f2c9",
+        "storage_id": "m_69a0ec1516e3f26144c96578d73fe54d",
         "bucket_id": "b_88637a9ebec8f57e0f944948",
-        "manifest_aad": "manifest:m_8620755a35d0d4c538c265310f47f2c9",
+        "manifest_aad": "manifest:m_69a0ec1516e3f26144c96578d73fe54d",
         "plaintext_content": "Hello EFSDB Conformance",
         "mime": "text/plain",
         "chunk_file": "blob_chunk.c",
@@ -15,9 +15,9 @@
     "doc": {
         "file": "doc_manifest.m",
         "id": "doc_001",
-        "storage_id": "m_68ba9155c7c8dc0bffdce1c40314bca1",
+        "storage_id": "m_c86ddceb8406f41b14b57f0b0bd86dda",
         "bucket_id": "b_97833aa40c47c6f10394887d",
-        "manifest_aad": "manifest:m_68ba9155c7c8dc0bffdce1c40314bca1",
+        "manifest_aad": "manifest:m_c86ddceb8406f41b14b57f0b0bd86dda",
         "data": {
             "id": "doc_001",
             "foo": "bar",

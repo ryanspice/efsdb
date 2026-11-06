@@ -178,6 +178,44 @@ final class Config
         return in_array($flag, ['1', 'true', 'yes', 'on'], true);
     }
 
+    public static function getRepoPhpIniPath(): string
+    {
+        $workspaceRoot = self::getWorkspaceRoot();
+        $repoPhpIni = $workspaceRoot . '/efsdb/php/core/php.ini';
+        if (is_file($repoPhpIni)) {
+            return self::normalizePath($repoPhpIni);
+        }
+
+        return self::normalizePath(__DIR__ . '/../php.ini');
+    }
+
+    public static function assertRepoPhpIniLoaded(?string $context = null): void
+    {
+        $requireFlag = strtolower((string)(self::env('EFSDB_REQUIRE_REPO_PHP_INI') ?? ''));
+        $shouldAssert = in_array(PHP_SAPI, ['cli', 'cli-server'], true)
+            || in_array($requireFlag, ['1', 'true', 'yes', 'on'], true);
+
+        if (!$shouldAssert) {
+            return;
+        }
+
+        $loadedIni = php_ini_loaded_file();
+        $expectedIni = self::getRepoPhpIniPath();
+        $label = $context === null || trim($context) === '' ? 'entry point' : trim($context);
+
+        if (!is_string($loadedIni) || trim($loadedIni) === '') {
+            throw new RuntimeException(
+                $label . ' requires the committed repo php.ini at ' . $expectedIni . ', but no php.ini was loaded.'
+            );
+        }
+
+        if (self::normalizePath($loadedIni) !== $expectedIni) {
+            throw new RuntimeException(
+                $label . ' requires the committed repo php.ini at ' . $expectedIni . ', but loaded ' . self::normalizePath($loadedIni) . '.'
+            );
+        }
+    }
+
     private static function env(string $key): ?string
     {
         $value = $_SERVER[$key] ?? $_ENV[$key] ?? getenv($key);

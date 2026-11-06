@@ -15,7 +15,7 @@ function render_snapshot_row(array $snapshot, bool $isActive, string $env): stri
         'promote' => 'text-[var(--efs-state-success,#48c78e)]',
         'rollback' => 'text-[var(--efs-state-warning,#f0b34a)]',
         'copy' => 'text-[var(--efs-state-info,#6db7ff)]',
-        'restore' => 'text-purple-500',
+        'restore' => 'text-[var(--accent)]',
         'snapshot' => 'text-[var(--shell-text)]',
         'seed' => 'text-[var(--shell-muted)]',
         default => 'text-[var(--shell-text)]'
@@ -171,7 +171,7 @@ HTML;
         </div>
 
         <aside class="space-y-6">
-            <div class="surface-panel bg-black/5 dark:bg-white/5 border border-[var(--shell-border)]">
+            <div class="surface-panel border border-[var(--shell-border)]">
                 <div class="metric-label mb-2">Snapshots & Rollbacks</div>
                 <p class="text-sm text-[var(--shell-muted)] leading-relaxed mb-4">
                     Every deployment creates an immutable snapshot of the environment state. You can instantly restore any environment to a previous snapshot if issues occur.
@@ -196,7 +196,7 @@ HTML;
                 <p class="text-xs text-[var(--shell-muted)] leading-relaxed mb-4">
                     Detailed system events and access logs for all deployment and promotion activities.
                 </p>
-                <div class="text-xs font-semibold uppercase tracking-wider text-[var(--accent)] mix-blend-plus-lighter dark:mix-blend-normal">
+                <div class="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
                     Coming Soon
                 </div>
             </div>

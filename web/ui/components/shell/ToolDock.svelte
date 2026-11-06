@@ -11,6 +11,8 @@
     ratio: number;
   };
 
+  export type ToolDockLabelMode = 'hover' | 'always' | 'popout' | 'hidden';
+
   type DockDragState = {
     itemId: string;
     pointerId: number;
@@ -22,6 +24,7 @@
   type Props = {
     items?: ToolDockItem[];
     position?: ToolDockPosition;
+    labelMode?: ToolDockLabelMode;
     onActivate?: (itemId: string) => void;
     onRemove?: (itemId: string) => void;
     onPositionChange?: (position: ToolDockPosition) => void;
@@ -34,6 +37,7 @@
   let {
     items = [],
     position = { edge: 'right', ratio: 0.84 },
+    labelMode = 'hover',
     onActivate,
     onRemove,
     onPositionChange
@@ -164,10 +168,18 @@
       ? `${(dockPosition.ratio * 100).toFixed(3)}%`
       : undefined
   );
-  let dockEdgeTop = $derived(dockPosition.edge === 'top' ? '1rem' : undefined);
-  let dockRight = $derived(dockPosition.edge === 'right' ? '1rem' : undefined);
-  let dockBottom = $derived(dockPosition.edge === 'bottom' ? '1rem' : undefined);
-  let dockEdgeLeft = $derived(dockPosition.edge === 'left' ? '1rem' : undefined);
+  let dockEdgeTop = $derived(
+    dockPosition.edge === 'top' ? 'var(--efs-dock-offset, 1rem)' : undefined
+  );
+  let dockRight = $derived(
+    dockPosition.edge === 'right' ? 'var(--efs-dock-offset, 1rem)' : undefined
+  );
+  let dockBottom = $derived(
+    dockPosition.edge === 'bottom' ? 'var(--efs-dock-offset, 1rem)' : undefined
+  );
+  let dockEdgeLeft = $derived(
+    dockPosition.edge === 'left' ? 'var(--efs-dock-offset, 1rem)' : undefined
+  );
   let dockTransform = $derived(
     dockPosition.edge === 'left' || dockPosition.edge === 'right'
       ? 'translateY(-100%)'
@@ -182,6 +194,7 @@
     class="tool-dock"
     class:is-dragging={Boolean(dragState?.dragging)}
     data-edge={dockPosition.edge}
+    data-label-mode={labelMode}
     role="toolbar"
     aria-label="Pinned actions"
     style:top={dockTop ?? dockEdgeTop}
@@ -192,6 +205,7 @@
   >
     {#each items as item (item.id)}
       <div class="tool-dock-item">
+        <span class="tool-dock-popout" aria-hidden="true">{item.label}</span>
         <button
           class="tool-dock-button"
           class:is-active={item.active}
@@ -229,7 +243,7 @@
     position: fixed;
     z-index: 520;
     display: inline-flex;
-    gap: 0.6rem;
+    gap: var(--efs-dock-gap, 0.6rem);
     align-items: flex-end;
     pointer-events: none;
   }
@@ -237,6 +251,7 @@
   .tool-dock-item {
     position: relative;
     display: inline-flex;
+    align-items: center;
   }
 
   .tool-dock[data-edge='left'],
@@ -260,14 +275,15 @@
 
   .tool-dock-button {
     position: relative;
+    z-index: 1;
     pointer-events: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 3.1rem;
-    height: 3.1rem;
+    width: var(--efs-dock-button-width, var(--efs-dock-button-size, 3.1rem));
+    height: var(--efs-dock-button-size, 3.1rem);
     border: 1px solid color-mix(in srgb, var(--shell-border, #334155), transparent 8%);
-    border-radius: 999px;
+    border-radius: min(999px, calc(var(--efs-dock-button-size, 3.1rem) * 0.52));
     background:
       radial-gradient(
         circle at 30% 30%,
@@ -309,7 +325,11 @@
   .tool-dock-button.is-active {
     border-color: color-mix(in srgb, var(--shell-primary, #7dd3fc), transparent 38%);
     background:
-      radial-gradient(circle at 30% 30%, rgba(125, 211, 252, 0.18), transparent 56%),
+      radial-gradient(
+        circle at 30% 30%,
+        color-mix(in srgb, var(--shell-primary, #7dd3fc), transparent 82%),
+        transparent 56%
+      ),
       linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 72%),
       color-mix(in srgb, var(--shell-primary, #7dd3fc), transparent 88%);
   }
@@ -318,11 +338,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.2rem;
-    height: 1.2rem;
+    width: var(--efs-dock-icon-size, 1.2rem);
+    height: var(--efs-dock-icon-size, 1.2rem);
     background: currentColor;
     mask: var(--icon-mask) center / contain no-repeat;
     -webkit-mask: var(--icon-mask) center / contain no-repeat;
+    transform: scale(var(--efs-dock-icon-scale, 1));
+    transform-origin: center;
   }
 
   .tool-dock-remove {
@@ -334,13 +356,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1rem;
-    height: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.92);
+    width: var(--efs-dock-remove-size, 1rem);
+    height: var(--efs-dock-remove-size, 1rem);
+    border: 1px solid color-mix(in srgb, var(--shell-text, #f8fafc), transparent 18%);
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.96);
-    color: white;
-    font: 700 0.72rem/1 var(--efs-font-sans, sans-serif);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 76%),
+      color-mix(in srgb, var(--shell-panel, rgba(10, 16, 30, 0.96)), var(--shell-text, #f8fafc) 12%);
+    color: var(--shell-text-strong, var(--shell-text, #f8fafc));
+    font:
+      700 calc(var(--efs-dock-remove-size, 1rem) * 0.72) / 1
+      var(--efs-font-sans, sans-serif);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
     cursor: pointer;
     transition: transform 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
@@ -348,12 +374,15 @@
 
   .tool-dock-remove:hover {
     transform: scale(1.06);
-    background: rgba(220, 38, 38, 0.96);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 76%),
+      color-mix(in srgb, #dc2626, var(--shell-panel, rgba(10, 16, 30, 0.96)) 18%);
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
   }
 
   .tool-dock-tooltip {
     position: absolute;
+    z-index: 2;
     opacity: 0;
     pointer-events: none;
     white-space: nowrap;
@@ -376,6 +405,37 @@
     transition:
       opacity 140ms ease,
       transform 140ms ease;
+  }
+
+  .tool-dock-popout {
+    position: absolute;
+    z-index: 0;
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+    align-items: center;
+    max-width: var(--efs-dock-popout-width, 10rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--shell-primary, #7dd3fc), transparent 56%);
+    border-radius: 999px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 82%),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--shell-inset-bg, rgba(2, 6, 23, 0.92)), transparent 0%),
+        color-mix(in srgb, var(--shell-panel, rgba(10, 16, 30, 0.96)), transparent 2%)
+      );
+    color: var(--shell-text, #f8fafc);
+    font: var(--efs-font-body-xs, 600 0.75rem/1.3 sans-serif);
+    box-shadow:
+      0 16px 34px rgba(0, 0, 0, 0.34),
+      inset 0 0 0 1px color-mix(in srgb, var(--shell-border, #334155), transparent 20%);
+    transition:
+      opacity 180ms ease,
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .tool-dock[data-edge='right'] .tool-dock-tooltip {
@@ -402,15 +462,89 @@
     transform: translateX(-50%) translateY(0.35rem);
   }
 
+  .tool-dock[data-edge='right'] .tool-dock-popout {
+    top: 50%;
+    right: calc(100% - min(var(--efs-dock-button-width, var(--efs-dock-button-size, 3.1rem)), var(--efs-dock-button-size, 3.1rem)) * 0.32);
+    transform: translateY(-50%) scaleX(0.72);
+    transform-origin: right center;
+    padding-right: calc(var(--efs-dock-button-width, var(--efs-dock-button-size, 3.1rem)) * 0.54);
+  }
+
+  .tool-dock[data-edge='left'] .tool-dock-popout {
+    top: 50%;
+    left: calc(100% - min(var(--efs-dock-button-width, var(--efs-dock-button-size, 3.1rem)), var(--efs-dock-button-size, 3.1rem)) * 0.32);
+    transform: translateY(-50%) scaleX(0.72);
+    transform-origin: left center;
+    padding-left: calc(var(--efs-dock-button-width, var(--efs-dock-button-size, 3.1rem)) * 0.54);
+  }
+
+  .tool-dock[data-edge='top'] .tool-dock-popout,
+  .tool-dock[data-edge='bottom'] .tool-dock-popout {
+    left: 50%;
+    min-width: max-content;
+    padding-inline: 0.85rem;
+    transform-origin: center center;
+  }
+
+  .tool-dock[data-edge='top'] .tool-dock-popout {
+    top: calc(100% - var(--efs-dock-button-size, 3.1rem) * 0.28);
+    transform: translateX(-50%) scaleX(0.82);
+  }
+
+  .tool-dock[data-edge='bottom'] .tool-dock-popout {
+    bottom: calc(100% - var(--efs-dock-button-size, 3.1rem) * 0.28);
+    transform: translateX(-50%) scaleX(0.82);
+  }
+
   .tool-dock-button:hover .tool-dock-tooltip,
   .tool-dock-button:focus-visible .tool-dock-tooltip {
     opacity: 1;
+  }
+
+  .tool-dock[data-label-mode='always'] .tool-dock-tooltip {
+    opacity: 1;
+  }
+
+  .tool-dock[data-label-mode='popout'] .tool-dock-tooltip {
+    display: none;
+  }
+
+  .tool-dock[data-label-mode='hidden'] .tool-dock-tooltip {
+    display: none;
+  }
+
+  .tool-dock[data-label-mode='popout'] .tool-dock-popout {
+    display: inline-flex;
+  }
+
+  .tool-dock[data-label-mode='popout'] .tool-dock-item:hover .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'] .tool-dock-item:focus-within .tool-dock-popout {
+    opacity: 1;
+  }
+
+  .tool-dock[data-label-mode='popout'][data-edge='right'] .tool-dock-item:hover .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'][data-edge='right'] .tool-dock-item:focus-within .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'][data-edge='left'] .tool-dock-item:hover .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'][data-edge='left'] .tool-dock-item:focus-within .tool-dock-popout {
+    transform: translateY(-50%) scaleX(1);
+  }
+
+  .tool-dock[data-label-mode='popout'][data-edge='top'] .tool-dock-item:hover .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'][data-edge='top'] .tool-dock-item:focus-within .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'][data-edge='bottom'] .tool-dock-item:hover .tool-dock-popout,
+  .tool-dock[data-label-mode='popout'][data-edge='bottom'] .tool-dock-item:focus-within .tool-dock-popout {
+    transform: translateX(-50%) scaleX(1);
   }
 
   .tool-dock[data-edge='right'] .tool-dock-button:hover .tool-dock-tooltip,
   .tool-dock[data-edge='right'] .tool-dock-button:focus-visible .tool-dock-tooltip,
   .tool-dock[data-edge='left'] .tool-dock-button:hover .tool-dock-tooltip,
   .tool-dock[data-edge='left'] .tool-dock-button:focus-visible .tool-dock-tooltip {
+    transform: translateY(-50%) translateX(0);
+  }
+
+  .tool-dock[data-label-mode='always'][data-edge='right'] .tool-dock-tooltip,
+  .tool-dock[data-label-mode='always'][data-edge='left'] .tool-dock-tooltip {
     transform: translateY(-50%) translateX(0);
   }
 
@@ -421,20 +555,18 @@
     transform: translateX(-50%) translateY(0);
   }
 
+  .tool-dock[data-label-mode='always'][data-edge='top'] .tool-dock-tooltip,
+  .tool-dock[data-label-mode='always'][data-edge='bottom'] .tool-dock-tooltip {
+    transform: translateX(-50%) translateY(0);
+  }
+
   @media (max-width: 47.99rem) {
-    .tool-dock-button {
-      width: 2.8rem;
-      height: 2.8rem;
-    }
-
-    .tool-dock-remove {
-      width: 0.9rem;
-      height: 0.9rem;
-      font-size: 0.68rem;
-    }
-
     .tool-dock-tooltip {
       display: none;
+    }
+
+    .tool-dock-popout {
+      display: none !important;
     }
   }
 </style>

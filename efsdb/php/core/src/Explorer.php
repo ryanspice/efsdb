@@ -61,14 +61,16 @@ final class Explorer
                     'entity' => PublicWorkspace::FILE_ENTITY,
                 ];
 
-                $items[] = [
-                    'name' => 'projects',
-                    'type' => 'dir',
-                    'size' => 0,
-                    'rawPath' => 'projects',
-                    'kind' => 'projects',
-                    'entity' => 'project_files',
-                ];
+                if ($this->canViewNaturalProjects($user)) {
+                    $items[] = [
+                        'name' => 'projects',
+                        'type' => 'dir',
+                        'size' => 0,
+                        'rawPath' => 'projects',
+                        'kind' => 'projects',
+                        'entity' => 'project_files',
+                    ];
+                }
 
                 if ($this->hasNaturalSystemResources($user)) {
                     $items[] = [
@@ -107,6 +109,9 @@ final class Explorer
         }
 
         if ($mode === 'natural' && $entity === 'projects') {
+            if (!$this->canViewNaturalProjects($user)) {
+                return ['path' => $relPath, 'mode' => $mode, 'items' => []];
+            }
             $children = $this->listNaturalProjectsChildren(implode('/', $segments));
             return ['path' => $relPath, 'mode' => $mode, 'items' => $children];
         }
@@ -209,6 +214,20 @@ final class Explorer
 
         if (isset($manifest['lifecycle']) && is_array($manifest['lifecycle'])) {
             $meta['lifecycle'] = $manifest['lifecycle'];
+        }
+
+        $siteTarget = $this->siteTargetForPath($logicalPath);
+        if ($siteTarget !== null && $this->workspace !== null) {
+            $this->workspace->writeSiteFile($siteTarget['environment'], $siteTarget['relativePath'], $content, [
+                'mime' => $updatedMime,
+            ]);
+
+            $updatedResolved = $this->resolveItem($user, $logicalPath, 'natural');
+            if ($updatedResolved === null || $updatedResolved['type'] !== 'file') {
+                throw new RuntimeException('Failed to resolve updated site file.');
+            }
+
+            return $this->logicalFileDetails($updatedResolved, 'natural');
         }
 
         $updatedManifest = $this->store->storeFile((string)$resolved['entity'], $content, $meta);
@@ -482,10 +501,10 @@ final class Explorer
                 if (str_starts_with($displayPath, $prefix)) {
                     $childRel = substr($displayPath, strlen($prefix));
                     $targetPath = $newPrefix . $childRel;
-                    
+
                     $content = $this->store->readContent(PublicWorkspace::FILE_ENTITY, (string)$m['id']);
                     $id = $isMove ? (string)$m['id'] : $this->store->generateId();
-                    
+
                     $meta = [
                         'id' => $id,
                         'name' => basename($targetPath),
@@ -677,7 +696,11 @@ final class Explorer
             return $this->resolveNaturalSiteItem($relPath);
         }
 
-        if ($mode === 'natural' && ($relPath === 'projects' || str_starts_with($relPath, 'projects/'))) {
+        if (
+            $mode === 'natural'
+            && ($relPath === 'projects' || str_starts_with($relPath, 'projects/'))
+            && $this->canViewNaturalProjects($user)
+        ) {
             return $this->resolveNaturalProjectsItem($relPath);
         }
 
@@ -1017,7 +1040,7 @@ final class Explorer
             }
 
             $item = $this->naturalSiteFileListItem($name, $fullPath, $manifest);
-            
+
             if ($relative === 'routes') {
                 $ext = pathinfo($name, PATHINFO_EXTENSION);
                 if (in_array(strtolower($ext), ['php', 'html', 'htm'])) {
@@ -1027,7 +1050,7 @@ final class Explorer
                         // Skip it in the routes folder
                         continue;
                     }
-                    
+
                     $nameWithoutExt = preg_replace('/\.(php|html|htm)$/i', '', $name);
                     $item['name'] = $nameWithoutExt;
                     $item['rawPath'] = $basePath . '/' . $nameWithoutExt;
@@ -1189,6 +1212,17 @@ final class Explorer
     {
         $includeSystem = $mode === 'raw' && $this->canInspectSystemStorage($user);
         return $this->store->listEntities($includeSystem);
+    }
+
+    private function canViewNaturalProjects(User $user): bool
+    {
+        if (!$this->perms->canUseNaturalView($user)) {
+            return false;
+        }
+
+        return $this->hasNaturalSystemResources($user)
+            || $this->perms->canViewEnvironmentHistory($user)
+            || !$this->perms->canEditSiteFiles($user);
     }
 
     /**
@@ -1362,12 +1396,28 @@ final class Explorer
             ];
         }
 
+        $siteTarget = $this->siteTargetForPath($relPath);
+        if ($siteTarget !== null && $this->workspace !== null) {
+            $siteFile = $this->workspace->readSiteFile($siteTarget['environment'], $siteTarget['relativePath'], false, false);
+            if ($siteFile !== null) {
+                return [
+                    'type' => 'file',
+                    'entity' => PublicWorkspace::FILE_ENTITY,
+                    'path' => $relPath,
+                    'logicalPath' => $siteFile['logicalPath'] ?? $relPath,
+                    'manifest' => $siteFile['manifest'],
+                    'storageType' => 'logical',
+                ];
+            }
+        }
+
         foreach ($this->store->scanVisibleManifests(PublicWorkspace::FILE_ENTITY, PHP_INT_MAX, false) as $manifest) {
             $displayPath = $this->naturalSiteDisplayPath($manifest);
             $matchPath = $displayPath;
-            
+
             // Allow routes to be addressed without extension in natural mode
-            if (str_starts_with($displayPath, 'site/' . $environment . '/routes/') && 
+            if (
+                str_starts_with($displayPath, 'site/' . $environment . '/routes/') &&
                 (str_ends_with($displayPath, '.php') || str_ends_with($displayPath, '.html') || str_ends_with($displayPath, '.htm'))) {
                 $matchPath = preg_replace('/\.(php|html|htm)$/i', '', $displayPath);
             }

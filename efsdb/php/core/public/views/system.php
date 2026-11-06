@@ -94,7 +94,7 @@ $canAdmin = !$isGuest && $perms->canManageUsers($user);
                     <div class="metric-copy">Required for AEAD and key derivation.</div>
                 </div>
             </div>
-            <div class="mt-6 overflow-x-auto bg-black/5 dark:bg-white/5 p-4 rounded-xl border border-[var(--shell-border)]">
+            <div class="mt-6 overflow-x-auto p-4 rounded-xl border border-[var(--shell-border)]" style="background: var(--shell-inset-bg);">
                 <div class="metric-label mb-2">Tenant Settings JSON</div>
                 <pre class="text-xs text-[var(--shell-muted)]"><?php echo htmlspecialchars(json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></pre>
             </div>

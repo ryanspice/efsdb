@@ -11,7 +11,7 @@ require_once __DIR__ . '/Phase0Harness.php';
 function phase4_run_import(array $arguments, array $environment): array
 {
     $php = escapeshellarg(PHP_BINARY);
-    $script = escapeshellarg(__DIR__ . '/../../../efsdb/php/runtime/import.php');
+    $script = escapeshellarg(__DIR__ . '/../../../efsdb/php/core/bin/import.php');
     $ini = php_ini_loaded_file();
 
     $parts = [$php];
@@ -135,7 +135,7 @@ phase0_assert(
         && $prerenderImport['code'] === 0
         && str_contains($clientImport['output'], 'shared public workspace')
         && str_contains($prerenderImport['output'], 'shared public workspace'),
-    'runtime/import.php exits successfully and reports shared public-workspace import activity',
+    'core/bin/import.php exits successfully and reports shared public-workspace import activity',
     $failures
 );
 

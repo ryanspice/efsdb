@@ -5,6 +5,7 @@ require_once __DIR__ . '/Audit.php';
 require_once __DIR__ . '/IdentityManager.php';
 require_once __DIR__ . '/Store.php';
 require_once __DIR__ . '/User.php';
+require_once __DIR__ . '/PublicAssetPolicy.php';
 
 final class PublicWorkspace
 {
@@ -287,21 +288,87 @@ final class PublicWorkspace
         }
 
         $doc['updatedAt'] = gmdate('c');
-        return $this->persistRoot($doc);
+        $saved = $this->persistRoot($doc);
+        $this->invalidateWorkspaceFingerprint($root);
+        return $saved;
     }
 
-    public function canReadRoot(string $root, User $user): bool
+    public function canReadRoot(string $root, User|callable $userResolver): bool
     {
         $doc = $this->getRoot($root, false) ?? $this->defaultRootDocument($this->tenantKey(), $this->normalizeRoot($root));
         if (($doc['visibility'] ?? 'restricted') === 'public') {
             return true;
         }
 
+        $user = is_callable($userResolver) ? $userResolver() : $userResolver;
         if ($user->isGuest()) {
             return false;
         }
 
         return in_array($user->actualRole, array_values(array_map('strval', $doc['allowedActualRoles'] ?? [])), true);
+    }
+
+    public function isPublicRoot(string $root): bool
+    {
+        return ($this->getRoot($root, false)['visibility'] ?? 'restricted') === 'public';
+    }
+
+    private function deliveryPolicyFingerprint(string $root): string
+    {
+        $doc = $this->getRoot($root, false) ?? [];
+        return hash('sha256', json_encode([
+            $this->tenantKey(), $root, $doc['enabled'] ?? false,
+            $doc['visibility'] ?? 'restricted', $doc['allowedActualRoles'] ?? [],
+            $doc['deliveryMode'] ?? 'php-html', $doc['adapter'] ?? [],
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    /** Read a generated asset only from the current tenant/environment snapshot. */
+    public function readMaterializedSiteFile(string $root, string $relativePath, bool $includeBytes = true): ?array
+    {
+        $root = $this->normalizeRoot($root);
+        $relativePath = $this->normalizeSiteRelativePath($relativePath);
+        if (!PublicAssetPolicy::isPublicAsset($relativePath)) {
+            return null;
+        }
+        $baseDir = $this->materializedWorkspaceBaseDir($root);
+        $cached = is_file($baseDir . '/.fingerprint-cache')
+            ? json_decode((string)file_get_contents($baseDir . '/.fingerprint-cache'), true) : null;
+        if (!is_array($cached) || ($cached['policyFingerprint'] ?? '') !== $this->deliveryPolicyFingerprint($root)
+            || !preg_match('/^[a-f0-9]{64}$/', (string)($cached['fingerprint'] ?? ''))) {
+            return null;
+        }
+
+        $snapshot = realpath($baseDir . '/' . $cached['fingerprint']);
+        $file = realpath($baseDir . '/' . $cached['fingerprint'] . '/' . $relativePath);
+        if ($snapshot === false || $file === false || !is_file($file)
+            || !str_starts_with(str_replace('\\', '/', $file), str_replace('\\', '/', $snapshot) . '/')) {
+            return null;
+        }
+        // Generated workspace files must not follow a symlink out of the snapshot.
+        $walk = $snapshot;
+        foreach (explode('/', $relativePath) as $segment) {
+            $walk .= '/' . $segment;
+            if (is_link($walk)) {
+                return null;
+            }
+        }
+
+        $result = ['manifest' => [
+            'id' => hash('sha256', $cached['fingerprint'] . "\0" . $relativePath),
+            'logicalPath' => $this->siteLogicalPath($root, $relativePath),
+            'size' => filesize($file), 'mtime' => gmdate('c', (int)filemtime($file)),
+            'contentFingerprint' => hash_file('sha256', $file),
+            'mime' => PublicAssetPolicy::mimeType($relativePath),
+        ]];
+        if ($includeBytes) {
+            $bytes = file_get_contents($file);
+            if ($bytes === false) {
+                return null;
+            }
+            $result['bytes'] = $bytes;
+        }
+        return $result;
     }
 
     /**
@@ -610,7 +677,8 @@ final class PublicWorkspace
         $oldCached = null;
         if (is_file($cacheFile)) {
             $cached = json_decode((string)file_get_contents($cacheFile), true);
-            if (is_array($cached) && isset($cached['fingerprint']) && isset($cached['fileCount']) && isset($cached['path'])) {
+            if (is_array($cached) && isset($cached['fingerprint']) && isset($cached['fileCount']) && isset($cached['path'])
+                && ($cached['policyFingerprint'] ?? '') === $this->deliveryPolicyFingerprint($root)) {
                 $targetDir = $cached['path'];
                 $readyMarker = $targetDir . '/.efsdb-ready';
                 if (is_file($readyMarker)) {
@@ -688,6 +756,7 @@ final class PublicWorkspace
             'path' => $targetDir,
             'fingerprint' => $fingerprint,
             'fileCount' => count($entries),
+            'policyFingerprint' => $this->deliveryPolicyFingerprint($root),
         ];
 
         file_put_contents($cacheFile, json_encode($result, JSON_UNESCAPED_SLASHES), LOCK_EX);
@@ -818,6 +887,11 @@ final class PublicWorkspace
      */
     private function findSiteManifestByRelativePath(string $root, string $relativePath): ?array
     {
+        $canonicalId = $this->fileId($this->tenantKey(), $this->normalizeRoot($root), $relativePath);
+        if ($this->store->hasManifest(self::FILE_ENTITY, $canonicalId)) {
+            return $this->store->getManifest(self::FILE_ENTITY, $canonicalId);
+        }
+
         $logicalPath = $this->siteLogicalPath($root, $relativePath);
         $manifest = $this->store->findManifestByLogicalPath(self::FILE_ENTITY, $logicalPath);
         if ($manifest !== null) {
@@ -975,8 +1049,8 @@ final class PublicWorkspace
             'id' => $this->rootId($tenantKey, $root),
             'tenantKey' => $tenantKey,
             'root' => $root,
-            'visibility' => 'public',
-            'allowedActualRoles' => [],
+            'visibility' => $root === self::ROOT_STAGING ? 'restricted' : 'public',
+            'allowedActualRoles' => $root === self::ROOT_STAGING ? ['tenant_admin', 'operator_root'] : [],
             'deliveryMode' => 'php-html',
             'enabled' => true,
             'updatedAt' => $now,

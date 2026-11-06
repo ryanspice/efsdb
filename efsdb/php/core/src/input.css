@@ -78,42 +78,6 @@
     --shell-scrollbar: rgba(255, 255, 255, 0.1);
   }
 
-  html[data-theme='green'] {
-    color-scheme: dark;
-    --accent: #c6ff00;
-    --shell-body-bg:
-      radial-gradient(circle at top left, rgba(198, 255, 0, 0.05), transparent 28%),
-      linear-gradient(180deg, rgba(198, 255, 0, 0.03), transparent 24%),
-      linear-gradient(180deg, #0f170d 0%, #050804 100%);
-    --shell-overlay:
-      radial-gradient(circle at 15% 20%, transparent 0 130px, rgba(198, 255, 0, 0.05) 131px 132px, transparent 133px),
-      radial-gradient(circle at 78% 18%, transparent 0 220px, rgba(198, 255, 0, 0.04) 221px 222px, transparent 223px),
-      radial-gradient(circle at 40% 74%, transparent 0 180px, rgba(198, 255, 0, 0.03) 181px 182px, transparent 183px),
-      radial-gradient(circle at 96% 96%, transparent 0 160px, rgba(198, 255, 0, 0.03) 161px 162px, transparent 163px);
-    --shell-overlay-opacity: 0.7;
-    --shell-text: #e7eddc;
-    --shell-text-strong: #f0f5e5;
-    --shell-muted: #a2b392;
-    --shell-border: rgba(198, 255, 0, 0.12);
-    --shell-border-strong: rgba(198, 255, 0, 0.2);
-    --shell-panel-bg: rgba(12, 20, 10, 0.8);
-    --shell-soft-bg: rgba(28, 39, 26, 0.6);
-    --shell-inset-bg: rgba(9, 15, 8, 0.3);
-    --shell-inset-strong-bg: rgba(5, 9, 5, 0.4);
-    --shell-nav-bg: rgba(11, 19, 8, 0.85);
-    --shell-hover-bg: rgba(255, 255, 255, 0.04);
-    --shell-code-bg: rgba(255, 255, 255, 0.03);
-    --shell-pre-bg: rgba(0, 0, 0, 0.25);
-    --shell-input-bg: rgba(6, 10, 6, 0.4);
-    --shell-input-placeholder: #73856a;
-    --shell-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
-    --shell-pill-text: #0a1208;
-    --shell-nav-text: #c5d0b8;
-    --shell-code-text: #dbe6cc;
-    --shell-chip-bg: rgba(28, 39, 26, 0.6);
-    --shell-scrollbar: rgba(198, 255, 0, 0.2);
-  }
-
   @media (min-width: 48rem) {
     :root {
       --shell-font-body-md: 15px/1.65 var(--shell-font-sans);
@@ -248,7 +212,7 @@
     position: relative;
     cursor: pointer;
   }
-  
+
   [data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
@@ -269,7 +233,7 @@
     z-index: 50;
     box-shadow: var(--shell-shadow);
   }
-  
+
   [data-tooltip]::after {
     content: '';
     position: absolute;
@@ -285,7 +249,7 @@
     pointer-events: none;
     z-index: 50;
   }
-  
+
   [data-tooltip]:hover::before,
   [data-tooltip]:hover::after {
     opacity: 1;
@@ -313,7 +277,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(22rem, 26rem);
   }
-  
+
   .workspace-layout[data-sidebar-pos="left"] {
     display: grid;
     grid-template-columns: minmax(22rem, 26rem) minmax(0, 1fr);
@@ -634,7 +598,7 @@
 
   .theme-button[data-theme-current='light'] .theme-light,
   .theme-button[data-theme-current='dark'] .theme-dark,
-  .theme-button[data-theme-current='green'] .theme-green {
+  .theme-button[data-theme-current='auto'] .theme-auto {
     display: block;
   }
 
