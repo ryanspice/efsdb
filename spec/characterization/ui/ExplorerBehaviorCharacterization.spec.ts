@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { openExplorer } from './helpers/auth';
 import {
   explorerColumn,
@@ -24,6 +26,17 @@ async function currentContentColumn(page: Page) {
   return explorerColumn(page, await lastExplorerColumnIndex(page));
 }
 
+test('shared shell styles are served at their browser import paths', async ({ request }) => {
+  for (const name of ['win7.css', 'win7-overrides.css']) {
+    const response = await request.get(`/styles/${name}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('text/css');
+    const expected = readFileSync(resolve(__dirname, '../../../web/styles', name), 'utf8')
+      .replace(/\r\n/g, '\n').replace(/\n+$/, '\n');
+    expect(await response.text()).toBe(expected);
+  }
+});
+
 test('drag-to-scrub selects rows and wheel scrolling works when the column overflows', async ({
   page
 }) => {
@@ -47,6 +60,7 @@ test('drag-to-scrub selects rows and wheel scrolling works when the column overf
   }
 
   const pointerId = 1;
+  const pageScrollBeforeScrub = await page.evaluate(() => window.scrollY);
   const startPoint = {
     x: startBox.x + startBox.width / 2,
     y: startBox.y + startBox.height / 2
@@ -126,6 +140,7 @@ test('drag-to-scrub selects rows and wheel scrolling works when the column overf
   );
 
   await expect(column.locator('.row.active')).toContainText('file-04.txt');
+  expect(await page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeScrub);
 
   const metrics = await list.evaluate((node) => ({
     clientHeight: node.clientHeight,

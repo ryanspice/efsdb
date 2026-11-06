@@ -2,10 +2,11 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, writeFileSync } from "no
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { delimiter, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const phpIniPath = resolve(rootDir, "efsdb/php/core/php.ini");
-const requiredExtensions = ["sodium", "mbstring", "openssl"];
+const requiredExtensions = ["sodium", "mbstring", "openssl", "phar", "zip", "zlib", "iconv"];
 
 export type PhpRuntimeProbe = { extensionDir: string; loadedExtensions: string[] };
 
@@ -73,7 +74,10 @@ export function preparePhpInvocation(args: string[], environment: NodeJS.Process
     mkdirSync(directory, { recursive: true });
   }
   const scanDir = mkdtempSync(resolve(rootDir, ".ai/evidence/php-config/run-"));
-  writeFileSync(resolve(scanDir, "10-required-extensions.ini"), requiredExtensionIni(probe.loadedExtensions));
+  // Windows PHP processes can otherwise share stale OPcache state across launches.
+  // Children inherit this scan directory and therefore the same cache namespace.
+  const cacheIni = process.platform === "win32" ? `opcache.cache_id=efsdb-${randomUUID()}\n` : "";
+  writeFileSync(resolve(scanDir, "10-required-extensions.ini"), requiredExtensionIni(probe.loadedExtensions) + cacheIni);
   const env = {
     ...environment,
     EFSDB_PHP_BIN: phpBin,

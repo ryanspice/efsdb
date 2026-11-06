@@ -1,0 +1,330 @@
+.window-shell.basic7-theme,
+.widget-frame.basic7-theme,
+.preview-window.basic7-theme {
+  --w7-w-grad:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, white 80%, var(--w7-w-bg) 20%) 0%,
+      color-mix(in srgb, white 62%, var(--w7-w-bg) 38%) 46%,
+      color-mix(in srgb, black 10%, var(--w7-w-bg) 90%) 100%
+    );
+  --w7-wct-bd: color-mix(in srgb, black 34%, var(--w7-w-bg));
+  --w7-wct-bg:
+    linear-gradient(
+      rgba(255, 255, 255, 0.92),
+      rgba(255, 255, 255, 0.58) 45%,
+      rgba(106, 140, 173, 0.2) 50%,
+      rgba(106, 140, 173, 0.22) 75%,
+      rgba(255, 255, 255, 0.86)
+    );
+  --w7-wct-bg-h:
+    radial-gradient(circle at bottom, rgba(102, 196, 232, 0.78), transparent 65%),
+    linear-gradient(#d7eef9 50%, #74a7cc 0);
+  --w7-wct-bg-a:
+    radial-gradient(circle at bottom, rgba(79, 190, 227, 0.72), transparent 65%),
+    linear-gradient(#b7d4e9 50%, #5f86a3 0);
+}
+
+.window-shell.basic7-theme::before,
+.widget-frame.basic7-theme:not(.window-mode)::before,
+.preview-window.basic7-theme::before {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.24) 24%, transparent 34%),
+    var(--w7-w-grad);
+}
+
+.window-shell.basic7-theme::after,
+.widget-frame.basic7-theme:not(.window-mode)::after,
+.preview-window.basic7-theme::after {
+  content: none;
+  display: none;
+}
+
+.window-shell.basic7-theme .window-chrome.title-bar,
+.widget-frame.basic7-theme:not(.window-mode) .widget-header.title-bar,
+.preview-window.basic7-theme .preview-chrome {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.22) 22%, transparent 34%),
+    var(--w7-w-grad);
+  background-attachment: scroll;
+  background-color: var(--w7-w-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    inset 1px 0 0 rgba(255, 255, 255, 0.54),
+    inset -1px 0 0 rgba(255, 255, 255, 0.54);
+}
+
+.window-shell.basic7-theme .window-title.title-bar-text,
+.widget-frame.basic7-theme:not(.window-mode) .widget-title.title-bar-text,
+.preview-window.basic7-theme .preview-title.title-bar-text {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button,
+.window-shell.win7 .window-help .efs-win7-tool-button,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button {
+  width: 23px;
+  min-width: 23px;
+  height: 23px;
+  min-height: 23px;
+  padding: 0;
+  border: 1px solid var(--w7-el-bd);
+  border-radius: var(--w7-el-bdr);
+  background: var(--w7-el-grad);
+  box-shadow: var(--w7-el-sd);
+  color: var(--w7-el-c);
+  overflow: hidden;
+  transform: none;
+  transition:
+    border-color 0.3s linear,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button::before,
+.window-shell.win7 .window-help .efs-win7-tool-button::before,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button::before {
+  background: var(--w7-el-grad-h);
+  border-radius: var(--w7-el-bdr);
+  box-shadow: var(--w7-el-sd);
+  opacity: 0;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button::after,
+.window-shell.win7 .window-help .efs-win7-tool-button::after,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button::after {
+  background: var(--w7-el-grad-a);
+  border-radius: 2px;
+  box-shadow: var(--w7-el-sd-a);
+  mix-blend-mode: normal;
+  opacity: 0;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled):hover,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled):hover,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled):hover {
+  border-color: var(--w7-el-bd-h);
+  background: var(--w7-el-grad);
+  box-shadow: var(--w7-el-sd);
+  color: var(--w7-el-c);
+  transform: none;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled):hover::before,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled):hover::before,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled):hover::before {
+  opacity: 1;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled):active,
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled).is-active,
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled).active,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled):active,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled).is-active,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled).active,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled):active,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled).is-active,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled).active {
+  border-color: var(--w7-el-bd-a);
+  background: var(--w7-el-grad);
+  box-shadow: var(--w7-el-sd);
+  color: var(--w7-el-c);
+  transform: none;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled):active::after,
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled).is-active::after,
+.window-shell.win7 .window-tools .efs-win7-tool-button:not(:disabled).active::after,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled):active::after,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled).is-active::after,
+.window-shell.win7 .window-help .efs-win7-tool-button:not(:disabled).active::after,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled):active::after,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled).is-active::after,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:not(:disabled).active::after {
+  opacity: 1;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button:focus-visible,
+.window-shell.win7 .window-help .efs-win7-tool-button:focus-visible,
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button:focus-visible {
+  animation: none;
+  box-shadow: inset 0 0 0 2px #98d1ef;
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+.window-shell.win7 .window-tools .efs-win7-tool-button :global(.app-icon),
+.window-shell.win7 .window-help .efs-win7-tool-button :global(.app-icon),
+.widget-frame.win7 .widget-icon-button.efs-win7-tool-button :global(.app-icon) {
+  width: 0.78rem;
+  height: 0.78rem;
+}
+
+:host(:not([theme='light'])) .win7 {
+  --w7-surface: #1c2229;
+  --w7-el-bg: #303741;
+  --w7-el-bg-d: #2b323a;
+  --w7-el-bg-s-1: #262d35;
+  --w7-el-bg-s-2: #1b2128;
+  --w7-el-sd: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --w7-el-sd-a:
+    inset 1px 1px 0 rgba(0, 0, 0, 0.5),
+    inset -1px 1px 0 rgba(255, 255, 255, 0.06);
+  --w7-el-bd: #667282;
+  --w7-el-bd-h: #72b5ec;
+  --w7-el-bd-a: #4b8fcb;
+  --w7-el-bd-d: #4a5563;
+  --w7-el-c: #e7edf8;
+  --w7-el-c-d: #8591a2;
+  --w7-li-bd-hl: #4c7eac;
+  --w7-li-bg-hl: linear-gradient(#2e567f, #244260 90%, #315b86);
+  --w7-bl-bd: rgba(0, 0, 0, 0.6);
+  --w7-w-bd: rgba(8, 12, 18, 0.82);
+  --w7-w-bg: var(--efs-win7-window-bg, #4580c4);
+  --w7-wct-bd: rgba(9, 16, 24, 0.78);
+  --w7-wct-sd: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --w7-wct-bg:
+    linear-gradient(
+      rgba(255, 255, 255, 0.34),
+      rgba(255, 255, 255, 0.16) 45%,
+      rgba(0, 0, 0, 0.22) 50%,
+      rgba(0, 0, 0, 0.24) 75%,
+      rgba(255, 255, 255, 0.24)
+    );
+  --w7-wct-bg-h:
+    radial-gradient(circle at bottom, rgba(93, 196, 240, 0.92), transparent 65%),
+    linear-gradient(#7eb4d5 50%, #134f7c 0);
+  --w7-wct-bg-a:
+    radial-gradient(circle at bottom, rgba(11, 253, 250, 0.82), transparent 65%),
+    linear-gradient(#567086 50%, #0c2135 0);
+  --w7-wct_close-bg:
+    radial-gradient(circle at -60% 50%, rgba(0, 0, 0, 0.64) 5% 10%, transparent 50%),
+    radial-gradient(circle at 160% 50%, rgba(0, 0, 0, 0.64) 5% 10%, transparent 50%),
+    linear-gradient(#c9897e, #ab5f51 25% 50%, #8e2210 50%);
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 button,
+:host(:not([theme='light'])) .win7 [role='button'],
+:host(:not([theme='light'])) .win7 input[type='file']::file-selector-button,
+:host(:not([theme='light'])) .win7 select:not([multiple]),
+:host(:not([theme='light'])) .win7 fieldset,
+:host(:not([theme='light'])) .win7 legend,
+:host(:not([theme='light'])) .win7 .window-body,
+:host(:not([theme='light'])) .win7 .window-footer,
+:host(:not([theme='light'])) .win7 .status-bar {
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 button:disabled,
+:host(:not([theme='light'])) .win7 [role='button']:disabled,
+:host(:not([theme='light'])) .win7 input[type='file']:disabled::file-selector-button,
+:host(:not([theme='light'])) .win7 select:not([multiple]):disabled {
+  color: var(--w7-el-c-d);
+}
+
+:host(:not([theme='light'])) .win7 input[type='email'],
+:host(:not([theme='light'])) .win7 input[type='number'],
+:host(:not([theme='light'])) .win7 input[type='password'],
+:host(:not([theme='light'])) .win7 input[type='text'],
+:host(:not([theme='light'])) .win7 input[type='url'],
+:host(:not([theme='light'])) .win7 textarea {
+  background-color: #161b22;
+  border-color: #55687f #324152 #324152 #55687f;
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 input[type='email']:hover,
+:host(:not([theme='light'])) .win7 input[type='number']:hover,
+:host(:not([theme='light'])) .win7 input[type='password']:hover,
+:host(:not([theme='light'])) .win7 input[type='text']:hover,
+:host(:not([theme='light'])) .win7 input[type='url']:hover,
+:host(:not([theme='light'])) .win7 textarea:hover {
+  border-color: #6ea2cf #41617e #41617e #6ea2cf;
+}
+
+:host(:not([theme='light'])) .win7 input[type='email']:focus,
+:host(:not([theme='light'])) .win7 input[type='number']:focus,
+:host(:not([theme='light'])) .win7 input[type='password']:focus,
+:host(:not([theme='light'])) .win7 input[type='text']:focus,
+:host(:not([theme='light'])) .win7 input[type='url']:focus,
+:host(:not([theme='light'])) .win7 textarea:focus {
+  border-color: #78b2e3 #4f7da7 #4f7da7 #78b2e3;
+}
+
+:host(:not([theme='light'])) .win7 input[type='email']:disabled,
+:host(:not([theme='light'])) .win7 input[type='number']:disabled,
+:host(:not([theme='light'])) .win7 input[type='password']:disabled,
+:host(:not([theme='light'])) .win7 input[type='text']:disabled,
+:host(:not([theme='light'])) .win7 input[type='url']:disabled,
+:host(:not([theme='light'])) .win7 textarea:disabled {
+  background: #20262d;
+  border-color: #47515d;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  color: var(--w7-el-c-d);
+}
+
+:host(:not([theme='light'])) .win7 input[type='checkbox'] + label,
+:host(:not([theme='light'])) .win7 input[type='radio'] + label {
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 input[type='checkbox'] + label:before {
+  background: #232a33;
+  border-color: var(--w7-el-bd);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 1px 1px 0 1px rgba(255, 255, 255, 0.04),
+    inset -1px -1px 0 1px rgba(0, 0, 0, 0.35),
+    inset 3px 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+:host(:not([theme='light'])) .win7 input[type='checkbox'] + label:hover:before {
+  background: #273c4f;
+  border-color: var(--w7-el-bd-h);
+  box-shadow:
+    inset 0 0 0 1px rgba(190, 230, 253, 0.18),
+    inset 1px 1px 0 1px rgba(121, 198, 249, 0.35),
+    inset -1px -1px 0 1px rgba(33, 73, 107, 0.45),
+    inset 3px 3px 6px rgba(17, 45, 69, 0.4);
+}
+
+:host(:not([theme='light'])) .win7 select[multiple],
+:host(:not([theme='light'])) .win7 [role='listbox'],
+:host(:not([theme='light'])) .win7 table {
+  background: #161b22;
+  border-color: #4b5664;
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 table > thead > tr > * {
+  background: linear-gradient(180deg, #39424d 45%, #2d353f 0, #232a33);
+  border-color: #55606d;
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 table > tbody > tr > :not(:last-child) {
+  border-right-color: #2c3540;
+}
+
+:host(:not([theme='light'])) .win7 fieldset {
+  border-color: #4c5663;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+:host(:not([theme='light'])) .win7 [role='tooltip'],
+:host(:not([theme='light'])) .win7 ul[role='menu'] {
+  background: linear-gradient(to bottom, #252b33, #1b2128);
+  color: var(--w7-el-c);
+}
+
+:host(:not([theme='light'])) .win7 .window-body,
+:host(:not([theme='light'])) .win7 .window-footer,
+:host(:not([theme='light'])) .win7 .status-bar {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+:host(:not([theme='light'])) .win7 .window-footer:before,
+:host(:not([theme='light'])) .win7 .status-bar:before {
+  box-shadow: inset 0 1px rgba(0, 0, 0, 0.45), inset 0 -1px rgba(255, 255, 255, 0.12);
+}

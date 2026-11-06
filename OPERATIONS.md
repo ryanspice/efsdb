@@ -18,7 +18,7 @@ The repository is `https://github.com/ryanspice/efsdb.git`. When a current remot
 
 ## Tools and PHP configuration
 
-Run commands from the repository root unless stated otherwise. [package.json](package.json) selects Bun 1.2.23. [composer.json](composer.json) declares PHP `>=8.1` with JSON, PDO and SQLite3; this declaration is not the security acceptance baseline. [scripts/check-php-runtime.php](scripts/check-php-runtime.php) requires a supported patched PHP branch. The runtime also needs the native BLAKE3 extension, sodium cryptography and mbstring. The shared launcher loads BLAKE3, sodium, mbstring and OpenSSL without duplicating built-in modules or ambient system scan files.
+Run commands from the repository root unless stated otherwise. [package.json](package.json) selects Bun 1.2.23. [composer.json](composer.json) declares PHP `>=8.1` with JSON, PDO and SQLite3; this declaration is not the security acceptance baseline. [scripts/check-php-runtime.php](scripts/check-php-runtime.php) requires a supported patched PHP branch. The runtime also needs native BLAKE3, sodium cryptography, mbstring and OpenSSL. Component ZIP/TAR imports require Zip, Phar and zlib; preloading and demo compression also use zlib, and Windows runtime monitoring uses iconv. The shared launcher loads these modules without duplicating built-in modules or ambient system scan files. Both CI PHP setups explicitly provision the required extensions, and the launcher test verifies archive classes in a PHP subprocess so missing ZIP support cannot silently skip archive coverage in parity CI.
 
 Inspect the available tools and configuration before bootstrapping data:
 

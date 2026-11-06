@@ -460,13 +460,24 @@
       return;
     }
 
-    const paneRect = pane.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    if (targetRect.left >= paneRect.left && targetRect.right <= paneRect.right) {
+    const scroller = target.parentElement;
+    if (!scroller) {
       return;
     }
 
-    target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const paneRect = scroller.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const left = paneRect.left + scroller.clientLeft;
+    const right = left + scroller.clientWidth;
+    const delta = targetRect.left < left
+      ? targetRect.left - left
+      : Math.max(0, targetRect.right - right);
+    if (delta === 0) {
+      return;
+    }
+
+    // Reveal columns horizontally without scrolling the page under a drag pointer.
+    scroller.scrollTo({ left: scroller.scrollLeft + delta, behavior: 'instant' });
   }
 
   async function handleItemClick(colIndex: number, item: ExplorerItem): Promise<void> {

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,7 @@ type TaskMetrics = {
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const bunExecutable = process.execPath;
 const staleCssBundle = resolve(rootDir, 'efsdb/php/core/public/js/efsdb-web.css');
+const publicStylesDir = resolve(rootDir, 'efsdb/php/core/public/styles');
 const tasks: BuildTask[] = [
   { cwd: resolve(rootDir, 'efsdb/php/core'), name: 'css', script: 'build:css' },
   { cwd: resolve(rootDir, 'web'), name: 'login', script: 'build:login' },
@@ -186,6 +187,13 @@ if (failures.length > 0) {
 }
 
 const removedStaleCssBundle = existsSync(staleCssBundle);
+
+// Custom-element shadow styles retain these CSS imports at runtime.
+mkdirSync(publicStylesDir, { recursive: true });
+for (const name of ['win7.css', 'win7-overrides.css']) {
+  const css = readFileSync(resolve(rootDir, 'web/styles', name), 'utf8');
+  writeFileSync(resolve(publicStylesDir, name), css.replace(/\r\n/g, '\n').replace(/\n+$/, '\n'));
+}
 
 if (existsSync(staleCssBundle)) {
   rmSync(staleCssBundle);

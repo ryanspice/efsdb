@@ -54,7 +54,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-          extensions: mbstring, openssl, sodium
+          extensions: mbstring, openssl, sodium, phar, zip, zlib, iconv
       - uses: dtolnay/rust-toolchain@stable
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
