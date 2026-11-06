@@ -108,6 +108,10 @@ class PurePhpEnvelopeCodec implements EngineAdapter {
 
         $payloadLenBytes = substr($envelopeBytes, $headerLength, 8);
         $payloadLen = unpack('P', $payloadLenBytes)[1];
+        // PHP integers are signed; an unsigned wire length must never become a negative offset.
+        if (!is_int($payloadLen) || $payloadLen < 0) {
+            return ['ok' => false, 'error' => 'ERR_TRUNCATED_PAYLOAD'];
+        }
 
         return [
             'ok' => true,
@@ -223,6 +227,11 @@ class PurePhpEnvelopeCodec implements EngineAdapter {
 
     private function verifyBlake3PlainStream($stream, array $inspect, string $headerAndLength): array
     {
+        $lengthError = $this->validateEnvelopeLengthBounds($inspect, self::BLAKE3_TAG_LENGTH);
+        if ($lengthError !== null) {
+            return $lengthError;
+        }
+
         if (!function_exists('hash') || !in_array('blake3', hash_algos(), true)) {
             return ['ok' => false, 'error' => 'ERR_MISSING_CRYPTO_EXT'];
         }
@@ -304,6 +313,11 @@ class PurePhpEnvelopeCodec implements EngineAdapter {
 
     private function verifyChaCha20Poly1305IetfStream($stream, array $inspect, string $headerAndLength): array
     {
+        $lengthError = $this->validateEnvelopeLengthBounds($inspect, self::CHACHA20_POLY1305_TAG_LENGTH);
+        if ($lengthError !== null) {
+            return $lengthError;
+        }
+
         $payloadLength = (int) $inspect['payload_length'];
         if ($payloadLength < self::CHACHA20_POLY1305_NONCE_LENGTH) {
             return ['ok' => false, 'error' => 'ERR_TRUNCATED_PAYLOAD'];
@@ -331,6 +345,11 @@ class PurePhpEnvelopeCodec implements EngineAdapter {
 
     private function validateExactEnvelopeLength(string $envelopeBytes, array $inspect, int $tagLength): ?array
     {
+        $lengthError = $this->validateEnvelopeLengthBounds($inspect, $tagLength);
+        if ($lengthError !== null) {
+            return $lengthError;
+        }
+
         $expectedLen = $inspect['header_length'] + 8 + $inspect['payload_length'] + $tagLength;
         $actualLen = strlen($envelopeBytes);
 
@@ -340,6 +359,17 @@ class PurePhpEnvelopeCodec implements EngineAdapter {
 
         if ($actualLen > $expectedLen) {
             return ['ok' => false, 'error' => 'ERR_TRAILING_GARBAGE'];
+        }
+
+        return null;
+    }
+
+    private function validateEnvelopeLengthBounds(array $inspect, int $tagLength): ?array
+    {
+        $overhead = $inspect['header_length'] + 8 + $tagLength;
+        // Check before addition so offsets and read lengths never overflow to float.
+        if ($inspect['payload_length'] > PHP_INT_MAX - $overhead) {
+            return ['ok' => false, 'error' => 'ERR_TRUNCATED_PAYLOAD'];
         }
 
         return null;
@@ -376,7 +406,7 @@ class PurePhpEnvelopeCodec implements EngineAdapter {
 
         $buffer = '';
         while (strlen($buffer) < $length) {
-            $chunk = fread($stream, $length - strlen($buffer));
+            $chunk = fread($stream, min(8192, $length - strlen($buffer)));
             if ($chunk === false) {
                 return ['ok' => false, 'error' => 'ERR_IO'];
             }

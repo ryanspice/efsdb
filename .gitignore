@@ -36,3 +36,8 @@ efsdb-data/
 **/manifests/
 **/idx/
 .ghost/
+
+# Local agent evidence, private input and retired indexes
+.ai/
+.codegraph/
+chat.json

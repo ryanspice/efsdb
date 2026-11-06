@@ -150,6 +150,17 @@ fn payload_length_as_usize(payload_length: u64) -> Result<usize, EnvelopeError> 
     usize::try_from(payload_length).map_err(|_| EnvelopeError::new("ERR_TRUNCATED_PAYLOAD"))
 }
 
+fn expected_envelope_length(
+    aad_length: usize,
+    payload_length: usize,
+    tag_length: usize,
+) -> Result<usize, EnvelopeError> {
+    aad_length
+        .checked_add(payload_length)
+        .and_then(|length| length.checked_add(tag_length))
+        .ok_or_else(|| EnvelopeError::new("ERR_TRUNCATED_PAYLOAD"))
+}
+
 fn is_supported_critical_extension(_id: u8) -> bool {
     false
 }
@@ -321,7 +332,9 @@ fn prepare_chacha20_poly1305_layout_from_parsed<'a>(
     }
 
     let payload_length = payload_length_as_usize(parsed.payload_length)?;
-    let expected_len = parsed.aad.len() + payload_length + CHACHA20_POLY1305_TAG_LENGTH;
+    let expected_len = expected_envelope_length(
+        parsed.aad.len(), payload_length, CHACHA20_POLY1305_TAG_LENGTH,
+    )?;
     let actual_len = bytes.len();
 
     if actual_len < expected_len {
@@ -453,7 +466,10 @@ fn verify_blake3_plain(bytes: &[u8], parsed: ParsedEnvelopeRef<'_>) -> Canonical
         Err(error) => return CanonicalResult::Error(error),
     };
 
-    let expected_len = parsed.aad.len() + payload_length + BLAKE3_TAG_LENGTH;
+    let expected_len = match expected_envelope_length(parsed.aad.len(), payload_length, BLAKE3_TAG_LENGTH) {
+        Ok(length) => length,
+        Err(error) => return CanonicalResult::Error(error),
+    };
     let actual_len = bytes.len();
 
     if actual_len < expected_len {

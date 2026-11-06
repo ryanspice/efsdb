@@ -27,7 +27,7 @@ function phase1_runtime_request(string $dataDir, string $uri, string $method = '
     @header_remove();
     @http_response_code(200);
     ob_start();
-    include __DIR__ . '/../../../efsdb/php/runtime/index.php';
+    include __DIR__ . '/../../../efsdb/php/core/public/index.php';
     $body = (string)ob_get_clean();
     $headers = headers_list();
     $headerMap = [];
@@ -72,7 +72,7 @@ $failures = [];
 $published = phase1_runtime_request($dataDir, '/', 'GET');
 phase0_assert(
     $published['status'] === 200 && str_contains($published['body'], 'Runtime published'),
-    'Detached runtime wrapper serves published content through the shared public router',
+    'Canonical public entry serves published content through the shared public router',
     $failures
 );
 
@@ -81,14 +81,14 @@ phase0_assert(
     $publishedHead['status'] === 200
         && $publishedHead['body'] === ''
         && (($publishedHead['headerMap']['content-type'][0] ?? null) === ($published['headerMap']['content-type'][0] ?? null)),
-    'Detached runtime wrapper preserves HEAD semantics from the shared public router',
+    'Canonical public entry preserves HEAD semantics from the shared public router',
     $failures
 );
 
 $stagingDenied = phase1_runtime_request($dataDir, '/staging/secret/index.html', 'GET');
 phase0_assert(
     $stagingDenied['status'] === 404 && $stagingDenied['body'] === '404 Not Found (EFSDB)',
-    'Detached runtime wrapper preserves the non-leaking staging denial behavior for guests',
+    'Canonical public entry preserves the non-leaking staging denial behavior for guests',
     $failures
 );
 
@@ -97,7 +97,7 @@ $stagingAuthorized = phase1_runtime_request($dataDir, '/staging/secret/index.htm
 ]);
 phase0_assert(
     $stagingAuthorized['status'] === 200 && str_contains($stagingAuthorized['body'], 'Runtime staging'),
-    'Detached runtime wrapper allows authorized staging access through the shared public router',
+    'Canonical public entry allows authorized staging access through the shared public router',
     $failures
 );
 
@@ -106,7 +106,7 @@ phase4_seed_adapter_root($dataDir, $bootstrapSecret, 'production');
 $adapterPublished = phase4_runtime_request($dataDir, '/', 'GET');
 phase0_assert(
     $adapterPublished['status'] === 200 && str_contains($adapterPublished['body'], 'Adapter root'),
-    'Detached runtime wrapper serves adapter-mode published HTML through the shared public router',
+    'Canonical public entry serves adapter-mode published HTML through the shared public router',
     $failures
 );
 
@@ -114,14 +114,14 @@ $adapterData = phase4_runtime_request($dataDir, '/blog/__data.json', 'GET');
 phase0_assert(
     $adapterData['status'] === 200
         && $adapterData['body'] === '{"type":"data","slug":"blog"}',
-    'Detached runtime wrapper serves adapter-mode __data.json without falling back to HTML',
+    'Canonical public entry serves adapter-mode __data.json without falling back to HTML',
     $failures
 );
 
 $adapterAction = phase4_runtime_request($dataDir, '/blog/__action', 'GET');
 phase0_assert(
     $adapterAction['status'] === 501 && $adapterAction['body'] === '501 Not Implemented (EFSDB)',
-    'Detached runtime wrapper preserves stable 501 behavior for unsupported adapter __action paths',
+    'Canonical public entry preserves stable 501 behavior for unsupported adapter __action paths',
     $failures
 );
 
@@ -147,7 +147,7 @@ phase0_assert(
         && $scopedData['body'] === '{"type":"data","slug":"blog"}'
         && $scopedAsset['status'] === 200
         && $scopedOutsideBase['status'] === 404,
-    'Detached runtime wrapper preserves adapter basePath, trailingSlash, and asset-prefix routing through the shared public router',
+    'Canonical public entry preserves adapter basePath, trailingSlash, and asset-prefix routing through the shared public router',
     $failures
 );
 

@@ -70,6 +70,72 @@ mod tests {
         verify_envelope_reader_with_key_resolver(reader, Some(&fixture_key_resolver))
     }
 
+    fn envelope_with_declared_length(suite: u8, payload_length: u64, tail_length: usize) -> Vec<u8> {
+        let mut bytes = vec![
+            b'E', b'F', b'S', 0x00, 0x10, 0x00, 0x01, 0x00,
+            suite, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        bytes.extend_from_slice(&payload_length.to_le_bytes());
+        bytes.resize(bytes.len() + tail_length, 0);
+        bytes
+    }
+
+    fn untrusted_payload_lengths() -> [u64; 6] {
+        [u64::MAX, u64::MAX - 24, i64::MAX as u64, i64::MAX as u64 - 1,
+            i64::MAX as u64 - 64, 1u64 << 32]
+    }
+
+    fn truncated_payload() -> CanonicalResult {
+        CanonicalResult::Error(crate::EnvelopeError {
+            ok: false,
+            error: "ERR_TRUNCATED_PAYLOAD".to_string(),
+        })
+    }
+
+    #[test]
+    fn blake3_rejects_untrusted_payload_lengths() {
+        for payload_length in untrusted_payload_lengths() {
+            for tail_length in [0, 64] {
+                let bytes = envelope_with_declared_length(0x01, payload_length, tail_length);
+                assert_eq!(verify_envelope_fixture_mode(&bytes), truncated_payload(),
+                    "payload_length={payload_length}, tail_length={tail_length}");
+            }
+        }
+    }
+
+    #[test]
+    fn chacha_rejects_untrusted_payload_lengths() {
+        for payload_length in untrusted_payload_lengths() {
+            for tail_length in [0, 64] {
+                let bytes = envelope_with_declared_length(0x02, payload_length, tail_length);
+                assert_eq!(verify_envelope_fixture_mode(&bytes), truncated_payload(),
+                    "payload_length={payload_length}, tail_length={tail_length}");
+            }
+        }
+    }
+
+    #[test]
+    fn chacha_layout_rejects_untrusted_payload_lengths() {
+        for payload_length in untrusted_payload_lengths() {
+            let bytes = envelope_with_declared_length(0x02, payload_length, 64);
+            let error = prepare_chacha20_poly1305_layout(&bytes).expect_err("tiny input is truncated");
+            assert_eq!(error.error, "ERR_TRUNCATED_PAYLOAD");
+        }
+    }
+
+    #[test]
+    fn readers_reject_untrusted_payload_lengths() {
+        for suite in [0x01, 0x02] {
+            for payload_length in untrusted_payload_lengths() {
+                for tail_length in [0, 64] {
+                    let bytes = envelope_with_declared_length(suite, payload_length, tail_length);
+                    assert_eq!(verify_envelope_reader_fixture_mode(&mut Cursor::new(bytes)),
+                        truncated_payload(), "suite={suite}, payload_length={payload_length}");
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_fixture_parity() {
         let json_path = Path::new("../tests/fixtures/expected_results.json");

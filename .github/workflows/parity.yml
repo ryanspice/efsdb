@@ -1,109 +1,98 @@
-name: parity
+name: PHP and Rust parity
 
 on:
-  pull_request:
   push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: 'true'
+  TMPDIR: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  TEMP: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  TMP: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  EFSDB_PHP_ERROR_LOG: ${{ github.workspace }}/.ai/evidence/ci/php-error.log
+  CARGO_TARGET_DIR: ${{ github.workspace }}/.ai/evidence/ci/cargo-target
 
 jobs:
   parity:
+    name: PHP ${{ matrix.php }} core and Rust parity
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        shell: bash
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.5']
     steps:
       - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.23'
+      - uses: shivammathur/setup-php@v2
+        env:
+          update: 'true'
+          fail-fast: 'true'
+        with:
+          php-version: ${{ matrix.php }}
           coverage: none
           extensions: mbstring, openssl, sodium
-
       - uses: dtolnay/rust-toolchain@stable
-
-      - name: Build blake3 shared object
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Enforce PHP security floor
+        run: bun run check:runtime
+      - name: Install native build prerequisites
         run: |
-          cd efsdb/php/core/ext/blake3-src
-          sh ./build.sh
-          short_sha="${GITHUB_SHA::12}"
-          artifact_path="compiled/php_blake3-${short_sha}.so"
-          cp compiled/blake3.so "${artifact_path}"
-          sha256sum compiled/blake3.so | tee "${RUNNER_TEMP}/blake3-sha256.txt"
-          echo "BLAKE3_ARTIFACT=${PWD}/${artifact_path}" >> "${GITHUB_ENV}"
-          echo "BLAKE3_SHARED_OBJECT=${PWD}/compiled/blake3.so" >> "${GITHUB_ENV}"
-          echo "PARITY_CONSOLE_LOG=${RUNNER_TEMP}/parity-console-${short_sha}.log" >> "${GITHUB_ENV}"
-          echo "PHP_INI_LOG=${RUNNER_TEMP}/php-ini-${short_sha}.log" >> "${GITHUB_ENV}"
-          echo "PREFLIGHT_LOG=${RUNNER_TEMP}/preflight-${short_sha}.log" >> "${GITHUB_ENV}"
-          echo "BASELINE_LOG=${RUNNER_TEMP}/baseline-${short_sha}.log" >> "${GITHUB_ENV}"
-          echo "CARGO_LOG=${RUNNER_TEMP}/cargo-${short_sha}.log" >> "${GITHUB_ENV}"
-
-      - name: Run php and Rust parity checks
-        env:
-          EFSDB_PHP_BLAKE3_EXTENSION: ${{ env.BLAKE3_SHARED_OBJECT }}
+          sudo apt-get update
+          sudo apt-get install -y autoconf build-essential pkg-config
+      - name: Build BLAKE3 for the selected PHP ABI
+        run: bash scripts/ci-build-blake3.sh 2>&1 | tee .ai/evidence/ci/native-build.log
+      - name: Run API, auth and conformance checks
+        run: bun run check 2>&1 | tee .ai/evidence/ci/core.log
+      - name: Run PHP characterizations and envelope security regressions
         run: |
-          bun run check:php-ini 2>&1 | tee "${PHP_INI_LOG}"
-          bun run ./scripts/php-core.ts -- -d efsdb.process_id=parity-preflight tests/fixtures/php_parity_preflight.php 2>&1 | tee "${PREFLIGHT_LOG}"
-          bun run ./scripts/php-core.ts -- -d efsdb.process_id=parity-baseline tests/fixtures/run_php_parity_baseline.php 2>&1 | tee "${BASELINE_LOG}"
-          cargo test --locked 2>&1 | tee "${CARGO_LOG}"
-
-          cat "${PHP_INI_LOG}" "${PREFLIGHT_LOG}" "${BASELINE_LOG}" "${CARGO_LOG}" > "${PARITY_CONSOLE_LOG}"
-
-          if grep -q 'SKIP' "${PARITY_CONSOLE_LOG}"; then
-            echo "Parity output contains SKIP"
-            exit 1
-          fi
-
-          if grep -qi 'ignored' "${PARITY_CONSOLE_LOG}"; then
-            echo "Parity output contains ignored"
-            exit 1
-          fi
-
-          expected_php_passes="$(python - <<'PY'
-import json
-with open('tests/parity_baseline.json', 'r', encoding='utf-8') as handle:
-    print(json.load(handle)['php_fixture_passes'])
-PY
-)"
-
-          actual_php_passes="$(grep -c '^PASS ' "${BASELINE_LOG}")"
-          if [ "${actual_php_passes}" -lt "${expected_php_passes}" ]; then
-            echo "PHP parity pass count ${actual_php_passes} is below baseline ${expected_php_passes}"
-            exit 1
-          fi
-
-          expected_rust_tests="$(python - <<'PY'
-import json
-with open('tests/parity_baseline.json', 'r', encoding='utf-8') as handle:
-    print(json.load(handle)['rust_tests'])
-PY
-)"
-
-          actual_rust_tests="$(python - "${CARGO_LOG}" <<'PY'
-import re
-import sys
-log_path = sys.argv[1]
-with open(log_path, 'r', encoding='utf-8') as handle:
-    content = handle.read()
-matches = re.findall(r'test result: ok\. (\d+) passed; \d+ failed; \d+ ignored;', content)
-print(matches[-1] if matches else '0')
-PY
-)"
-
-          if [ "${actual_rust_tests}" -lt "${expected_rust_tests}" ]; then
-            echo "Rust test count ${actual_rust_tests} is below baseline ${expected_rust_tests}"
-            exit 1
-          fi
-
-      - uses: actions/upload-artifact@v4
+          for test in spec/characterization/php/*Characterization.php; do
+            name="$(basename "$test" .php)"
+            bun run ./scripts/php-core.ts -- -d "efsdb.process_id=ci-$name" "$test" 2>&1 | tee ".ai/evidence/ci/$name.log"
+          done
+          bun run ./scripts/php-core.ts -- -d efsdb.process_id=ci-envelope-bounds tests/fixtures/php_envelope_bounds.php 2>&1 | tee .ai/evidence/ci/envelope-bounds.log
+      - name: Run parity preflight and PHP fixtures
+        run: |
+          bun run check:php-ini 2>&1 | tee .ai/evidence/ci/php-ini.log
+          bun run ./scripts/php-core.ts -- -d efsdb.process_id=parity-preflight tests/fixtures/php_parity_preflight.php 2>&1 | tee .ai/evidence/ci/preflight.log
+          bun run ./scripts/php-core.ts -- -d efsdb.process_id=parity-baseline tests/fixtures/run_php_parity_baseline.php 2>&1 | tee .ai/evidence/ci/php-parity.log
+      - name: Run locked Rust tests
+        run: cargo test --locked --manifest-path efsdb-core/Cargo.toml 2>&1 | tee .ai/evidence/ci/cargo.log
+      - name: Enforce parity counts and zero skipped tests
+        run: node scripts/ci-check-parity.mjs
+      - name: Upload parity evidence
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: parity-console-log
-          path: ${{ env.PARITY_CONSOLE_LOG }}
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: blake3-shared-object
-          path: ${{ env.BLAKE3_ARTIFACT }}
+          name: parity-php-${{ matrix.php }}
+          path: |
+            .ai/evidence/ci/*.log
+            .ai/evidence/ci/parity-result.json
+            .ai/evidence/ci/blake3-build.txt
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true

@@ -48,29 +48,41 @@ static void php_blake3_hash_final(unsigned char *digest, void *context)
     blake3_hasher_finalize((const blake3_hasher *) context, digest, BLAKE3_OUT_LEN);
 }
 
+#if PHP_VERSION_ID >= 80400
 static zend_result php_blake3_hash_copy(const void *ops, const void *orig_context, void *dest_context)
+#else
+static int php_blake3_hash_copy(const void *ops, void *orig_context, void *dest_context)
+#endif
 {
     (void) ops;
     memcpy(dest_context, orig_context, sizeof(blake3_hasher));
     return SUCCESS;
 }
 
-static const php_hash_ops php_blake3_hash_ops = {
-    "blake3",
-    php_blake3_hash_init,
-    php_blake3_hash_update,
-    php_blake3_hash_final,
-    php_blake3_hash_copy,
-    NULL,
-    NULL,
-    NULL,
-    BLAKE3_OUT_LEN,
-    BLAKE3_BLOCK_LEN,
-    sizeof(blake3_hasher),
-    1
-};
+/* The hash ops layout can grow without a new Zend module API number.
+ * Size and zero-initialize the entire object from the selected PHP headers,
+ * including optional fields such as context_align. */
+static php_hash_ops php_blake3_hash_ops;
 
 PHP_MINIT_FUNCTION(blake3){
+    const char *runtime_hash_version = zend_get_module_version("hash");
+    if (runtime_hash_version == NULL || strcmp(runtime_hash_version, PHP_VERSION) != 0) {
+        php_error_docref(NULL, E_WARNING,
+            "BLAKE3 was built for PHP %s, but the hash runtime is %s; rebuild with matching PHP development headers",
+            PHP_VERSION, runtime_hash_version != NULL ? runtime_hash_version : "unavailable");
+        return FAILURE;
+    }
+
+    php_blake3_hash_ops.algo = "blake3";
+    php_blake3_hash_ops.hash_init = php_blake3_hash_init;
+    php_blake3_hash_ops.hash_update = php_blake3_hash_update;
+    php_blake3_hash_ops.hash_final = php_blake3_hash_final;
+    php_blake3_hash_ops.hash_copy = php_blake3_hash_copy;
+    php_blake3_hash_ops.digest_size = BLAKE3_OUT_LEN;
+    php_blake3_hash_ops.block_size = BLAKE3_BLOCK_LEN;
+    php_blake3_hash_ops.context_size = sizeof(blake3_hasher);
+    php_blake3_hash_ops.is_crypto = 1;
+
     REGISTER_LONG_CONSTANT("BLAKE3_OUT_LEN",
                            BLAKE3_OUT_LEN, CONST_CS | CONST_PERSISTENT);
     php_hash_register_algo("blake3", &php_blake3_hash_ops);

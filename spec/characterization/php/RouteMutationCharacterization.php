@@ -17,11 +17,11 @@ $starterRoute = $workspace->readSiteFile('production', 'routes/index.php', false
 $starterComponent = $workspace->readSiteFile('production', 'components/homepage-placeholder.php', false, true);
 
 phase0_assert(
-    is_array($starterRoute)
-        && str_contains((string)($starterRoute['bytes'] ?? ''), 'EFSDB Homepage Placeholder Route')
-        && is_array($starterComponent)
-        && str_contains((string)($starterComponent['bytes'] ?? ''), 'EFSDB Homepage Placeholder Component'),
-    'Fresh apps provision a real homepage starter route plus a companion component file inside the public workspace',
+    is_array($workspace->getRoot('production', false))
+        && is_array($workspace->getRoot('staging', false))
+        && $starterRoute === null
+        && $starterComponent === null,
+    'Fresh apps initialize both public roots without injecting retired placeholder files',
     $failures
 );
 

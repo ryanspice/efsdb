@@ -51,7 +51,7 @@ The manual [smoke script](efsdb/php/core/bin/smoke.ps1) is separate: it requires
 
 ## CI gates
 
-[PHP and Rust parity](.github/workflows/parity.yml) runs on pushes and PRs to `main`/`master`, plus manual dispatch. Its PHP 8.3/8.5 matrix builds BLAKE3 against the selected PHP ABI, runs `bun run check`, the PHP parity preflight/baseline fixtures, and locked Rust tests. [scripts/ci-check-parity.mjs](scripts/ci-check-parity.mjs) requires positive parity counts and zero skipped tests; a missing extension or empty test result is not a passing lane.
+[PHP and Rust parity](.github/workflows/parity.yml) runs on pushes and PRs to `main`/`master`, plus manual dispatch. Its PHP 8.3/8.5 matrix builds BLAKE3 against the selected PHP ABI, runs `bun run check`, all PHP characterization programs (including the concurrency, import and public-delivery security cases), `tests/fixtures/php_envelope_bounds.php`, the PHP parity preflight/baseline fixtures, and locked Rust tests. [scripts/ci-check-parity.mjs](scripts/ci-check-parity.mjs) requires positive parity counts and zero skipped tests; a missing extension or empty test result is not a passing lane.
 
 [Web CI](.github/workflows/ci.yml) runs on the same events with PHP 8.5. It checks the runtime baseline, runs `web:typecheck`, builds shipped assets, builds native BLAKE3, installs Chromium, and runs `web:test:ui` against a fresh synthetic store. Both workflows pin Bun 1.2.23, select Node 24, use frozen dependency installation and retain evidence under `.ai/evidence/`. Neither workflow deploys, rotates credentials or establishes production-host acceptance.
 

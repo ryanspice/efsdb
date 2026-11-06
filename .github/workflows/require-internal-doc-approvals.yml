@@ -2,13 +2,19 @@ name: require-internal-doc-approvals
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, review_submitted]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - docs/internal/blake3-extension-build-test.md
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions:
+  contents: read
 
 jobs:
   require-approvals:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       pull-requests: read
     steps:
@@ -18,6 +24,16 @@ jobs:
             const pull_number = context.payload.pull_request?.number;
             if (!pull_number) {
               core.setFailed('This workflow requires a pull request context.');
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number
+            });
+            if (!files.some(file => file.filename === 'docs/internal/blake3-extension-build-test.md')) {
+              core.info('The guarded build document is unchanged.');
               return;
             }
 

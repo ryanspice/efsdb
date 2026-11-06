@@ -1,25 +1,23 @@
-# Blake3 PHP Extension Build
+# BLAKE3 PHP extension build
 
-- Source tree: `efsdb/php/core/ext/blake3-src`
-- Windows build script: `efsdb/php/core/ext/blake3-src/task.bat`
-- Linux container helper: `efsdb/php/core/ext/blake3-src/build.sh`
-- Upstream commit: `efb0ccdacf5c723090d60dd8eccef2a89547456a`
+The source is vendored from upstream commit `efb0ccdacf5c723090d60dd8eccef2a89547456a`. `php_blake3.c` contains the local PHP hash API integration and exact-runtime compatibility guard. Preserve `README.upstream.md` for upstream notes.
 
-## Locked build facts
+## Current build
 
-- Host OS used for the committed Windows binary: Windows 11 Pro `10.0.22631`
-- Compiler toolchain: Visual Studio Build Tools 2022 `17.14.27`
-- Windows extension compiler flags: `/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /DBLAKE3_NO_SSE2 /DBLAKE3_NO_SSE41 /DBLAKE3_NO_AVX2 /DBLAKE3_NO_AVX512`
-- Container image used for the Linux helper path: `ubuntu:24.04`
+Use the repository helpers from the repository root:
 
-## Reproduce
+```powershell
+./scripts/ci-build-blake3-windows.ps1 -PhpBinary $phpBinary -PhpDevelopmentPack $developmentPack
+```
 
-- Windows shared library command: `call efsdb\php\core\ext\blake3-src\task.bat`
-- Linux shared library command: `sh efsdb/php/core/ext/blake3-src/build.sh`
+```sh
+bash scripts/ci-build-blake3.sh
+```
 
-## Output hashes
+Match the exact PHP patch version as well as architecture and thread-safety mode. PHP 8.5.12 changed the hash operations structure without changing the module API number; a DLL that loads is not necessarily compatible with hashing. Both helpers execute known-vector and incremental/copy checks and preserve source/build receipts under `.ai/evidence/`.
 
-- Committed Windows binary: `efsdb/php/core/ext/php_blake3.dll`
-- SHA-256: `371fba3c31f15e4ad74f6971ff5023fc3a9a36abf835a085f1d2c168df69d487`
+The committed Windows binary at `efsdb/php/core/ext/php_blake3.dll` targets **PHP 8.5.12 NTS, VS17, x64**, using the official **8.5.12-1** development pack, Visual Studio Build Tools 2022 **17.14.31**, and MSVC **19.44.35226**. Portable backend flags disable SSE2, SSE4.1, AVX2 and AVX512. The build also enables `/GS` and `/guard:cf`.
 
-Keep `README.upstream.md` for upstream project notes. Update this file only when the vendored source, toolchain, build flags, or committed binary changes.
+SHA-256: `42b7440f7f25f6de8c80b15535606a6ae7d7407f39d5e2f68d33f2659f6e3ab0`.
+
+The [guarded build guide](../../../../../docs/internal/blake3-extension-build-test.md) records development-pack provenance and parity gates. `task.bat`, `build.sh`, and the Ubuntu 24.04 Dockerfile remain historical environment-specific reproduction helpers; do not use their outputs with a different PHP ABI. Update the build guide and this record together when the committed binary or build inputs change.

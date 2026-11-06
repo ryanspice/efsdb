@@ -11,7 +11,7 @@ This is the shared instruction entry point for EFSDB. Tool-specific files point 
 
 ## Project map
 
-- PHP host and services: `efsdb/php/core`; public entry point: `efsdb/php/core/public/index.php`; standalone delivery runtime: `efsdb/php/runtime`.
+- PHP host and services: `efsdb/php/core`; public entry point: `efsdb/php/core/public/index.php`; public-site imports: `efsdb/php/core/bin/import.php`.
 - Active web apps: `web/apps/login`, `web/apps/explorer`, `web/apps/builder`, `web/apps/admin`. Search is embedded in Explorer.
 - Shared payloads: `web/contracts`; UI and design: [web/ui/README.md](web/ui/README.md), `web/styles`, `web/ui/design`.
 - Executable checks: `efsdb/php/core/bin`, `efsdb/php/conformance`, `spec/characterization`.

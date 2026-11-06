@@ -7,7 +7,6 @@ const repoRoot = resolve(currentDir, '..');
 const port = 8791;
 const baseURL = `http://127.0.0.1:${port}`;
 const bootstrapSecret = process.env.EFSDB_PLAYWRIGHT_BOOTSTRAP_SECRET ?? 'phase3-playwright-bootstrap-secret';
-const dataDir = resolve(repoRoot, 'efsdb/php/core/.cache/playwright-ui-data');
 
 process.env.EFSDB_PLAYWRIGHT_BOOTSTRAP_SECRET = bootstrapSecret;
 
@@ -16,21 +15,26 @@ export default defineConfig({
   timeout: 30_000,
   fullyParallel: false,
   workers: 1,
+  forbidOnly: !!process.env.CI,
+  outputDir: resolve(repoRoot, '.ai/evidence/playwright/test-results'),
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: resolve(repoRoot, '.ai/evidence/playwright/report'), open: 'never' }]
+  ],
   expect: {
     timeout: 10_000
   },
   use: {
     baseURL,
-    trace: 'on-first-retry'
+    trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'powershell -ExecutionPolicy Bypass -File web/scripts/start-playwright-server.ps1',
+    command: 'node web/scripts/start-playwright-server.mjs',
     cwd: repoRoot,
     env: {
       ...process.env,
       EFSDB_ENV: 'test',
       EFSDB_DEBUG: '1',
-      EFSDB_DATA_DIR: dataDir,
       EFSDB_BOOTSTRAP_SECRET: bootstrapSecret,
       EFSDB_PLAYWRIGHT_PORT: String(port)
     },
